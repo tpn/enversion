@@ -1,4 +1,50 @@
 
+#=============================================================================
+# Imports
+#=============================================================================
+import itertools
+
+import svn
+import svn.fs
+import svn.core
+import svn.repos
+
+from svn.core import SVN_INVALID_REVNUM
+from svn.core import SVN_PROP_MERGEINFO
+from svn.core import SVN_PROP_REVISION_LOG
+from svn.core import SVN_PROP_REVISION_AUTHOR
+
+from svn.core import svn_mergeinfo_diff
+from svn.core import svn_mergeinfo_parse
+from svn.core import svn_rangelist_to_string
+
+from svn.core import svn_node_dir
+from svn.core import svn_node_file
+from svn.core import svn_node_none
+from svn.core import svn_node_unknown
+
+from evn.path import (
+    format_dir,
+    format_file,
+    PathMatcher,
+)
+from evn.perfmon import (
+    track_resource_usage,
+    ResourceUsageTracker,
+    DummyResourceUsageTracker,
+)
+from evn.constants import (
+    Constant,
+)
+from evn.util import (
+    Pool,
+    Dict,
+    DecayDict,
+    UnexpectedCodePath,
+)
+#=============================================================================
+# Helper Methods
+#=============================================================================
 def create_propchange(**kwds):
     if kwds['name'] == SVN_PROP_MERGEINFO:
         return MergeinfoPropertyChange(**kwds)
@@ -361,7 +407,7 @@ class NodeChange(AbstractChange):
         self.changeset.note(self, n)
 
     def error(self, e):
-        c = ESVN_ERROR_CONFIRMATIONS.get(e, '')
+        c = EVN_ERROR_CONFIRMATIONS.get(e, '')
         if '%' in e:
             e = e % self
         self.__errors.append(e)
@@ -1699,7 +1745,6 @@ class ChangeSet(AbstractChangeSet):
 
         AbstractChangeSet.__init__(self, path='/')
 
-        init_svn_libraries()
         self.__load_start_time = time.time()
         self.__pool = svn.core.Pool()
         self.__repo = svn.repos.open(self.repo_path, self.pool)
@@ -1789,7 +1834,7 @@ class ChangeSet(AbstractChangeSet):
         k.assert_empty(self)
         (p, m) = self.__ewn(self.__errors, *args)
         if c:
-            m = ESVN_ERROR_CONFIRMATION_BLURB % (m, c)
+            m = EVN_ERROR_CONFIRMATION_BLURB % (m, c)
 
         self.__errors_with_confirmation_instructions \
             .setdefault(p, [])                       \
@@ -2628,3 +2673,4 @@ class ChangeSetAnalysis(object):
             self.__get_one_liner(is_repr=True).replace(',', ', ')
         )
 
+# vim:set ts=8 sw=4 sts=4 tw=78 et:

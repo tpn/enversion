@@ -1,4 +1,28 @@
+#=============================================================================
+# Imports
+#=============================================================================
+import os
+import os.path
+import datetime
+import cStringIO as StringIO
+from evn.repo import RepositoryRevOrTxn
 
+from abc import ABCMeta, abstractmethod, abstractproperty
+
+from evn.path import join_path
+from evn.util import (
+    add_linesep_if_missing,
+    touch_file,
+    DecayDict,
+)
+from evn.debug import (
+    RemoteDebugSession,
+    RemoteDebugSessionStatus,
+)
+
+#=============================================================================
+# Classes
+#=============================================================================
 class RepositoryHook(RepositoryRevOrTxn):
     def __init__(self, **kwds):
         RepositoryRevOrTxn.__init__(self, **kwds)
@@ -62,9 +86,10 @@ class RepositoryHook(RepositoryRevOrTxn):
         pass
 
     def pre_revprop_change(self, rev, user, propname, action):
-        if propname == 'svn:log':
+        pn = svn.core.SVN_PROP_REVISION_LOG
+        if propname == pn:
             if action == 'D':
-                self.error = "deleting 'svn:log' is not permitted"
+                self.error = "deleting '%s' is not permitted" % pn
         elif not self.is_admin(user):
             self.error = (
                 "modification of r%s's revision property '%s' is not "
@@ -547,6 +572,8 @@ class EvnHookFile(HookFile):
         ostream.flush()
 
     def __write_windows_hook(self, ostream):
+        # XXX TODO: this is blatantly broken, as is all the other Windows
+        # stuff at the moment.
         lines  = [ '@echo off', ]
         lines += [
             self.conf.evn_hook_code_for_testing_if_svn_hook_is_enabled,
@@ -555,13 +582,8 @@ class EvnHookFile(HookFile):
 
         ostream.write(add_linesep_if_missing(os.linesep.join(lines)))
 
-        args = (sys.executable, CLI.get_program_fullpath())
-        ostream.write(
-            '"%s" "%s" run-hook %%*\n' % (
-                sys.executable,
-                CLI.get_program_fullpath(),
-            )
-        )
+        args = (sys.executable, self.conf.python_evn_admin_cli_file_fullpath)
+        ostream.write('"%s" "%s" run-hook %%*\n' % args)
 
     def __write_unix_hook(self, ostream):
         env = os.environ
@@ -575,10 +597,6 @@ class EvnHookFile(HookFile):
         args = ('main', 'unix-hook-force-env-vars')
         envvars += self.conf.get_csv_as_list(*args)
 
-        runner = '\n"%s" "%s" run-hook $*\n' % (
-            sys.executable,
-            CLI.get_program_fullpath(),
-        )
         lines  = [ '#!/bin/sh', ]
         lines += envvars
         lines += [ 'export %s' % e.split('=')[0] for e in envvars ]
@@ -632,3 +650,4 @@ class RepoHookFilesStatus(object):
         self.evn_hook_file  = k.evn_hook_file
         k.assert_empty(k)
 
+# vim:set ts=8 sw=4 sts=4 tw=78 et:

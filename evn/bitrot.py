@@ -204,3 +204,35 @@ def get_repo_fs(path):
         _repo_fs_cache[path] = svn.repos.fs(svn.repos.open(path))
     return _repo_fs_cache[path]
 
+class ProcessRevOrTxnCommand(RepositoryCommand):
+    repo = None
+    rev_or_txn = None
+
+    @requires_context
+    def run(self):
+        RepositoryCommand.run(self)
+        assert self.rev_or_txn
+
+        with RepositoryRevOrTxn(**k) as r:
+            r.process_rev_or_txn(rev_or_txn)
+
+class RunProcessCommand(Command):
+    def __init__(self, ostream, estream):
+        Command.__init__(self, ostream, estream)
+        self.__process = None
+        self.exe  = None
+        self.args = list()
+        self.kwds = dict()
+        self.verbose = False
+
+    def run(self):
+        assert self.exe and isinstance(self.exe, str)
+        k = Dict()
+        k.ostream = self.ostream
+        k.estream = self.estream
+        k.verbose = self.verbose
+        p = ProcessWrapper(self.exe, **k)
+        p.exception_class = CommandError
+        p.execute(*self.args, **self.kwds)
+        assert p.rc == 0
+

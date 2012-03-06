@@ -220,6 +220,27 @@ def try_remove_file_atexit(path):
     import atexit
     atexit.register(try_remove_file, path)
 
+#=============================================================================
+# Helper Classes
+#=============================================================================
+class UnexpectedCodePath(RuntimeError):
+    pass
+
+class Pool(object):
+    def __init__(self, parent_pool=None):
+        self.__parent_pool = parent_pool
+        self.__pool = None
+
+    def __enter__(self):
+        import svn.core
+        self.__pool = svn.core.Pool(self.__parent_pool)
+        return self.__pool
+
+    def __exit__(self, *exc_info):
+        self.__pool.destroy()
+        del self.__pool
+
+
 class Options(dict):
     def __init__(self, values=dict()):
         assert isinstance(values, dict)
@@ -681,3 +702,5 @@ class ProcessWrapper(object):
 
     def clone(self):
         return self.__class__(self.exe)
+
+# vim:set ts=8 sw=4 sts=4 tw=78 et:

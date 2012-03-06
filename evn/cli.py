@@ -2,6 +2,10 @@
 import re
 from abc import ABCMeta
 
+#=============================================================================
+# Command Line Classes
+#=============================================================================
+
 class CLI(object):
     __unknown_subcommand__ = "Unknown subcommand '%s'"
     __usage__ = "Type '%prog help' for usage."

@@ -324,8 +324,6 @@ svnwc = None
 global verbose
 verbose = os.getenv('ESVN_VERBOSE') == '1'
 
-class UnexpectedCodePath(RuntimeError):
-    pass
 
 
 #=============================================================================
