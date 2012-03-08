@@ -1,7 +1,8 @@
-
 #=============================================================================
 # Imports
 #=============================================================================
+import os
+import sys
 import time
 import logging
 import datetime
@@ -36,6 +37,7 @@ from evn.path import (
 from evn.root import (
     Roots,
     RootDetails,
+    RootPathMatcher,
     SimpleRootMatcher,
     AbsoluteRootDetails,
 )
@@ -53,11 +55,15 @@ from evn.util import (
     Pool,
     Dict,
     DecayDict,
+    ConfigDict,
     UnexpectedCodePath,
 )
 
 from evn.constants import (
+    EVN_BRPROPS_SCHEMA,
     EVN_BRPROPS_SCHEMA_VERSION,
+    EVN_RPROPS_SCHEMA,
+    EVN_RPROPS_SCHEMA_VERSION,
     EVN_ERROR_CONFIRMATIONS,
     n,  # Notes
     w,  # Warnings
@@ -474,7 +480,7 @@ class RepositoryRevOrTxn(object):
         self._replacements_processed = set()
 
         self._init_authz_conf()
-        self.pathmatcher = PathMatcher()
+        self.pathmatcher = RootPathMatcher()
 
     @property
     def log_msg(self):

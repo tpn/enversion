@@ -31,6 +31,7 @@ from evn.command import (
 from evn.hook import (
     EvnHookFileStatus,
     RepoHookFileStatus,
+    RepoHookFilesStatus,
 )
 
 from evn.change import (

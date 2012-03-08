@@ -2,6 +2,7 @@
 # Imports
 #=============================================================================
 import os
+import sys
 
 from itertools import (
     chain,
@@ -12,6 +13,7 @@ import evn.admin.commands
 
 from evn.util import (
     render_text_table,
+    Dict,
 )
 
 from evn.cli import (
@@ -65,8 +67,8 @@ class ShowRepoHookStatusCommandLine(AdminCommandLine):
             'Exists?',
             'Valid?',
             'Exe?',
-            'Configured?',
-            'Enabled?',
+            'Cnfgrd?',
+            'Enbld?',
             'Rdb?',
         )]
 

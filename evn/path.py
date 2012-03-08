@@ -1,9 +1,8 @@
-
 #=============================================================================
 # Imports
 #=============================================================================
 import os
-import os.path
+import re
 
 #=============================================================================
 # Helper Methods
@@ -528,18 +527,5 @@ class PathMatcher(object):
                 root_dir and root_name
             )
             return (root_dir, root_type, root_name)
-
-    def get_root_details(self, path):
-        results = self.get_root_details_tuple(path)
-        if results:
-            (root_path, root_type, root_name) = results
-            root_details = RootDetails(
-                root_name=root_name,
-                root_type=root_type,
-                root_path=root_path,
-            )
-        else:
-            root_details = RootDetails(root_type='unknown')
-        return root_details
 
 # vim:set ts=8 sw=4 sts=4 tw=78 et:

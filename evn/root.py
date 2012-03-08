@@ -4,6 +4,7 @@
 #=============================================================================
 
 from evn.path import (
+    format_dir,
     PathMatcher,
 )
 
@@ -55,6 +56,20 @@ class RootDetails(object):
 
 AbsoluteRootDetails = RootDetails(root_type='absolute', root_path='/')
 
+class RootPathMatcher(PathMatcher):
+    def get_root_details(self, path):
+        results = self.get_root_details_tuple(path)
+        if results:
+            (root_path, root_type, root_name) = results
+            root_details = RootDetails(
+                root_name=root_name,
+                root_type=root_type,
+                root_path=root_path,
+            )
+        else:
+            root_details = RootDetails(root_type='unknown')
+        return root_details
+
 class SimpleRootMatcher(object):
     def __init__(self, roots):
         assert isinstance(roots, set)
@@ -64,7 +79,7 @@ class SimpleRootMatcher(object):
         self.__root_dirs_by_length = dict()
         self.__reversed_root_dir_lengths = None
 
-        self.__pathmatcher = PathMatcher()
+        self.__pathmatcher = RootPathMatcher()
 
         for p in roots:
             self.add_root_path(p)

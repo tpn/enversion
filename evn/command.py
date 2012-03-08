@@ -2,7 +2,6 @@
 # Imports
 #=============================================================================
 import os
-import os.path
 
 import svn
 import svn.fs

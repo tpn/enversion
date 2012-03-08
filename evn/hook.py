@@ -2,11 +2,21 @@
 # Imports
 #=============================================================================
 import os
-import os.path
 import datetime
 import cStringIO as StringIO
 
-from abc import ABCMeta, abstractmethod, abstractproperty
+import svn
+import svn.repos
+
+from glob import (
+    iglob,
+)
+
+from abc import (
+    ABCMeta,
+    abstractmethod,
+    abstractproperty,
+)
 
 from evn.path import (
     join_path,
