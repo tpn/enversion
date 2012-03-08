@@ -1447,7 +1447,7 @@ class RepositoryRevOrTxn(object):
 
             if copied_to_valid_absolute_root_path:
                 assert c.is_dir
-                c.error(e.CopyKnownRootSubtreeToValidAbsRootPath)
+                c.error(e.CopyKnownRootSubtreeToValidAbsoluteRootPath)
 
             elif copied_to_known_root_subtree:
                 new_root = False
