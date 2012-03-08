@@ -112,6 +112,8 @@ class RepositoryHook(RepositoryRevOrTxn):
         pass
 
     def pre_revprop_change(self, rev, user, propname, action):
+        # XXX TODO: when we introduce the new override facilities, make sure
+        # log messages can't be changed to have confirmations added/removed.
         pn = svn.core.SVN_PROP_REVISION_LOG
         if propname == pn:
             if action == 'D':
