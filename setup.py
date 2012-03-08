@@ -13,13 +13,15 @@ except ImportError:
     from distutils.core import setup
 
 setup(
-    name='Enversion',
+    name='enversion',
     version='0.1',
+    license=open('LICENSE').read(),
     description='Enterprise Subversion Framework',
     author='Trent Nelson',
     author_email='trent@snakebite.org',
     url='http://www.enversion.org/',
     py_modules=['evn'],
+    scripts=['scripts/evnadmin'],
 )
 
 
