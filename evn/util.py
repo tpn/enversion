@@ -252,29 +252,22 @@ def try_remove_file_atexit(path):
     import atexit
     atexit.register(try_remove_file, path)
 
-import re
-class EventConverter(object):
-    pattern = re.compile('[A-Z][^A-Z]*')
-    def __init__(self, line):
-        self.line = line
-        (self.name, t) = self.line.split(' = ')
-        self.text = t[1:-1]
-        self.tokens = self.pattern.findall(self.name)
-        self.lower = [ n.lower() for n in self.tokens ]
-        for (i, t) in enumerate(self.tokens):
-            if t == 'Mergeinfo':
-                self.lower[i] = 'svn:mergeinfo'
-        self.auto = ' '.join(self.lower)
-        self.skip_desc = bool(self.auto == self.text)
+def pid_exists(pid):
+    if os.name == 'nt':
+        import psutil
+        return psutil.pid_exists(pid)
+    else:
+        try:
+            os.kill(pid, 0)
+        except OSError as e:
+            import errno
+            if e.errno == errno.ESRCH:
+                return False
+            else:
+                raise
+        else:
+            return True
 
-        s = '\n'.join([
-            'class %s(Event):' % self.name,
-            '    _severity_ = EventType.Error',
-        ])
-        if not self.skip_desc:
-            s += '\n    _desc_ = "%s"' % self.text
-
-        self.as_class = s
 
 #=============================================================================
 # Helper Classes
