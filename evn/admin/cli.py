@@ -127,7 +127,7 @@ class ShowRepoHookStatusCommandLine(AdminCommandLine):
 class ShowRepoRemoteDebugSessionsCommandLine(AdminCommandLine):
     _conf_ = True
     _repo_ = True
-    _command_ = ShowRepoHookStatusCommand
+    _command_ = evn.admin.commands.ShowRepoHookStatusCommand
 
     def _post_run(self):
         r = self.command.result
@@ -189,7 +189,7 @@ class CreateCommandLine(AdminCommandLine):
     _conf_      = True
     _repo_      = True
     _verbose_   = True
-    _command_   = CreateRepoCommand
+    _command_   = evn.admin.commands.CreateRepoCommand
 
 class RunHookCommandLine(AdminCommandLine):
     _conf_ = True
@@ -210,7 +210,7 @@ class _SetRepoHookRemoteDebugCommandLine(AdminCommandLine):
     _argc_ = 3
     _hook_ = True
     _usage_ = '%prog [ options ] REPO_PATH'
-    _command_ = SetRepoHookRemoteDebugCommand
+    _command_ = evn.admin.commands.SetRepoHookRemoteDebugCommand
 
     def _add_parser_options(self):
         if self._action_ == 'disable':

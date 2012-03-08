@@ -1,20 +1,31 @@
 #=============================================================================
 # Imports
 #=============================================================================
+import os
 import re
 import sys
 import optparse
 
 from abc import (
     ABCMeta,
+    abstractmethod,
     abstractproperty,
+)
+
+from textwrap import (
+    dedent,
 )
 
 from evn.config import (
     Config,
 )
 
+from evn.command import (
+    CommandError,
+)
+
 from evn.util import (
+    add_linesep_if_missing,
     Dict,
     Options,
 )
@@ -112,9 +123,7 @@ class CLI(object):
 
     @classmethod
     def _exit(self, code):
-        global __name__
-        if __name__ == '__main__':
-            sys.exit(code)
+        sys.exit(code)
 
     def __commandline_error(self, cl, msg):
         args = (self.program_name, cl.name, msg)
