@@ -246,3 +246,4 @@ class RepositoryRevisionCommand(RepositoryCommand):
             if self._start_rev > self._end_rev:
                 raise CommandError("end rev must be higher than start rev")
 
+# vim:set ts=8 sw=4 sts=4 tw=78 et:

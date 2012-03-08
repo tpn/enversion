@@ -41,3 +41,4 @@ class Constant(dict):
         return self.__getitem__(name)
     def __setattr__(self, name, value):
         return self.__setitem__(name, value)
+# vim:set ts=8 sw=4 sts=4 tw=78 et:

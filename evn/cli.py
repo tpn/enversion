@@ -275,3 +275,4 @@ class CommandLine:
 
         self._post_run()
 
+# vim:set ts=8 sw=4 sts=4 tw=78 et:
