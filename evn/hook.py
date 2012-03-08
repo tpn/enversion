@@ -12,6 +12,10 @@ from glob import (
     iglob,
 )
 
+from pprint import (
+    pformat,
+)
+
 from abc import (
     ABCMeta,
     abstractmethod,
@@ -510,7 +514,7 @@ class RepoHookFile(HookFile):
 
             failed = False
         finally:
-            if not failed:
+            if not failed and backup is not None:
                 os.unlink(backup)
 
 class EvnHookFile(HookFile):

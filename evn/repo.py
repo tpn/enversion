@@ -2361,6 +2361,432 @@ class RepositoryRevOrTxn(object):
             if new_root:
                 self.rootmatcher.add_root_path(c.path)
 
+    def __process_copy_or_rename(self, c):
+        # I've gone back and forward a few times on whether or not to deal
+        # with copy and renames in separate methods or one combined method.
+        # The huge chunk of logic that handles all the 'from path' and 'to
+        # path' (src and dst) permutations is almost identical for copies
+        # and renames, so I've gone with this combined method, for now.
+        # Side bar: this method is pretty heavy on 2-3 letter alias vars
+        # for commonly accessed objects.
+        assert c.is_copy or c.is_rename
+
+        rm = self.rootmatcher
+        pm = self.pathmatcher
+        rd = c.root_details
+
+        if c.is_copy:
+            src_path = sp = c.copied_from_path
+            src_rev  = sr = c.copied_from_rev
+            # We need to load the historical root matcher for the rev that's
+            # being copied in order to get sensible root details.
+            hrm = self.__get_historical_rootmatcher(sr)
+            src_root_details = srd = hrm.get_root_details(sp)
+            src_roots = hrm.find_roots_under_path(sp)
+        else:
+            assert c.is_rename
+            assert c.renamed_from_rev == c.changeset.base_rev
+            assert c.renamed_from_rev == self.base_rev
+            src_path = sp = c.renamed_from_path
+            src_rev  = sr = c.renamed_from_rev
+            # Unlike the copy logic above, which has to deal with paths being
+            # copied from any revision, we don't need to load a historical
+            # root matcher object below, because renamed_from_rev will always
+            # equal our (changeset|self).base_rev (see assertions a few lines
+            # up), which is what self.rootmatcher will be tied to.
+            src_root_details = srd = rm.get_root_details(sp)
+            src_roots = rm.find_roots_under_path(sp)
+
+        dst_path  = dp = c.path
+        dst_roots = rm.find_roots_under_path(dp)
+        dst_root_details = drd = pm.get_root_details(dp)
+
+        src_has_roots_under_it = bool(src_roots)
+        dst_has_roots_under_it = bool(dst_roots)
+
+        # src begin
+        src = MutexDecayDict()
+        # junk/foo/bar/ ->
+        src.unknown = (
+            srd.is_unknown and
+            not src_has_roots_under_it
+        )
+
+        # trunk/, branches/2.0.x/ ->
+        src.known_root = (
+            not srd.is_unknown and
+            srd.root_path == src_path
+        )
+
+        # trunk/UI/foo/ -> (where 'trunk' is a known root)
+        src.known_root_subtree = (
+            not srd.is_unknown and
+            srd.root_path != src_path and
+            src_path.startswith(srd.root_path)
+        )
+
+        # /xyz/foo/ ->, where the following roots exist:
+        #       /xyz/foo/trunk
+        #       /xyz/foo/branches/1.0.x
+        src.root_ancestor = (
+            srd.is_unknown and
+            bool(src_has_roots_under_it)
+        )
+        # src end
+
+        # dst begin
+        dst = MutexDecayDict()
+        # -> junk/foo/bar/
+        dst.unknown = (
+            rd.is_unknown and
+            drd.is_unknown and
+            not dst_roots
+        )
+
+        # -> trunk/ (where 'trunk/' is a known root)
+        dst.known_root = (
+            c.is_replace and
+            not rd.is_unknown and
+            rd.root_path == dst_path
+        )
+
+        # -> trunk/UI/foo/ (where 'trunk/' is a known root)
+        dst.known_root_subtree = (
+            not rd.is_unknown and
+            rd.root_path != dst_path and
+            dst_path.startswith(rd.root_path)
+        )
+
+        # -> tags/2.0.x/, branches/foo/, trunk/
+        dst.valid_root = (
+            rd.is_unknown and
+            not drd.is_unknown and
+            drd.root_path == dst_path
+        )
+
+        # -> branches/bugs/8101 (where 'branches/bugs/' is not a known root)
+        dst.valid_root_subtree = (
+            rd.is_unknown and
+            not drd.is_unknown and
+            drd.root_path != dst_path and
+            dst_path.startswith(drd.root_path)
+        )
+
+        # -> /xyz/foo/, where the following roots already exist:
+        #       /xyz/foo/trunk
+        #       /xyz/foo/branches/1.0.x
+        dst.root_ancestor = (
+            c.is_replace and
+            rd.is_unknown and
+            dst_has_roots_under_it
+        )
+
+        # dst end
+
+        clean_check   = True
+
+        new_root     = False
+        remove_root  = False
+        create_root  = False
+        replace_root = False
+
+        en = 'Copied' if c.is_copy else 'Renamed'
+
+        with nested(src, dst) as (src, dst):
+
+            if src.unknown:
+
+                if dst.unknown:
+                    clean_check = False
+
+                elif dst.known_root:
+                    assert c.is_dir
+                    rm.remove_root_path(dst_root)
+                    create_root = True
+                    replace_root = True
+                    CopyOrRename.UnknownToKnownRoot(c)
+
+                elif dst.known_root_subtree:
+                    CopyOrRename.UnknownToKnownRootSubtree(c)
+
+                elif dst.valid_root:
+                    CopyOrRename.UnknownToValidRoot(c)
+                    if drd.is_trunk:
+                        create_root = True
+
+                elif dst.valid_root_subtree:
+                    CopyOrRename.UnknownToValidRootSubtree(c)
+
+                elif dst.root_ancestor:
+                    assert c.is_dir
+                    replace_roots = True
+                    CopyOrRename.UnknownToRootAncestor(c)
+
+                else:
+                    raise UnexpectedCodePath
+
+            elif src.known_root:
+                assert c.is_dir
+                new_root = True
+
+                if srd.is_tag:
+                    # Always flag attempts to copy or rename tags.
+                    c.error(getattr(e, 'Tag' + en))
+
+                if dst.unknown:
+                    CopyOrRename.KnownRootToUnknown(c)
+
+                elif dst.known_root:
+                    CopyOrRename.KnownRootToKnownRoot(c)
+
+                elif dst.known_root_subtree:
+                    new_root = False
+                    remove_root = True
+                    CopyOrRename.KnownRootToKnownRootSubtree(c)
+
+                elif dst.valid_root:
+                    if c.is_rename:
+                        paths = (sp, dp)
+                        root_details = (srd, drd)
+                        args = (c, paths, root_details)
+                        self.__known_root_renamed(*args)
+
+                elif dst.valid_root_subtree:
+                    CopyOrRename.KnownRootToValidRootSubtree(c)
+
+                elif dst.root_ancestor:
+                    CopyOrRename.KnownRootToRootAncestor(c)
+
+                else:
+                    raise UnexpectedCodePath
+
+            elif src.known_root_subtree:
+
+                if srd.is_tag:
+                    # Always flag attempts to copy or rename tag subtrees.
+                    c.error(getattr(e, 'TagSubtree' + en))
+
+                if dst.unknown:
+                    CopyOrRename.KnownRootSubtreeToUnknown(c)
+
+                elif dst.known_root:
+                    CopyOrRename.KnownRootSubtreeToKnownRoot(c)
+
+                elif dst.known_root_subtree:
+                    if srd.root_path != drd.root_path:
+                        CopyOrRename.\
+                            KnownRootSubtreeToUnrelatedKnownRootSubtree(c)
+                    else:
+                        clean_check = False
+
+                elif dst.root_ancestor:
+                    CopyOrRename.KnownRootSubtreeToRootAncestor(c)
+
+                if dst.valid_root:
+                    CopyOrRename.KnownRootToValidRoot(c)
+                    if drd.is_trunk:
+                        create_root = True
+
+                elif dst.valid_root_subtree:
+                    CopyOrRename.KnownRootSubtreeToValidRootSubtree(c)
+
+                else:
+                    raise UnexpectedCodePath
+
+            elif src.root_ancestor:
+                rename_root = True
+
+                if dst.unknown:
+                    CopyOrRename.RootAncestorToUnknown(c)
+
+                elif dst.known_root:
+                    replace_root = True
+                    CopyOrRename.RootAncestorReplacesKnownRoot(c)
+
+                elif dst.known_root_subtree:
+                    rename_root = False
+                    remove_root = True
+                    CopyOrRename.RootAncestorToKnownRootSubtree(c)
+
+                elif dst.root_ancestor:
+                    replace_root = True
+                    CopyOrRename.RootAncestorReplacesRootAncestor(c)
+
+                elif dst.valid_root:
+                    # This has to be one of the most retarded things to do.
+                    #
+                    # Given:
+                    #   /foo/branches/1.0.x
+                    #   /foo/branches/2.0.x
+                    # Someone has done:
+                    #   svn mv ^/foo ^/trunk, or
+                    #   svn mv ^/foo ^/src/branches/2.0.x
+                    #
+                    # The precedent set by other parts of the code dealing
+                    # with dst.valid_root is to only create a new root if our
+                    # new path name is 'trunk'.  Another precedent we follow
+                    # is that the destination path's semantic value trumps the
+                    # source path's semantic value.  In this case, the source
+                    # path's semantic value (it is a container for multiple
+                    # roots) definitely outweighs the destination path's value
+                    # (it's a valid root path, but not a known root), so we'll
+                    # just rename all the roots.  Yes, even if that means we
+                    # ended up with the following known roots:
+                    #   /trunk/branches/1.0.x/
+                    #   /trunk/branches/2.0.x/
+                    #   /trunk/trunk/
+                    # (Retarded eh?)
+                    CopyOrRename.RootAncestorToValidRoot(c)
+
+                elif dst.valid_root_subtree:
+                    # Similar level of retardation as above; let's just let
+                    # the multi-root rename go through.
+                    CopyOrRename.RootAncestorToValidRootSubtree(c)
+
+                else:
+                    raise UnexpectedCodePath
+
+            else:
+                raise UnexpectedCodePath
+
+        if c.is_file:
+            assert none(
+                new_root,
+                remove_root,
+                rename_root,
+                create_root,
+                replace_root,
+            )
+            return
+
+        src._unlock()
+        dst._unlock()
+
+
+        if replace_root:
+            pass
+
+
+
+        if remove_root:
+            self.rootmatcher.remove_root_path(dst_root)
+        #if dst.known_root:
+        #    assert c.is_dir
+        #    # xxx todo: replace root
+
+        #elif dst.valid_root:
+        #    assert c.is_dir
+
+        #elif dst.root_ancestor:
+        #    assert c.is_dir
+        #    # xxx todo: replace roots
+
+
+        if clean_check:
+            if not c.is_empty:
+                c.error(e.UncleanRename)
+
+
+        if new_root and copied_from_known_root:
+            self.rootmatcher.add_root_path(c.path)
+
+            if self.is_rev:
+                d = Dict()
+                d.created = c.changeset.rev
+                d.creation_method = 'copied'
+                d.copied_from = (c.copied_from_path, c.copied_from_rev)
+                d.copies = {}
+                if c.errors:
+                    d.errors = c.errors
+
+                root = self.__get_copied_root_configdict(c)
+
+                k = Dict()
+                k.roots = self.roots
+                k.change = c
+                k.details = d
+                k.src_path = src_path
+                k.dst_path = dst_path
+                if replace_root:
+                    pass
+
+                self.__enqueue_root_action()
+
+                self.roots[c.path] = d
+                root = self.__get_copied_root_configdict(c)
+                root._add_copy(c.copied_from_rev, c.path, c.changeset.rev)
+
+        if self.is_rev:
+            if renamed_from_known_root:
+                # Need to mark the old root as removed and delete it from
+                # our current roots.
+                rev = c.renamed_from_rev
+                rc = RepositoryRevisionConfig(fs=self.fs, rev=rev)
+                crev = rc.roots[c.renamed_from_path]['created']
+                rc = RepositoryRevisionConfig(fs=self.fs, rev=crev)
+                root = rc.roots[c.renamed_from_path]
+                root.removed = c.changeset.rev
+                root.removal_method = 'renamed'
+                root.renamed = (c.path, c.changeset.rev)
+
+                self.rootmatcher.remove_root_path(c.renamed_from_path)
+                del self.roots[c.renamed_from_path]
+
+            if new_root:
+                d = Dict()
+                d.created = c.changeset.rev
+                d.creation_method = 'renamed'
+                d.renamed_from = (c.renamed_from_path, c.renamed_from_rev)
+                d.copies = {}
+                if c.errors:
+                    d.errors = c.errors
+
+                self.roots[c.path] = d
+
+        else:
+            assert self.is_txn
+            if renamed_from_known_root:
+                self.rootmatcher.remove_root_path(c.renamed_from_path)
+
+            if new_root:
+                self.rootmatcher.add_root_path(c.path)
+    def __known_root_renamed(self, change, paths, root_details):
+        c = change
+        (sp, dp)   = paths
+        (srd, drd) = root_details
+
+        if srd.is_branch:
+            if drd.is_branch:
+                dn = os.path.dirname
+                # (s|d)rbd: (src|dst) root base dir
+                srbd = dn(sp[:-1])
+                drbd = dn(dp[:-1])
+                if srbd == drbd:
+                    c.note(n.BranchRenamed)
+                else:
+                    c.error(e.BranchRenamedOutsideRootBaseDir)
+            elif drd.is_trunk:
+                c.error(e.BranchRenamedToTrunk)
+            else:
+                assert drd.is_tag
+                c.error(e.BranchRenamedToTag)
+        elif srd.is_tag:
+            # No need to do anything here as we would have already
+            # flagged the tag rename error above.
+            pass
+        else:
+            assert srd.is_trunk
+            if drd.is_trunk:
+                # Permit trunk relocations ('cause I can't think of
+                # any reason not to, at the moment).
+                c.note(n.TrunkRelocated)
+            elif drd.is_branch:
+                c.error(e.TrunkRenamedToBranch)
+            else:
+                assert drd.is_tag
+                c.error(e.TrunkRenamedToTag)
+
+
     def _get_revlock_filename(self, r):
         pass
 

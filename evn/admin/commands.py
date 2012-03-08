@@ -2,6 +2,8 @@
 # Imports
 #=============================================================================
 import os
+import sys
+import traceback
 
 import svn
 import svn.fs
@@ -29,6 +31,7 @@ from evn.command import (
 )
 
 from evn.hook import (
+    RepositoryHook,
     EvnHookFileStatus,
     RepoHookFileStatus,
     RepoHookFilesStatus,
