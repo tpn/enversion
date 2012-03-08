@@ -141,7 +141,7 @@ class RepositoryHook(RepositoryRevOrTxn):
         # at the earliest possible point if an error is detected.
         pass
 
-    def post_commit(self, rev, txn_name):
+    def post_commit(self, rev, txn_name=None):
         # The only thing we *have* to do during post-commit is to access the
         # changeset property (which automatically creates, analyses and then
         # post-processes it behind the scenes).

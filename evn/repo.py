@@ -527,6 +527,7 @@ class RepositoryRevOrTxn(object):
         )
 
         # Test mutually-exclusive invariants.
+        # XXX TODO: convert to MutexDecay dict.
         assert (
             (self.is_rev_for_empty_repo and (
                 not self.is_txn_for_first_commit and
