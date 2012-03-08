@@ -1,4 +1,24 @@
+#=============================================================================
+# Imports
+#=============================================================================
+import os
+import pdb
+import socket
 
+from evn.path import (
+    join_path,
+)
+
+from evn.util import (
+    touch_file,
+    literal_eval,
+    try_remove_file_atexit,
+    DecayDict,
+)
+
+#=============================================================================
+# Classes
+#=============================================================================
 class RemoteDebugSessionStatus(object):
     pid = int()
     host = str()
@@ -84,13 +104,13 @@ class RemoteDebugSession(pdb.Pdb):
             f.flush()
             f.close()
 
-#    def do_continue(self, *arg):
-#        self.state = 'finished'
-#        self._dump_state()
-#        sys.stdout = self.old_stdout
-#        sys.stdin = self.old_stdin
-#        self.sock.close()
-#        self.set_continue()
-#        return 1
-#    do_c = do_cont = do_continue
+    def __disabled__do_continue(self, *arg):
+        self.state = 'finished'
+        self._dump_state()
+        sys.stdout = self.old_stdout
+        sys.stdin = self.old_stdin
+        self.sock.close()
+        self.set_continue()
+        return 1
+
 # vim:set ts=8 sw=4 sts=4 tw=78 et:

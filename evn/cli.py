@@ -1,9 +1,26 @@
-
+#=============================================================================
+# Imports
+#=============================================================================
 import re
-from abc import ABCMeta
+import sys
+import optparse
+
+from abc import (
+    ABCMeta,
+    abstractproperty,
+)
+
+from evn.config import (
+    Config,
+)
+
+from evn.util import (
+    Dict,
+    Options,
+)
 
 #=============================================================================
-# Command Line Classes
+# CLI and CommandLine Classes
 #=============================================================================
 
 class CLI(object):
@@ -26,9 +43,17 @@ class CLI(object):
 
         self.__process_commandline(args)
 
+    @abstractproperty
+    def program_name(self):
+        raise NotImplementedError()
+
+    @abstractmethod
+    def commandline_subclasses(self):
+        raise NotImplementedError()
+
     def __find_commandline_subclasses(self):
         l = list()
-        for sc in CommandLine.__subclasses__():
+        for sc in self.commandline_subclasses:
             if sc.__name__[0] != '_':
                 l.append((sc.__name__, sc))
             else:
@@ -41,7 +66,7 @@ class CLI(object):
         ]
 
         for subclass in subclasses:
-            cl = subclass()
+            cl = subclass(self.program_name)
             assert cl.name not in self.__commandlines_by_name
             helpstr = os.linesep + (' ' * 12) + cl.name
 
@@ -92,7 +117,7 @@ class CLI(object):
             sys.exit(code)
 
     def __commandline_error(self, cl, msg):
-        args = (self.get_program_name(), cl.name, msg)
+        args = (self.program_name, cl.name, msg)
         msg = 'error: %s %s failed: %s' % args
         sys.stderr.write(add_linesep_if_missing(msg))
         self._exit(1)
@@ -101,19 +126,11 @@ class CLI(object):
         sys.stderr.write(
             add_linesep_if_missing(
                 dedent(msg).replace(
-                    '%prog', self.get_program_name()
+                    '%prog', self.program_name
                 )
             )
         )
         self._exit(1)
-
-    @classmethod
-    def get_program_name(self):
-        return os.path.basename(__file__.replace('.pyc', '.py'))
-
-    @classmethod
-    def get_program_fullpath(self):
-        return os.path.abspath(__file__.replace('.pyc', '.py'))
 
     def usage(self, args=None):
         self._error(self.__usage__)
@@ -127,8 +144,11 @@ class CLI(object):
         else:
             self._error(self.__help + os.linesep)
 
-
 class CommandLine:
+    """
+    The `CommandLine` class exposes `Command` classes via the `CLI` class.
+
+    """
     __metaclass__ = ABCMeta
 
     _conf_ = False
@@ -142,7 +162,12 @@ class CommandLine:
     _shortname_ = None
     _description_ = None
 
-    def __init__(self):
+    @abstractproperty
+    def commands_module(self):
+        raise NotImplementedError()
+
+    def __init__(self, program_name):
+        self.__program_name = program_name
         pattern = re.compile('[A-Z][^A-Z]*')
         self.classname = self.__class__.__name__
         tokens = [ t for t in pattern.findall(self.classname) ]
@@ -151,8 +176,10 @@ class CommandLine:
             self.command_class = self._command_
             self.command_classname = self._command_.__name__
         else:
-            self.command_classname = ''.join(tokens[:-1])
-            self.command_class = globals()[self.command_classname]
+            ccn = ''.join(tokens[:-1])
+            ccl = getattr(self.commands_module, ccn)
+            self.command_classname = ccn
+            self.command_class = ccl
 
         self.command = self.command_class(sys.stdout, sys.stderr)
 
@@ -169,8 +196,12 @@ class CommandLine:
         self.parser = None
 
     @property
+    def program_name(self):
+        return self.__program_name
+
+    @property
     def _subcommand(self):
-        return '%s %s' % (CLI.get_program_name(), self.name)
+        return '%s %s' % (self.program_name, self.name)
 
     def _add_parser_options(self):
         pass

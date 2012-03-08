@@ -1,47 +1,63 @@
-
 #=============================================================================
 # Imports
 #=============================================================================
+import os
+import os.path
+
 import itertools
 
 import svn
 import svn.fs
 import svn.core
 import svn.repos
+import svn.delta
 
-from svn.core import SVN_INVALID_REVNUM
-from svn.core import SVN_PROP_MERGEINFO
-from svn.core import SVN_PROP_REVISION_LOG
-from svn.core import SVN_PROP_REVISION_AUTHOR
+from svn.core import (
+    svn_node_dir,
+    svn_node_file,
+    svn_node_none,
+    svn_node_unknown,
 
-from svn.core import svn_mergeinfo_diff
-from svn.core import svn_mergeinfo_parse
-from svn.core import svn_rangelist_to_string
+    svn_mergeinfo_diff,
+    svn_mergeinfo_parse,
+    svn_rangelist_to_string,
 
-from svn.core import svn_node_dir
-from svn.core import svn_node_file
-from svn.core import svn_node_none
-from svn.core import svn_node_unknown
+    SVN_INVALID_REVNUM,
+    SVN_PROP_MERGEINFO,
+    SVN_PROP_REVISION_LOG,
+    SVN_PROP_REVISION_AUTHOR,
+)
 
 from evn.path import (
     format_dir,
     format_file,
     PathMatcher,
 )
+
 from evn.perfmon import (
     track_resource_usage,
     ResourceUsageTracker,
     DummyResourceUsageTracker,
 )
-from evn.constants import (
-    Constant,
+
+from evn.root import (
+    AbsoluteRootDetails,
 )
+
+from evn.constants import (
+    EVN_ERROR_CONFIRMATIONS,
+    EVN_ERROR_CONFIRMATION_BLURB,
+)
+
 from evn.util import (
     Pool,
     Dict,
+    Options,
+    Constant,
     DecayDict,
     UnexpectedCodePath,
 )
+
 #=============================================================================
 # Helper Methods
 #=============================================================================
@@ -52,9 +68,8 @@ def create_propchange(**kwds):
         return PropertyChange(**kwds)
 
 #=============================================================================
-# Change-related Classes
+# Change Constant Classes
 #=============================================================================
-
 class _ItemKind(Constant):
     Nada    = 0 # 'None' = reserved keyword
     File    = 1
@@ -71,6 +86,311 @@ class _ChangeType(Constant):
     Rename          = 5
 ChangeType = _ChangeType()
 
+class _PropertyChangeType(Constant):
+    Create  = 1
+    Modify  = 2
+    Remove  = 3
+PropertyChangeType = _PropertyChangeType()
+
+class _ExtendedPropertyChangeType(Constant):
+    PropertyCreatedWithValue                = 1
+    PropertyCreatedWithoutValue             = 2
+    ExistingPropertyValueChanged            = 3
+    ExistingPropertyValueCleared            = 4
+    ValueProvidedForPreviouslyEmptyProperty = 5
+    PropertyRemoved                         = 6
+    PropertyChangedButOldAndNewValuesAreSame= 7
+ExtendedPropertyChangeType = _ExtendedPropertyChangeType()
+
+PropertyChangeTypeToExtendedPropertyChangeType = {
+    PropertyChangeType.Create : (
+        ExtendedPropertyChangeType.PropertyCreatedWithValue,
+        ExtendedPropertyChangeType.PropertyCreatedWithoutValue,
+    ),
+
+    PropertyChangeType.Modify : (
+        ExtendedPropertyChangeType.ExistingPropertyValueChanged,
+        ExtendedPropertyChangeType.ExistingPropertyValueCleared,
+        ExtendedPropertyChangeType.ValueProvidedForPreviouslyEmptyProperty,
+        ExtendedPropertyChangeType.PropertyChangedButOldAndNewValuesAreSame,
+    ),
+
+    PropertyChangeType.Remove : (
+        ExtendedPropertyChangeType.PropertyRemoved,
+    ),
+
+}
+ExtendedPropertyChangeTypeToChangeType = dict()
+for (k, values) in PropertyChangeTypeToExtendedPropertyChangeType.items():
+    for v in values:
+        ExtendedPropertyChangeTypeToChangeType[v] = k
+
+class _PropertyReplacementType(Constant):
+    PropertyRemoved         = 1
+    PropertyValueCleared    = 2
+    PropertyValueChanged    = 3
+PropertyReplacementType = _PropertyReplacementType()
+
+#=============================================================================
+# PropertyChange-type Classes
+#=============================================================================
+class PropertyChange(object):
+
+    def __init__(self, **kwds):
+        k = DecayDict(kwds)
+        self.__name = k.name
+        self.__parent = k.parent
+        self.__old_value = k.old_value
+        self.__new_value = k.get('new_value')
+        self.__replacement = None
+        self.__is_replace = False
+        replacement = k.get('replacement')
+        if replacement:
+            self.replacement = replacement
+        else:
+            self.__is_replace = k.get('is_replace')
+        if self.is_replace:
+            self.__removal = k.removal
+        k.assert_empty(self)
+
+    @property
+    def name(self):
+        return self.__name
+
+    @property
+    def parent(self):
+        return self.__parent
+
+    def unparent(self):
+        """
+        Sets 'parent' attribute to None (asserts 'parent' is not None first).
+
+        This is a (temporary) helper method intended to be called by
+        ChangeSet.__del__ to break circular references.
+        """
+        assert self.parent is not None
+        self.__parent = None
+
+    @property
+    def old_value(self):
+        return self.__old_value
+
+    @property
+    def new_value(self):
+        return self.__new_value
+
+    @property
+    def is_replace(self):
+        return self.__is_replace
+
+    @property
+    def removal(self):
+        assert self.is_replace
+        return self.__removal
+
+    @removal.setter
+    def removal(self, removal):
+        assert self.is_replace
+        assert isinstance(removal, PropertyChange)
+        assert self.is_replace
+        assert self.name == replacement.name
+        if self.parent.is_remove:
+            assert not replacement.parent.is_replace and (
+                replacement.parent.is_copy or
+                replacement.parent.is_create or
+                replacement.parent.is_modify
+            )
+        else:
+            assert (
+                replacement.parent.is_remove and
+                replacement.parent.is_replace and (
+                    self.is_copy or
+                    self.is_create or
+                    self.is_modify
+                )
+            )
+
+        self.__replacement = replacement
+        self.__is_replace = True
+        if self.parent.is_remove:
+            replacement.replacement = self
+
+    @property
+    def change_type(self):
+        assert not self.is_replace
+        return ExtendedPropertyChangeTypeToChangeType[
+            self.extended_change_type
+        ]
+
+    @property
+    def extended_change_type(self):
+        assert not self.is_replace
+        if self.old_value == self.new_value:
+            # Yup, this can happen.
+            return ExtendedPropertyChangeType.\
+                PropertyChangedButOldAndNewValuesAreSame
+        elif self.new_value is not None:
+            if self.old_value is None:
+                if self.new_value != '':
+                    return ExtendedPropertyChangeType.\
+                        PropertyCreatedWithValue
+                else:
+                    return ExtendedPropertyChangeType.\
+                        PropertyCreatedWithoutValue
+            elif self.old_value != '':
+                if self.new_value != '':
+                    return ExtendedPropertyChangeType.\
+                        ExistingPropertyValueChanged
+                else:
+                    return ExtendedPropertyChangeType.\
+                        ExistingPropertyValueCleared
+            else:
+                assert self.new_value
+                return ExtendedPropertyChangeType.\
+                    ValueProvidedForPreviouslyEmptyProperty
+        else:
+            assert self.old_value is not None
+            return ExtendedPropertyChangeType.PropertyRemoved
+
+    @property
+    def replacement_type(self):
+        assert self.is_replace
+        if not self.parent.is_remove:
+            return self.replacement.replacement_type
+        else:
+            if self.new_value is None:
+                return PropertyReplacementType.PropertyRemoved
+            elif self.new_value is '':
+                return PropertyReplacementType.PropertyValueCleared
+            elif self.new_value != self.old_value:
+                return PropertyReplacementType.PropertyValueChanged
+            else:
+                raise UnexpectedCodePath
+
+    @property
+    def replacement(self):
+        assert self.is_replace and self.__replacement is not None
+        return self.__replacement
+
+    @replacement.setter
+    def replacement(self, replacement):
+        assert isinstance(replacement, PropertyChange)
+        assert not self.is_replace
+        assert self.name == replacement.name
+        if self.parent.is_remove:
+            assert not replacement.parent.is_replace and (
+                replacement.parent.is_copy or
+                replacement.parent.is_create or
+                replacement.parent.is_modify
+            )
+        else:
+            assert (
+                replacement.parent.is_remove and
+                replacement.parent.is_replace and (
+                    self.is_copy or
+                    self.is_create or
+                    self.is_modify
+                )
+            )
+
+        self.__replacement = replacement
+        self.__is_replace = True
+        if self.parent.is_remove:
+            replacement.replacement = self
+
+    def __repr__(self):
+        r = [
+            ("name", self.name),
+            ("path", self.parent.path),
+        ]
+        if self.is_replace:
+            r += [
+                ("replacement_type", PropertyReplacementType[
+                    self.replacement_type
+                ])
+            ]
+        else:
+            r += [
+                ("change_type", PropertyChangeType[self.change_type]),
+                ("extended_change_type", ExtendedPropertyChangeType[
+                    self.extended_change_type
+                ]),
+            ]
+        if self.old_value:
+            r.append(("old_value", self.old_value))
+        if self.new_value:
+            r.append(("new_value", self.new_value))
+
+        return "<%s(%s)>" % (
+            self.__class__.__name__,
+            ', '.join('%s=%s' % (k, v) for (k, v) in r),
+        )
+
+class MergeinfoPropertyChange(PropertyChange):
+    def __init__(self, **kwds):
+        PropertyChange.__init__(self, **kwds)
+
+        self.__merged = dict()
+        self.__reverse_merged = dict()
+
+        p = svn.core.Pool()
+        values = (self.old_value, self.new_value)
+        (old, new) = (v if v else '' for v in values)
+        old = svn_mergeinfo_parse(old, p)
+        new = svn_mergeinfo_parse(new, p)
+        consider_inheritance = True
+        diff = svn_mergeinfo_diff(old, new, consider_inheritance, p)
+        (deleted, added) = diff
+        for (k, v) in deleted.items():
+            assert k not in self.__reverse_merged
+            self.__reverse_merged[k] = str(svn_rangelist_to_string(v, p))
+
+        for (k, v) in added.items():
+            assert k not in self.__merged
+            self.__merged[k] = str(svn_rangelist_to_string(v, p))
+
+        p.destroy()
+        del p
+
+
+    @property
+    def merged(self):
+        return self.__merged
+
+    @property
+    def reverse_merged(self):
+        return self.__reverse_merged
+
+    def __repr__(self):
+        r = [
+            ("path", self.parent.path),
+        ]
+        if self.is_replace:
+            r += [
+                ("replacement_type", PropertyReplacementType[
+                    self.replacement_type
+                ])
+            ]
+        else:
+            r += [
+                ("change_type", PropertyChangeType[self.change_type]),
+                ("extended_change_type", ExtendedPropertyChangeType[
+                    self.extended_change_type
+                ]),
+            ]
+        if self.reverse_merged:
+            r.append(("reverse_merged", self.reverse_merged))
+        if self.merged:
+            r.append(("merged", self.merged))
+
+        return "<%s(%s)>" % (
+            self.__class__.__name__,
+            ', '.join('%s=%s' % (k, v) for (k, v) in r),
+        )
+
+#=============================================================================
+# Change-type Classes
+#=============================================================================
 class AbstractChange(object):
     def __init__(self, **kwds):
         object.__init__(self)
@@ -1207,305 +1527,6 @@ class FileChange(NodeChange):
         #if self.is_modify:
         #    assert self.has_text_changed or self.has_propchanges
 
-class _PropertyChangeType(Constant):
-    Create  = 1
-    Modify  = 2
-    Remove  = 3
-PropertyChangeType = _PropertyChangeType()
-
-class _ExtendedPropertyChangeType(Constant):
-    PropertyCreatedWithValue                = 1
-    PropertyCreatedWithoutValue             = 2
-    ExistingPropertyValueChanged            = 3
-    ExistingPropertyValueCleared            = 4
-    ValueProvidedForPreviouslyEmptyProperty = 5
-    PropertyRemoved                         = 6
-    PropertyChangedButOldAndNewValuesAreSame= 7
-ExtendedPropertyChangeType = _ExtendedPropertyChangeType()
-
-PropertyChangeTypeToExtendedPropertyChangeType = {
-    PropertyChangeType.Create : (
-        ExtendedPropertyChangeType.PropertyCreatedWithValue,
-        ExtendedPropertyChangeType.PropertyCreatedWithoutValue,
-    ),
-
-    PropertyChangeType.Modify : (
-        ExtendedPropertyChangeType.ExistingPropertyValueChanged,
-        ExtendedPropertyChangeType.ExistingPropertyValueCleared,
-        ExtendedPropertyChangeType.ValueProvidedForPreviouslyEmptyProperty,
-        ExtendedPropertyChangeType.PropertyChangedButOldAndNewValuesAreSame,
-    ),
-
-    PropertyChangeType.Remove : (
-        ExtendedPropertyChangeType.PropertyRemoved,
-    ),
-
-}
-ExtendedPropertyChangeTypeToChangeType = dict()
-for (k, values) in PropertyChangeTypeToExtendedPropertyChangeType.items():
-    for v in values:
-        ExtendedPropertyChangeTypeToChangeType[v] = k
-
-class _PropertyReplacementType(Constant):
-    PropertyRemoved         = 1
-    PropertyValueCleared    = 2
-    PropertyValueChanged    = 3
-PropertyReplacementType = _PropertyReplacementType()
-
-class PropertyChange(object):
-
-    def __init__(self, **kwds):
-        k = DecayDict(kwds)
-        self.__name = k.name
-        self.__parent = k.parent
-        self.__old_value = k.old_value
-        self.__new_value = k.get('new_value')
-        self.__replacement = None
-        self.__is_replace = False
-        replacement = k.get('replacement')
-        if replacement:
-            self.replacement = replacement
-        else:
-            self.__is_replace = k.get('is_replace')
-        if self.is_replace:
-            self.__removal = k.removal
-        k.assert_empty(self)
-
-    @property
-    def name(self):
-        return self.__name
-
-    @property
-    def parent(self):
-        return self.__parent
-
-    def unparent(self):
-        """
-        Sets 'parent' attribute to None (asserts 'parent' is not None first).
-
-        This is a (temporary) helper method intended to be called by
-        ChangeSet.__del__ to break circular references.
-        """
-        assert self.parent is not None
-        self.__parent = None
-
-    @property
-    def old_value(self):
-        return self.__old_value
-
-    @property
-    def new_value(self):
-        return self.__new_value
-
-    @property
-    def is_replace(self):
-        return self.__is_replace
-
-    @property
-    def removal(self):
-        assert self.is_replace
-        return self.__removal
-
-    @removal.setter
-    def removal(self, removal):
-        assert self.is_replace
-        assert isinstance(removal, PropertyChange)
-        assert self.is_replace
-        assert self.name == replacement.name
-        if self.parent.is_remove:
-            assert not replacement.parent.is_replace and (
-                replacement.parent.is_copy or
-                replacement.parent.is_create or
-                replacement.parent.is_modify
-            )
-        else:
-            assert (
-                replacement.parent.is_remove and
-                replacement.parent.is_replace and (
-                    self.is_copy or
-                    self.is_create or
-                    self.is_modify
-                )
-            )
-
-        self.__replacement = replacement
-        self.__is_replace = True
-        if self.parent.is_remove:
-            replacement.replacement = self
-
-    @property
-    def change_type(self):
-        assert not self.is_replace
-        return ExtendedPropertyChangeTypeToChangeType[
-            self.extended_change_type
-        ]
-
-    @property
-    def extended_change_type(self):
-        assert not self.is_replace
-        if self.old_value == self.new_value:
-            # Yup, this can happen.
-            return ExtendedPropertyChangeType.\
-                PropertyChangedButOldAndNewValuesAreSame
-        elif self.new_value is not None:
-            if self.old_value is None:
-                if self.new_value != '':
-                    return ExtendedPropertyChangeType.\
-                        PropertyCreatedWithValue
-                else:
-                    return ExtendedPropertyChangeType.\
-                        PropertyCreatedWithoutValue
-            elif self.old_value != '':
-                if self.new_value != '':
-                    return ExtendedPropertyChangeType.\
-                        ExistingPropertyValueChanged
-                else:
-                    return ExtendedPropertyChangeType.\
-                        ExistingPropertyValueCleared
-            else:
-                assert self.new_value
-                return ExtendedPropertyChangeType.\
-                    ValueProvidedForPreviouslyEmptyProperty
-        else:
-            assert self.old_value is not None
-            return ExtendedPropertyChangeType.PropertyRemoved
-
-    @property
-    def replacement_type(self):
-        assert self.is_replace
-        if not self.parent.is_remove:
-            return self.replacement.replacement_type
-        else:
-            if self.new_value is None:
-                return PropertyReplacementType.PropertyRemoved
-            elif self.new_value is '':
-                return PropertyReplacementType.PropertyValueCleared
-            elif self.new_value != self.old_value:
-                return PropertyReplacementType.PropertyValueChanged
-            else:
-                raise UnexpectedCodePath
-
-    @property
-    def replacement(self):
-        assert self.is_replace and self.__replacement is not None
-        return self.__replacement
-
-    @replacement.setter
-    def replacement(self, replacement):
-        assert isinstance(replacement, PropertyChange)
-        assert not self.is_replace
-        assert self.name == replacement.name
-        if self.parent.is_remove:
-            assert not replacement.parent.is_replace and (
-                replacement.parent.is_copy or
-                replacement.parent.is_create or
-                replacement.parent.is_modify
-            )
-        else:
-            assert (
-                replacement.parent.is_remove and
-                replacement.parent.is_replace and (
-                    self.is_copy or
-                    self.is_create or
-                    self.is_modify
-                )
-            )
-
-        self.__replacement = replacement
-        self.__is_replace = True
-        if self.parent.is_remove:
-            replacement.replacement = self
-
-    def __repr__(self):
-        r = [
-            ("name", self.name),
-            ("path", self.parent.path),
-        ]
-        if self.is_replace:
-            r += [
-                ("replacement_type", PropertyReplacementType[
-                    self.replacement_type
-                ])
-            ]
-        else:
-            r += [
-                ("change_type", PropertyChangeType[self.change_type]),
-                ("extended_change_type", ExtendedPropertyChangeType[
-                    self.extended_change_type
-                ]),
-            ]
-        if self.old_value:
-            r.append(("old_value", self.old_value))
-        if self.new_value:
-            r.append(("new_value", self.new_value))
-
-        return "<%s(%s)>" % (
-            self.__class__.__name__,
-            ', '.join('%s=%s' % (k, v) for (k, v) in r),
-        )
-
-class MergeinfoPropertyChange(PropertyChange):
-    def __init__(self, **kwds):
-        PropertyChange.__init__(self, **kwds)
-
-        self.__merged = dict()
-        self.__reverse_merged = dict()
-
-        p = svn.core.Pool()
-        values = (self.old_value, self.new_value)
-        (old, new) = (v if v else '' for v in values)
-        old = svn_mergeinfo_parse(old, p)
-        new = svn_mergeinfo_parse(new, p)
-        consider_inheritance = True
-        diff = svn_mergeinfo_diff(old, new, consider_inheritance, p)
-        (deleted, added) = diff
-        for (k, v) in deleted.items():
-            assert k not in self.__reverse_merged
-            self.__reverse_merged[k] = str(svn_rangelist_to_string(v, p))
-
-        for (k, v) in added.items():
-            assert k not in self.__merged
-            self.__merged[k] = str(svn_rangelist_to_string(v, p))
-
-        p.destroy()
-        del p
-
-
-    @property
-    def merged(self):
-        return self.__merged
-
-    @property
-    def reverse_merged(self):
-        return self.__reverse_merged
-
-    def __repr__(self):
-        r = [
-            ("path", self.parent.path),
-        ]
-        if self.is_replace:
-            r += [
-                ("replacement_type", PropertyReplacementType[
-                    self.replacement_type
-                ])
-            ]
-        else:
-            r += [
-                ("change_type", PropertyChangeType[self.change_type]),
-                ("extended_change_type", ExtendedPropertyChangeType[
-                    self.extended_change_type
-                ]),
-            ]
-        if self.reverse_merged:
-            r.append(("reverse_merged", self.reverse_merged))
-        if self.merged:
-            r.append(("merged", self.merged))
-
-        return "<%s(%s)>" % (
-            self.__class__.__name__,
-            ', '.join('%s=%s' % (k, v) for (k, v) in r),
-        )
-
 class ChangeSet(AbstractChangeSet):
 
     def __init__(self, repo_path, rev_or_txn, options=Options()):
@@ -1593,7 +1614,8 @@ class ChangeSet(AbstractChangeSet):
         # implementation of the ChangeSet class and various Change* subclasses
         # (AbstractChange, FileChange, DirectoryChange, etc) was rife with
         # circular links, because all child objects linked backed to their
-        # parents (i.e. via self.parent).
+        # parents (i.e. via self.parent).  (And by "initial implementation", I
+        # mean "initial and still current implementation".)
         #
         # This prevented a ChangeSet and all its child objects from being
         # garbage collected.  Upon realizing the error of my ways, much

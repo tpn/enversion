@@ -5,16 +5,24 @@ import os
 import os.path
 import datetime
 import cStringIO as StringIO
-from evn.repo import RepositoryRevOrTxn
 
 from abc import ABCMeta, abstractmethod, abstractproperty
 
-from evn.path import join_path
+from evn.path import (
+    join_path,
+)
+
+from evn.repo import (
+    RepositoryRevOrTxn,
+)
+
 from evn.util import (
     add_linesep_if_missing,
+    requires_context,
     touch_file,
     DecayDict,
 )
+
 from evn.debug import (
     RemoteDebugSession,
     RemoteDebugSessionStatus,
@@ -40,6 +48,9 @@ class RepositoryHook(RepositoryRevOrTxn):
         self.hook_name  = None
         self.hook_type  = None
 
+    @property
+    def is_repository_hook(self):
+        return True
 
     @requires_context
     def run_hook(self, hook_name, hook_args):

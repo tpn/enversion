@@ -1,3 +1,53 @@
+#=============================================================================
+# Imports
+#=============================================================================
+import os
+
+import svn
+import svn.fs
+
+from evn.config import (
+    Config,
+)
+
+from evn.repo import (
+    RepositoryError,
+    RepositoryRevOrTxn,
+)
+
+from evn.debug import (
+    RemoteDebugSession,
+)
+
+from evn.command import (
+    Command,
+    CommandError,
+    RepoHookCommand,
+    SubversionCommand,
+    RepositoryCommand,
+    RepositoryRevisionCommand,
+)
+
+from evn.hook import (
+    EvnHookFileStatus,
+    RepoHookFileStatus,
+)
+
+from evn.change import (
+    ChangeSet,
+)
+
+from evn.util import (
+    requires_context,
+    Pool,
+    Dict,
+    Options,
+    DecayDict,
+)
+
+#=============================================================================
+# Administrative Commands
+#=============================================================================
 
 class DoctestCommand(Command):
     def run(self):
@@ -26,7 +76,6 @@ class DumpHookCodeCommand(RepositoryCommand):
 
         h = self.evn_hook_file
         h.write(self.ostream)
-
 
 class ShowRepoHookStatusCommand(RepositoryCommand):
     @requires_context
@@ -179,6 +228,18 @@ class EnableCommand(FixHooksCommand):
             if not h.is_enabled:
                 h.enable()
 
+class CreateRepoCommand(SubversionCommand):
+    path = None
+    @requires_context
+    def run(self):
+        assert self.path
+        r = svn.repos.create(self.path, None, None, None, None, self.pool)
+        assert r
+
+        with Command.prime(self, EnableCommand) as command:
+            command.path = self.path
+            command.run()
+
 class SetRepoHookRemoteDebugCommand(RepoHookCommand):
     action = None
 
@@ -313,6 +374,7 @@ class AnalyzeRepoCommand(RepositoryCommand):
             self._out(m % (self.name, start_rev))
 
         k = self.repo_kwds
+        import gc
         gc.disable()
         try:
             for i in xrange(start_rev, end_rev+1):
@@ -434,6 +496,7 @@ class ChangeSetCommand(RepositoryCommand):
             return c.result
 
 class FindMergesCommand(RepositoryRevisionCommand):
+    # XXX TODO: this is broken.
     """
     When set to True, run() will yield revisions that contain merges instead
     of printing them to stdout.  This functionality is used by the classmethod

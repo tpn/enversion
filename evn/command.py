@@ -1,3 +1,35 @@
+#=============================================================================
+# Imports
+#=============================================================================
+import os
+import os.path
+
+import svn
+import svn.fs
+import svn.core
+import svn.repos
+
+from abc import (
+    ABCMeta,
+    abstractmethod,
+    abstractproperty,
+)
+
+from evn.repo import (
+    RepositoryRevisionConfig,
+)
+
+from evn.hook import (
+    EvnHookFile,
+    RepoHookFile,
+)
+
+from evn.util import (
+    add_linesep_if_missing,
+    requires_context,
+    Dict,
+    Pool,
+)
 
 #=============================================================================
 # Commands
@@ -72,24 +104,10 @@ class Command:
 class SubversionCommand(Command):
     pool = None
     def _allocate(self):
-        init_svn_libraries()
         self.pool = svn.core.Pool()
 
     def _deallocate(self):
         self.pool.destroy()
-
-
-class CreateRepoCommand(SubversionCommand):
-    path = None
-    @requires_context
-    def run(self):
-        assert self.path
-        r = svn.repos.create(self.path, None, None, None, None, self.pool)
-        assert r
-
-        with Command.prime(self, EnableCommand) as command:
-            command.path = self.path
-            command.run()
 
 class RepositoryCommand(SubversionCommand):
     fs   = None

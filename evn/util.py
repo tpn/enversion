@@ -1,3 +1,33 @@
+#=============================================================================
+# Imports
+#=============================================================================
+import os
+import datetime
+import itertools
+
+import cStringIO as StringIO
+
+from itertools import (
+    chain,
+    repeat,
+)
+
+from pprint import (
+    pformat,
+)
+
+from functools import (
+    wraps,
+)
+
+from subprocess import (
+    Popen,
+    PIPE,
+)
+
+#=============================================================================
+# Imports
+#=============================================================================
 
 #=============================================================================
 # Helper Methods
@@ -7,6 +37,9 @@ def bytes_to_mb(b):
 
 def bytes_to_kb(b):
     return '%0.3fKB' % (float(b)/1024.0)
+
+def iterable(i):
+    return (i,) if not hasattr(i, '__iter__') else i
 
 def requires_context(f):
     @wraps(f)
@@ -83,10 +116,11 @@ def render_text_table(rows, **kwds):
 
 
 def literal_eval(v):
-    if IS_25:
+    try:
+        import ast
+    except ImportError:
         return eval(v)
     else:
-        import ast
         return ast.literal_eval(v)
 
 def load_propval(orig_value, propname, attempts):
@@ -140,9 +174,6 @@ def load_propval(orig_value, propname, attempts):
                     orig_value,
                 )
             )
-
-def iterable(i):
-    return (i,) if not hasattr(i, '__iter__') else i
 
 def lower(l):
     return [ s.lower() for s in l ]
@@ -226,6 +257,68 @@ def try_remove_file_atexit(path):
 class UnexpectedCodePath(RuntimeError):
     pass
 
+class Constant(dict):
+    def __init__(self):
+        items = self.__class__.__dict__.items()
+        for (key, value) in filter(lambda t: t[0][:2] != '__', items):
+            try:
+                self[value] = key
+            except:
+                pass
+    def __getattr__(self, name):
+        return self.__getitem__(name)
+    def __setattr__(self, name, value):
+        return self.__setitem__(name, value)
+
+class ConfigList(list):
+    def __init__(self, parent, name, args):
+        self._parent = parent
+        self._name = name
+        list.__init__(self, args)
+
+    def append(self, value):
+        list.append(self, value)
+        self._parent._save(self._name, self)
+
+class ConfigDict(dict):
+    def __init__(self, parent, name, kwds):
+        self._parent = parent
+        self._name = name
+        dict.__init__(self, kwds)
+
+    def __getattr__(self, name):
+        if name[0] == '_':
+            return dict.__getattribute__(self, name)
+        else:
+            return self.__getitem__(name)
+
+    def __setattr__(self, name, value):
+        if name[0] == '_':
+            dict.__setattr__(self, name, value)
+        else:
+            self.__setitem__(name, value)
+
+    def __getitem__(self, name):
+        i = dict.__getitem__(self, name)
+        if isinstance(i, dict):
+            return ConfigDict(self, name, i)
+        elif isinstance(i, list):
+            return ConfigList(self, name, i)
+        else:
+            return i
+
+    def __delitem__(self, name):
+        dict.__delitem__(self, name)
+        self._parent._save(self._name, self)
+
+    def __setitem__(self, name, value):
+        dict.__setitem__(self, name, value)
+        self._parent._save(self._name, self)
+
+    def _save(self, name, value):
+        self[name] = value
+
+
 class Pool(object):
     def __init__(self, parent_pool=None):
         self.__parent_pool = parent_pool
@@ -249,6 +342,7 @@ class Options(dict):
     def __getattr__(self, name):
         return False
 
+
 class Dict(dict):
     """
     A dict that allows direct attribute access to keys.
@@ -260,6 +354,7 @@ class Dict(dict):
         return self.__getitem__(name)
     def __setattr__(self, name, value):
         return self.__setitem__(name, value)
+
 
 class DecayDict(Dict):
     """

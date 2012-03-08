@@ -2,11 +2,14 @@
 #=============================================================================
 # Imports
 #=============================================================================
+import time
 import logging
 import datetime
 import itertools
 import cStringIO as StringIO
+
 from pprint import pformat
+
 import ConfigParser as configparser
 ConfigParser = configparser.RawConfigParser
 
@@ -29,84 +32,41 @@ from evn.path import (
     format_dir,
     PathMatcher,
 )
-from evn.hook import (
-    RepositoryHook,
-)
+
 from evn.root import (
     Roots,
     RootDetails,
     SimpleRootMatcher,
     AbsoluteRootDetails,
 )
+
 from evn.change import (
     ChangeSet,
     ChangeType,
     PropertyChangeType,
     ExtendedPropertyChangeType,
 )
+
 from evn.util import (
     literal_eval,
+    requires_context,
     Pool,
     Dict,
     DecayDict,
     UnexpectedCodePath,
 )
+
 from evn.constants import (
     EVN_BRPROPS_SCHEMA_VERSION,
     EVN_ERROR_CONFIRMATIONS,
+    n,  # Notes
+    w,  # Warnings
+    e,  # Errors
 )
 
 #=============================================================================
 # Repository-related Configuration Classes
 #=============================================================================
-
-class ConfigList(list):
-    def __init__(self, parent, name, args):
-        self._parent = parent
-        self._name = name
-        list.__init__(self, args)
-
-    def append(self, value):
-        list.append(self, value)
-        self._parent._save(self._name, self)
-
-class ConfigDict(dict):
-    def __init__(self, parent, name, kwds):
-        self._parent = parent
-        self._name = name
-        dict.__init__(self, kwds)
-
-    def __getattr__(self, name):
-        if name[0] == '_':
-            return dict.__getattribute__(self, name)
-        else:
-            return self.__getitem__(name)
-
-    def __setattr__(self, name, value):
-        if name[0] == '_':
-            dict.__setattr__(self, name, value)
-        else:
-            self.__setitem__(name, value)
-
-    def __getitem__(self, name):
-        i = dict.__getitem__(self, name)
-        if isinstance(i, dict):
-            return ConfigDict(self, name, i)
-        elif isinstance(i, list):
-            return ConfigList(self, name, i)
-        else:
-            return i
-
-    def __delitem__(self, name):
-        dict.__delitem__(self, name)
-        self._parent._save(self._name, self)
-
-    def __setitem__(self, name, value):
-        dict.__setitem__(self, name, value)
-        self._parent._save(self._name, self)
-
-    def _save(self, name, value):
-        self[name] = value
 
 class AbstractRepositoryConfig(dict):
     __metaclass__ = ABCMeta
@@ -547,6 +507,10 @@ class RepositoryRevOrTxn(object):
         assert self.is_txn
         return self.__txn
 
+    @property
+    def is_repository_hook(self):
+        return False
+
     def _init_evn(self):
         self.is_rev_for_empty_repo = self.is_rev and self.rev == 0
         self.is_rev_for_first_commit = self.is_rev and self.rev == 1
@@ -596,7 +560,7 @@ class RepositoryRevOrTxn(object):
     @property
     def good_last_rev(self):
         self._reload_last_rev()
-        if isinstance(self, RepositoryHook):
+        if self.is_repository_hook:
             return bool(self.last_rev == self.base_rev)
         else:
             assert self.is_rev
@@ -611,7 +575,7 @@ class RepositoryRevOrTxn(object):
     def _last_rev_is_bad(self):
         if self.is_rev:
             a = (self.rev, self.base_rev, self.last_rev, self.latest_rev)
-            if isinstance(self, RepositoryHook):
+            if self.is_repository_hook:
                 m = e.LastRevNotSetToBaseRevDuringPostCommit
             else:
                 m = e.OutOfOrderRevisionProcessingAttempt
@@ -628,7 +592,7 @@ class RepositoryRevOrTxn(object):
     def _base_rev_roots_is_bad(self):
         if self.is_rev:
             a = (self.rev, self.base_rev, self.last_rev, self.latest_rev)
-            if isinstance(self, RepositoryHook):
+            if self.is_repository_hook:
                 m = e.RootsMissingFromBaseRevDuringPostCommit
             else:
                 m = e.InvalidRootsForRev
@@ -702,7 +666,7 @@ class RepositoryRevOrTxn(object):
         if self.last_rev > highest_rev:
             self.die(e.LastRevTooHigh % (self.last_rev, highest_rev))
 
-        if self.is_rev and isinstance(self, RepositoryHook):
+        if self.is_rev and self.is_repository_hook:
             with open(self.rev_lockfile, 'w') as f:
                 f.write(str(os.getpid()))
                 f.flush()

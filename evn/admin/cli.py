@@ -1,29 +1,59 @@
+#=============================================================================
+# Imports
+#=============================================================================
+import os
+
+from itertools import (
+    chain,
+    repeat,
+)
+
+import evn.admin.commands
+
+from evn.util import (
+    render_text_table,
+)
 
 from evn.cli import (
     CLI,
     CommandLine,
 )
 
-class AdminCLI(CLI):
-    pass
+#=============================================================================
+# Classes
+#=============================================================================
+class AdminCommandLine(CommandLine):
+    @property
+    def commands_module(self):
+        return evn.admin.commands
 
-class DoctestCommandLine(CommandLine):
+class AdminCLI(CLI):
+
+    @property
+    def program_name(self):
+        return 'evnadmin'
+
+    @property
+    def commandline_subclasses(self):
+        return AdminCommandLine.__subclasses__()
+
+class DoctestCommandLine(AdminCommandLine):
     _verbose_ = True
 
-class DumpDefaultConfigCommandLine(CommandLine):
+class DumpDefaultConfigCommandLine(AdminCommandLine):
     pass
 
-class DumpConfigCommandLine(CommandLine):
+class DumpConfigCommandLine(AdminCommandLine):
     _conf_ = True
 
-class ShowConfigFileLoadOrderCommandLine(CommandLine):
+class ShowConfigFileLoadOrderCommandLine(AdminCommandLine):
     _conf_ = True
 
-class DumpHookCodeCommandLine(CommandLine):
+class DumpHookCodeCommandLine(AdminCommandLine):
     _conf_ = True
     _repo_ = True
 
-class ShowRepoHookStatusCommandLine(CommandLine):
+class ShowRepoHookStatusCommandLine(AdminCommandLine):
     _conf_ = True
     _repo_ = True
 
@@ -94,7 +124,7 @@ class ShowRepoHookStatusCommandLine(CommandLine):
         k.special = '='
         render_text_table(rows, **k)
 
-class ShowRepoRemoteDebugSessionsCommandLine(CommandLine):
+class ShowRepoRemoteDebugSessionsCommandLine(AdminCommandLine):
     _conf_ = True
     _repo_ = True
     _command_ = ShowRepoHookStatusCommand
@@ -145,23 +175,23 @@ class ShowRepoRemoteDebugSessionsCommandLine(CommandLine):
         #k.special = '='
         render_text_table(rows, **k)
 
-class FixHooksCommandLine(CommandLine):
+class FixHooksCommandLine(AdminCommandLine):
     _conf_      = True
     _repo_      = True
     _verbose_   = True
 
-class EnableCommandLine(CommandLine):
+class EnableCommandLine(AdminCommandLine):
     _conf_      = True
     _repo_      = True
     _verbose_   = True
 
-class CreateCommandLine(CommandLine):
+class CreateCommandLine(AdminCommandLine):
     _conf_      = True
     _repo_      = True
     _verbose_   = True
     _command_   = CreateRepoCommand
 
-class RunHookCommandLine(CommandLine):
+class RunHookCommandLine(AdminCommandLine):
     _conf_ = True
     _repo_ = True
     _argc_ = False
@@ -174,7 +204,7 @@ class RunHookCommandLine(CommandLine):
     def _process_parser_results(self):
         self.command.hook_args = self.args
 
-class _SetRepoHookRemoteDebugCommandLine(CommandLine):
+class _SetRepoHookRemoteDebugCommandLine(AdminCommandLine):
     _conf_ = True
     _repo_ = True
     _argc_ = 3
@@ -216,13 +246,13 @@ class DisableRemoteDebugCommandLine(_SetRepoHookRemoteDebugCommandLine):
 class ToggleRemoteDebugCommandLine(_SetRepoHookRemoteDebugCommandLine):
     _action_ = 'toggle'
 
-class AnalyzeRepoCommandLine(CommandLine):
+class AnalyzeRepoCommandLine(AdminCommandLine):
     _repo_ = True
     _conf_ = True
     _verbose_ = True
     _usage_ = '%prog [ options ] REPO_PATH'
 
-class FindMergesCommandLine(CommandLine):
+class FindMergesCommandLine(AdminCommandLine):
     _repo_ = True
     _conf_ = True
     _verbose_ = True

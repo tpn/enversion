@@ -1,3 +1,20 @@
+#=============================================================================
+# Imports
+#=============================================================================
+import psutil
+import itertools
+
+from collections import (
+    namedtuple,
+)
+
+from functools import (
+    wraps,
+)
+
+#=============================================================================
+# Named Tuples, Decorators & Helper Methods
+#=============================================================================
 
 ResourceUsageSnapshot = namedtuple(
     'ResourceUsageSnapshot', (
@@ -17,6 +34,17 @@ ResourceUsageDelta = namedtuple(
         '%s_delta' % s for s in ResourceUsageSnapshot._fields
     ),
 )
+
+def track_resource_usage(f):
+    @wraps(f)
+    def wrapper(*args, **kwds):
+        obj = args[0]
+        if not obj._track_resource_usage:
+            return f(*args, **kwds)
+        else:
+            with args[0]._track(f.func_name):
+                return f(*args, **kwds)
+    return wrapper
 
 def create_resource_usage_snapshot(p):
     assert isinstance(p, psutil.Process)
@@ -40,6 +68,9 @@ def create_resource_usage_delta(name, before, after):
     ]
     return ResourceUsageDelta(*args)
 
+#=============================================================================
+# Classes
+#=============================================================================
 class ResourceUsageContainer(object):
     def __init__(self, name, depth, rss, vms):
         self.name = name
@@ -155,7 +186,7 @@ class ResourceUsageTracker(object):
         return self.current_depth
 
     def _exit(self, ctx):
-        'Called by ResourceUsageContext.__exit__'
+        """Called by ResourceUsageContext.__exit__."""
         self.current_depth -= 1
         self.current_context = self.previous_context
 
@@ -226,14 +257,4 @@ class DummyResourceUsageTracker(object):
     def __exit__(self, *args):
         pass
 
-def track_resource_usage(f):
-    @wraps(f)
-    def wrapper(*args, **kwds):
-        obj = args[0]
-        if not obj._track_resource_usage:
-            return f(*args, **kwds)
-        else:
-            with args[0]._track(f.func_name):
-                return f(*args, **kwds)
-    return wrapper
-
+# vim:set ts=8 sw=4 sts=4 tw=78 et:
