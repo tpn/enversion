@@ -56,7 +56,13 @@ from evn.util import (
 class DoctestCommand(Command):
     def run(self):
         import doctest
-        doctest.testmod()
+        import evn.path
+        import evn.root
+        import evn.util
+        verbose = self.options.verbose
+        doctest.testmod(evn.path, verbose=verbose)
+        doctest.testmod(evn.root, verbose=verbose)
+        doctest.testmod(evn.util, verbose=verbose)
 
 class DumpDefaultConfigCommand(Command):
     def run(self):
