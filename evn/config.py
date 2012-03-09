@@ -11,8 +11,11 @@ from os.path import abspath, dirname
 
 from textwrap import dedent
 
-import ConfigParser as configparser
-ConfigParser = configparser.RawConfigParser
+from ConfigParser import (
+    NoOptionError,
+    NoSectionError,
+    RawConfigParser,
+)
 
 from evn.path import join_path
 
@@ -22,9 +25,9 @@ from evn.path import join_path
 class ConfigError(Exception):
     pass
 
-class Config(ConfigParser):
+class Config(RawConfigParser):
     def __init__(self, repo_name=None):
-        ConfigParser.__init__(self)
+        RawConfigParser.__init__(self)
         if repo_name is not None:
             assert isinstance(repo_name, str)
         self.__repo_name = repo_name
@@ -49,6 +52,11 @@ class Config(ConfigParser):
     @property
     def repo_name(self):
         return self.__repo_name
+
+    @repo_name.setter
+    def repo_name(self, value):
+        assert isinstance(value, str)
+        self.__repo_name = value
 
     def load(self, filename=None):
         self.__filename = filename
@@ -248,6 +256,23 @@ class Config(ConfigParser):
 
     def _g(self, name):
         return self.get('main', name)
+
+    def get(self, _, option):
+        if self.repo_name is not None:
+            if self.repo_name == 'main':
+                section = 'repo:main'
+            else:
+                section = self.repo_name
+        else:
+            section = 'main'
+
+        try:
+            return RawConfigParser.get(self, section, option)
+        except (NoSectionError, NoOptionError):
+            return RawConfigParser.get(self, 'main', option)
+
+    def _get(self, section, option):
+        return RawConfigParser.get(self, section, option)
 
     @property
     def propname_prefix(self):
