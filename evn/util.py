@@ -112,6 +112,58 @@ def render_text_table(rows, **kwds):
 
     output.write(add_linesep_if_missing('\n'.join(out)))
 
+def render_rst_grid(rows, **kwds):
+    output  = kwds.get('output', sys.stdout)
+    formats = kwds.get('formats')
+    special = kwds.get('special')
+    rows = list(rows)
+    if not formats:
+        formats = lambda: chain((str.ljust,), repeat(str.rjust))
+
+    cols = len(rows[0])
+    paddings = [
+        max([len(str(r[i])) for r in rows]) + 2
+            for i in xrange(cols)
+    ]
+
+    length = sum(paddings) + cols
+    strip = '+%s+' % ('-' * (length-1))
+    out = list()
+    if banner:
+        lines = iterable(banner)
+        banner = [ strip ] + \
+                 [ '|%s|' % balign(l, length-1) for l in lines ] + \
+                 [ strip, ]
+        out.append('\n'.join(banner))
+
+    rows.insert(1, [ '-', ] * cols)
+    out += [
+        '\n'.join([
+            k + '|'.join([
+                fmt(str(column), padding, (
+                    special if column == special else fill
+                )) for (column, fmt, padding) in zip(row, fmts(), paddings)
+            ]) + k for (row, fmts, fill, k) in zip(
+                rows,
+                chain(
+                    repeat(lambda: repeat(str.center,), 1),
+                    repeat(formats,)
+                ),
+                chain((' ',), repeat('-', 1), repeat(' ')),
+                chain(('|', '+'), repeat('|'))
+            )
+        ] + [strip,])
+    ]
+
+    if footer:
+        footers = iterable(footer)
+        footer = [ strip ] + \
+                 [ '|%s|' % balign(f, length-1) for f in footers ] + \
+                 [ strip, '' ]
+        out.append('\n'.join(footer))
+
+    output.write(add_linesep_if_missing('\n'.join(out)))
+
 
 def literal_eval(v):
     try:

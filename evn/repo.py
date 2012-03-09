@@ -18,9 +18,16 @@ import svn
 import svn.fs
 import svn.core
 
-from svn.core import SVN_PROP_MERGEINFO
-from svn.core import SVN_PROP_REVISION_LOG
-from svn.core import SVN_PROP_REVISION_AUTHOR
+from svn.core import (
+    svn_node_dir,
+    svn_node_file,
+
+    svn_mergeinfo_parse,
+
+    SVN_PROP_MERGEINFO,
+    SVN_PROP_REVISION_LOG,
+    SVN_PROP_REVISION_AUTHOR,
+)
 
 from abc import (
     ABCMeta,
@@ -804,7 +811,7 @@ class RepositoryRevOrTxn(object):
         assert isinstance(self.roots, Roots)
         assert self.roots == d
 
-    def _init_evn_dir_v1(self):
+    def __init_evn_dir_v1(self):
         self.__evn_dir = join_path(self.path, 'evn')
         self.__evn_db_dir = join_path(self.path, 'db')
         self.__evn_logs_dir = join_path(self.path, 'logs')
@@ -2818,7 +2825,7 @@ class RepositoryRevOrTxn(object):
         return self.ls(path, names_only=names_only, kinds=(svn_node_dir,))
 
     def ls_files(self, path='', names_only=True):
-        return self.ls(path, names_only=names_only, kinds=(svn_node_files,))
+        return self.ls(path, names_only=names_only, kinds=(svn_node_file,))
 
     def propget(self, name, path=''):
         return svn.fs.node_prop(self.root, path, name, self.pool)
