@@ -227,25 +227,6 @@ class Config(RawConfigParser):
             'call "%%~dp0{0}" %%~n0 %%*'
         )
 
-        self.add_section('errors')
-        self.set('errors', 'log-errors', 'yes')
-        self.set('errors', 'log-name', 'evn')
-        self.set('errors', 'log-level', '')
-        self.set('errors', 'log-filename', 'evn.log')
-        self.set('errors', 'log-level', 'DEBUG')
-        self.set('errors', 'log-format', logfmt)
-        self.set('errors', 'log-max-mb', '5')
-        self.set('errors', 'log-backup-count', '10')
-
-        self.add_section('repo')
-        self.set('repo', 'logging', 'yes')
-        self.set('repo', 'logdir-suffix', 'hooks/evn/log')
-        self.set('repo', 'logdir-shard', '1000')
-        self.set('repo', 'log-level', 'DEBUG')
-        self.set('repo', 'log-format', logfmt)
-        self.set('repo', 'log-name', 'evn')
-        self.set('repo', 'lockdir-suffix', 'hooks/evn/locks')
-
         self.add_section('hook-override')
         self.set('hook-override', 'enabled', 'yes')
         self.set('hook-override', 'authz-file', 'conf/authz')

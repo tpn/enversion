@@ -142,6 +142,8 @@ class RepositoryHook(RepositoryRevOrTxn):
         pass
 
     def post_commit(self, rev, txn_name=None):
+        # XXX TODO: add support for txn_name if it's present.
+
         # The only thing we *have* to do during post-commit is to access the
         # changeset property (which automatically creates, analyses and then
         # post-processes it behind the scenes).
@@ -471,15 +473,22 @@ class RepoHookFile(HookFile):
             else:
                 if line.startswith(self.comment_character):
                     output.append(line)
+                elif not line:
+                    # Skip blank lines.
+                    output.append(line)
                 else:
                     if first and line.lower().startswith('@echo'):
                         output.append(line)
                         output += [ '', code, '' ]
+                        inserted = True
                     else:
                         output += [ '', code, '' ]
                         output.append(line)
-                    inserted = True
-            first = False
+            if first:
+                first = False
+
+        if not inserted:
+            output += [ '', code, '' ]
 
         if existing:
             suffix = datetime.datetime.now().strftime('%Y%m%d%H%M%S-%f')

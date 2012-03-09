@@ -333,36 +333,24 @@ class RunHookCommand(RepoHookCommand):
             self.rdb = RemoteDebugSession(*args)
             self.rdb.set_trace()
 
-        l = None
-        if self.conf.get('errors', 'log-errors') == 'yes':
-            import logging
-            import logging.handlers
-            l = logging.getLogger(self.conf.get('errors', 'log-name'))
-            l.setLevel(self.conf.get('errors', 'log-level'))
-            fn = self.conf.get('errors', 'log-filename')
-            mb = int(self.conf.get('errors', 'log-max-mb')) * 1024 * 1024
-            bc = int(self.conf.get('errors', 'log-backup-count'))
-            k = dict(maxBytes=mb, backupCount=bc)
-            h = logging.handlers.RotatingFileHandler(fn, **k)
-            f = logging.Formatter(self.conf.get('errors', 'log-format'))
-            h.setFormatter(f)
-            l.addHandler(h)
-
         with RepositoryHook(**self.repo_kwds) as r:
             try:
                 r.run_hook(self.hook_name, self.hook_args)
             except Exception as exc:
-                if l is not None:
-                    (exc_type, exc_value, exc_tb) = sys.exc_info()
-                    m = "Repository %s hook failed (hook args: %s):%s%s"
-                    args = ', '.join('%s' % repr(a) for a in self.hook_args)
-                    e = ''.join(traceback.format_exception(*sys.exc_info()))
-                    l.critical(m % (self.hook_name, args, os.linesep, e))
+                (exc_type, exc_value, exc_tb) = sys.exc_info()
+                # XXX TODO: if it's a pre-commit, try extract info about the
+                # incoming commit, i.e. svn log -v type output for the txn.
+
                 if isinstance(exc, RepositoryError):
                     self._err(exc.args[0])
                     sys.exit(1)
                 else:
-                    raise
+                    m = "Repository %s hook failed (hook args: %s):%s%s"
+                    args = ', '.join('%s' % repr(a) for a in self.hook_args)
+                    e = ''.join(traceback.format_exception(*sys.exc_info()))
+                    err = m % (self.hook_name, args, os.linesep, e)
+                    # XXX TODO: err, log this somewhere.
+                    raise exc
 
 class AnalyzeRepoCommand(RepositoryCommand):
     @requires_context

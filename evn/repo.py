@@ -406,14 +406,17 @@ class RepositoryRevOrTxn(object):
 
         self.__closed                           = False
 
-        self.__logging_initialised              = False
+        self.__evn_dir                          = str()
+        self.__evn_db_dir                       = str()
+        self.__evn_logs_dir                     = str()
+        self.__evn_locks_dir                    = str()
 
-        self.__admins =                         None
+        self.__admins                           = None
 
-        self.authz_conf   = ConfigParser()
-        self.authz_admins = set()
-        self.authz_groups = dict()
-        self.authz_overrides = set()
+        self.authz_conf                         = ConfigParser()
+        self.authz_admins                       = set()
+        self.authz_groups                       = dict()
+        self.authz_overrides                    = set()
 
 
     def __enter__(self):
@@ -428,10 +431,6 @@ class RepositoryRevOrTxn(object):
             self.__changeset = None
         self.pool.destroy()
         self.exited = True
-
-        if self.__logging_initialised:
-            self.__logger.removeHandler(self.__loghandler)
-            self.__loghandler.close()
 
     @requires_context
     def process_rev_or_txn(self, rev_or_txn):
@@ -459,8 +458,6 @@ class RepositoryRevOrTxn(object):
             self.revprops = svn.fs.txn_proplist(self.txn, p)
             self.base_rev = svn.fs.txn_base_revision(self.txn)
 
-        self._init_logger()
-        self._init_locking()
         self._init_evn()
 
         self._copies_processed = set()
@@ -644,6 +641,8 @@ class RepositoryRevOrTxn(object):
 
     def _init_evn_v1(self):
 
+        self.__init_evn_dir_v1()
+
         if self.is_rev_for_empty_repo:
             return
 
@@ -683,23 +682,22 @@ class RepositoryRevOrTxn(object):
             self._last_rev_and_base_rev_roots_are_good()
             return
 
-        dbg = self.log.debug
         a = (str(self.rev_or_txn), self.base_rev, self.last_rev)
-        dbg('rev_or_txn: %s, base_rev: %d, last_rev: %d' % a)
+        self._dbg('rev_or_txn: %s, base_rev: %d, last_rev: %d' % a)
 
         found = False
         fn = self.base_rev_lockfile
         count = itertools.count()
         while True:
             c = count.next()
-            dbg('looking for revlock file: %s (attempt: %d)' % (fn, c))
+            self._dbg('looking for revlock file: %s (attempt: %d)' % (fn, c))
             if os.path.isfile(fn):
                 found = True
-                dbg('found revlock after %d attempts' % c)
+                self._dbg('found revlock after %d attempts' % c)
                 break
             time.sleep(1)
             if c == max_revlock_waits:
-                dbg('no revlock found after %d attempts' % c)
+                self._dbg('no revlock found after %d attempts' % c)
                 break
 
         if self.good_last_rev and self.good_base_rev_roots:
@@ -713,19 +711,19 @@ class RepositoryRevOrTxn(object):
             except:
                 pass
             if not s:
-                dbg('failed to open/read lock file %s' % fn)
+                self._dbg('failed to open/read lock file %s' % fn)
             else:
                 try:
                     pid = int(s)
-                    dbg("pid for lock file %s: %d" % (fn, pid))
+                    self._dbg("pid for lock file %s: %d" % (fn, pid))
                 except:
-                    dbg("invalid pid for lock file %s: %s" % (fn, s))
+                    self._dbg("invalid pid for lock file %s: %s" % (fn, s))
                 else:
                     count = itertools.count()
                     still_running = pid_exists(pid)
                     while still_running:
                         a = (count.next(), pid)
-                        dbg("[%d] pid %d is still running" % a)
+                        self._dbg("[%d] pid %d is still running" % a)
                         time.sleep(1)
                         still_running = pid_exists(pid)
 
@@ -742,6 +740,9 @@ class RepositoryRevOrTxn(object):
             self._base_rev_roots_is_bad()
 
         raise UnexpectedCodePath
+
+    def _dbg(self, msg):
+        pass
 
     def _inherit_roots(self, roots):
         d = lambda v: { 'created' : v['created'] }
@@ -803,60 +804,31 @@ class RepositoryRevOrTxn(object):
         assert isinstance(self.roots, Roots)
         assert self.roots == d
 
-    def _init_logger(self):
-        raw = True
-        self.__logdir_suffix = self.conf.get('repo', 'logdir-suffix')
-        self.__logdir_shard  = int(self.conf.get('repo', 'logdir-shard'))
-        self.__log_format = self.conf.get('repo', 'log-format')
-        self.__log_level = self.conf.get('repo', 'log-level')
-        self.__log_name = self.conf.get('repo', 'log-name')
+    def _init_evn_dir_v1(self):
+        self.__evn_dir = join_path(self.path, 'evn')
+        self.__evn_db_dir = join_path(self.path, 'db')
+        self.__evn_logs_dir = join_path(self.path, 'logs')
+        self.__evn_locks_dir = join_path(self.path, 'locks')
 
-        self.__logdir_base = join_path(self.path, self.__logdir_suffix)
-        if not os.path.exists(self.__logdir_base):
-            os.makedirs(self.__logdir_base)
-        assert os.path.isdir(self.__logdir_base)
-
-        # Initialise the appropriate shard directory based on our base_rev.
-        if self.base_rev <= 0:
-            i = 0
-        else:
-            assert self.base_rev >= 1
-            i = self.base_rev / self.__logdir_shard
-
-        self.__logdir = join_path(
-            self.__logdir_base,
-            str(i * self.__logdir_shard),
+        dirs = (
+            self.__evn_dir,
+            self.__evn_db_dir,
+            self.__evn_logs_dir,
+            self.__evn_locks_dir,
         )
+        for d in dirs:
+            if not os.path.exists(d):
+                os.makedirs(d)
 
-        if not os.path.exists(self.__logdir):
-            os.makedirs(self.__logdir)
-        assert os.path.isdir(self.__logdir)
+        for d in dirs:
+            assert os.path.isdir(d)
 
-        filename = '%s_%s_%s.log' % (
-            ('t%s' % self.txn_name if self.is_txn else 'r%d' % self.rev),
-            datetime.datetime.now().strftime('%Y%m%d%H%M%S-%f'),
-            str(os.getpid()),
-        )
+        # Initialize lock file names.
+        f = join_path(self.__evn_locks_dir, str(self.base_rev))
+        self.__base_rev_lockfile = f
 
-        self.__log_file = join_path(self.__logdir, filename)
-        assert not os.path.exists(self.__log_file)
-
-        l = logging.getLogger(self.__log_name)
-        l.setLevel(self.__log_level)
-        h = logging.FileHandler(self.__log_file)
-        f = logging.Formatter(self.__log_format)
-        h.setFormatter(f)
-        l.addHandler(h)
-        self.__loghandler = h
-        self.__logger = l
-        self.log.debug(
-            'Repository(%s, %s)' % (
-                self.path,
-                str(self.rev_or_txn),
-            )
-        )
-        self.log.debug('sys.argv: %s' % repr(sys.argv))
-        self.__logging_initialised = True
+        if self.is_rev:
+            self.__rev_lockfile = join_path(d, str(self.rev))
 
     @property
     def lockdir(self):
@@ -877,26 +849,6 @@ class RepositoryRevOrTxn(object):
     @property
     def base_rev_roots(self):
         return self.__base_rev_roots
-
-    def _init_locking(self):
-        if self.base_rev < 1:
-            return
-
-        self.__lockdir_suffix = self.conf.get('repo', 'lockdir-suffix')
-
-        # Initialise the lock directory and set our lock file names.
-        d = join_path(self.path, self.__lockdir_suffix)
-        if not os.path.exists(d):
-            os.makedirs(d)
-        assert os.path.isdir(d)
-
-        self.__lockdir = d
-
-        f = join_path(d, str(self.base_rev))
-        self.__base_rev_lockfile = f
-
-        if self.is_rev:
-            self.__rev_lockfile = join_path(d, str(self.rev))
 
     @property
     def log(self):
@@ -1214,7 +1166,7 @@ class RepositoryRevOrTxn(object):
 
     def __finalise_changeset(self, cs):
         if self.is_rev:
-            dbg = self.log.debug
+            dbg = self._dbg
             self._reload_last_rev()
             dbg('entered __finalise_changeset()')
             dbg('last_rev: %d, self.rev: %d, self.base_rev: %d' % (
@@ -1233,13 +1185,13 @@ class RepositoryRevOrTxn(object):
             # which is unnecessary this late in the game.
             if cs.notes:
                 c._save('notes', cs.notes)
-                self.log.debug('notes: %s' % repr(cs.notes))
+                dbg('notes: %s' % repr(cs.notes))
             if cs.errors:
                 c._save('errors', cs.errors)
-                self.log.debug('errors: %s' % repr(cs.errors))
+                dbg('errors: %s' % repr(cs.errors))
             if cs.warnings:
                 c._save('warnings', cs.warnings)
-                self.log.debug('warnings: %s' % repr(cs.warnings))
+                dbg('warnings: %s' % repr(cs.warnings))
 
     def _process_copy(self, c):
         # Types of copies (similar to types of renames):
@@ -1304,7 +1256,6 @@ class RepositoryRevOrTxn(object):
                 m = e.KnownRootPathReplacedViaCopy
                 c.error(m)
                 err = '%s: %s' % (m, c.path)
-                self.log.critical(err)
                 if self.is_rev:
                     raise RuntimeError(err)
                 return
@@ -1312,7 +1263,6 @@ class RepositoryRevOrTxn(object):
                 m = e.InvariantViolatedCopyNewPathInRootsButNotReplace
                 c.error(m)
                 err = '%s: %s' % (m, c.path)
-                self.log.critical(err)
                 if self.is_rev:
                     raise RuntimeError(err)
                 return
@@ -2084,7 +2034,6 @@ class RepositoryRevOrTxn(object):
                         return
                     else:
                         assert self.is_rev
-                        self.log.critical(m)
                         raise RuntimeError(m)
 
                 m = e.RenameAffectsMultipleRoots
