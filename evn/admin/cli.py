@@ -252,16 +252,28 @@ class AnalyzeCommandLine(AdminCommandLine):
     _usage_ = '%prog [ options ] REPO_PATH'
 
 class ShowRootsCommandLine(AdminCommandLine):
-    _rev_   = True
-    _repo_  = True
-    _conf_  = True
-    _usage_ = '%prog [ options ] REPO_PATH'
+    _rev_       = True
+    _repo_      = True
+    _conf_      = True
+    _verbose_   = True
+    _usage_     = '%prog [ options ] REPO_PATH'
 
 class RootInfoCommandLine(AdminCommandLine):
-    _repo_  = True
-    _conf_  = True
-    _argc_  = 3
-    _usage_ = '%prog [ options ] ROOT REPO_PATH'
+    _rev_       = True
+    _repo_      = True
+    _conf_      = True
+    _argc_      = 2
+    _usage_     = '%prog [ options ] ROOT REPO_PATH'
+    _verbose_   = True
+
+    def _add_parser_options(self):
+        self.parser.add_option(
+            '--json',
+            dest='json',
+            action='store_true',
+            default=False,
+            help='print roots in json format [default: %default]',
+        )
 
     def _pre_process_parser_results(self):
         self.command.root_path = self.args.pop(0)

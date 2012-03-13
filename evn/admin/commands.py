@@ -9,6 +9,12 @@ import traceback
 import svn
 import svn.fs
 
+import cStringIO as StringIO
+
+from evn.path import (
+    format_dir,
+)
+
 from evn.config import (
     Config,
 )
@@ -405,18 +411,79 @@ class ShowRootsCommand(RepositoryRevisionCommand):
         roots = rc.roots
 
         if roots is None:
-            m = "Repository '%s' has no roots defined at r%d"
+            m = "Repository '%s' has no roots defined at r%d."
             self._out(m % (self.name, self.rev))
-
         else:
+            m = "Showing roots for repository '%s' at r%d:"
+            self._verbose(m % (self.name, self.rev))
             pprint.pprint(roots, self.ostream)
 
 
-class RootInfoCommand(RepositoryCommand):
+class RootInfoCommand(RepositoryRevisionCommand):
+    root_path = None
     @requires_context
     def run(self):
-        RepositoryCommand.run(self)
-        pass
+        RepositoryRevisionCommand.run(self)
+
+        assert self.root_path and isinstance(self.root_path, str)
+        p = format_dir(self.root_path)
+
+        k = dict(fs=self.fs, rev=self.rev, conf=self.conf)
+        rc = RepositoryRevisionConfig(**k)
+        roots = rc.roots
+        if not roots:
+            m = "Repository '%s' has no roots defined at r%d"
+            self._out(m % (self.name, self.rev))
+            return
+
+        root = roots.get(p)
+        if not root:
+            m = "No root named '%s' is present in repository '%s' at r%d."
+            self._out(m % (p, self.name, self.rev))
+            return
+
+        created = root['created']
+        m = "Found root '%s' in repository '%s' at r%d (created at r%d)."
+        self._verbose(m % (p, self.name, self.rev, created))
+
+        k = dict(fs=self.fs, rev=created, conf=self.conf)
+        rc = RepositoryRevisionConfig(**k)
+        roots = rc.roots
+        assert roots
+        root = roots[p]
+        assert root
+        m = "Displaying root info for '%s' from r%d:"
+        self._verbose(m % (p, created))
+        d = { p : root }
+
+        if self.options.json:
+            import json
+            json.dump(d, self.ostream, sort_keys=True, indent=4)
+            return
+
+        buf = StringIO.StringIO()
+        w = buf.write
+        w("'%s': {\n" % p)
+        if root['copies']:
+            w("    'copies': {\n")
+
+            copies = pprint.pformat(root['copies'])
+            indent = ' ' * 8
+            w(indent)
+            w(copies[1:-1].replace('\n', '\n' + indent))
+            w("\n    },\n")
+        else:
+            w("    'copies': { },\n")
+
+        for (k, v) in root.items():
+            if k == 'copies':
+                continue
+            w("    '%s': %s,\n" % (k, pprint.pformat(v)))
+        w("}\n")
+
+        buf.seek(0)
+        self.ostream.write(buf.read())
+
 
 class ChangeSetCommand(RepositoryCommand):
     rev_or_txn = None
