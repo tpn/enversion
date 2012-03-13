@@ -100,7 +100,7 @@ class Command:
         Does not prepend anything to `msg`.
         Adds trailing linesep to `msg` if there's not one already.
         """
-        if not self._quiet:
+        if not self.options.quiet:
             self.ostream.write(add_linesep_if_missing(msg))
 
     def _warn(self, msg):
@@ -153,6 +153,8 @@ class RepositoryCommand(SubversionCommand):
     hook_dir   = None
     hook_names = None
 
+    youngest_rev = None
+
     _hook_files = None
     _evn_hook_file = None
     _repo_hook_files = None
@@ -187,10 +189,11 @@ class RepositoryCommand(SubversionCommand):
         self.conf.repo_name = self.name
         self.hook_names = self.conf.hook_names
 
-        #self.repo       = svn.repos.open(self.path, self.pool)
-        self.repo       = svn.repos.open(self.path)
+        self.repo       = svn.repos.open(self.path, self.pool)
         self.fs         = svn.repos.fs(self.repo)
-        self.hook_dir   = svn.repos.hook_dir(self.repo)
+        self.hook_dir   = svn.repos.hook_dir(self.repo, self.pool)
+
+        self.youngest_rev = svn.fs.youngest_rev(self.fs, self.pool)
 
         #k = dict(fs=self.fs, rev=0, pool=self.pool)
         k = dict(fs=self.fs, rev=0, conf=self.conf)
@@ -228,7 +231,37 @@ class RepoHookCommand(RepositoryCommand):
         self.hook = self.hook_file(self.hook_name)
 
 class RepositoryRevisionCommand(RepositoryCommand):
-    revision = None
+    # `rev_str` should be set before calling run(); it will be validated and
+    # the resulting revision integer will be placed in `rev`.
+    rev = None
+    rev_str = None
+
+    @requires_context
+    def run(self):
+        RepositoryCommand.run(self)
+
+        assert self.rev_str
+
+        if self.rev_str == 'HEAD':
+            r = self.youngest_rev
+        else:
+            try:
+                r = int(self.rev_str)
+            except ValueError:
+                raise CommandError("invalid revision: '%s'" % self.rev_str)
+
+        if r < 1:
+            raise CommandError("invalid revision: '%d'" % r)
+
+        if r > self.youngest_rev:
+            m = "revision '%d' is too high, repository is only at r%d"
+            raise CommandError(m % (r, self.youngest_rev))
+
+        self.rev = r
+
+
+class RepositoryRevisionRangeCommand(RepositoryCommand):
+    rev_range_str = None
 
     _end_rev = None
     _start_rev = None
@@ -237,6 +270,10 @@ class RepositoryRevisionCommand(RepositoryCommand):
     @property
     def _minimum_rev(self):
         return 0
+
+    def _parse_rev_range(self, start_rev_str, end_rev_str):
+        pass
+
 
     @requires_context
     def run(self):

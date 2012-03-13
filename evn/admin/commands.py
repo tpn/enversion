@@ -3,6 +3,7 @@
 #=============================================================================
 import os
 import sys
+import pprint
 import traceback
 
 import svn
@@ -15,6 +16,7 @@ from evn.config import (
 from evn.repo import (
     RepositoryError,
     RepositoryRevOrTxn,
+    RepositoryRevisionConfig,
 )
 
 from evn.debug import (
@@ -59,7 +61,7 @@ class DoctestCommand(Command):
         import evn.path
         import evn.root
         import evn.util
-        verbose = self.options.verbose
+        verbose = not self.options.quiet
         doctest.testmod(evn.path, verbose=verbose)
         doctest.testmod(evn.root, verbose=verbose)
         doctest.testmod(evn.util, verbose=verbose)
@@ -393,39 +395,21 @@ class AnalyzeCommand(RepositoryCommand):
         finally:
             gc.enable()
 
-class ShowRootsCommand(RepositoryCommand):
+class ShowRootsCommand(RepositoryRevisionCommand):
     @requires_context
     def run(self):
-        RepositoryCommand.run(self)
+        RepositoryRevisionCommand.run(self)
 
-        rc0 = self.r0_revprop_conf
+        k = dict(fs=self.fs, rev=self.rev, conf=self.conf)
+        rc = RepositoryRevisionConfig(**k)
+        roots = rc.roots
 
-        last_rev = rc0.get('last_rev', None)
-        start_rev = last_rev if last_rev is not None else 0
-        end_rev = svn.fs.youngest_rev(self.fs)
+        if roots is None:
+            m = "Repository '%s' has no roots defined at r%d"
+            self._out(m % (self.name, self.rev))
 
-        if last_rev is not None:
-            if start_rev == end_rev:
-                m = "Repository '%s' is up to date (r%d)."
-                self._warn(m % (self.name, end_rev))
-                return
-            m = "Resuming analysis for repository '%s' from revision %d..."
-            self._out(m % (self.name, start_rev))
-
-        k = self.repo_kwds
-        import gc
-        gc.disable()
-        try:
-            for i in xrange(start_rev, end_rev+1):
-                with RepositoryRevOrTxn(**k) as r:
-                    r.process_rev_or_txn(i)
-                    if i == 0:
-                        continue
-                    cs = r.changeset
-                    self._out(str(i) + ':' + cs.analysis.one_liner)
-        finally:
-            gc.enable()
-
+        else:
+            pprint.pprint(roots, self.ostream)
 
 
 class RootInfoCommand(RepositoryCommand):

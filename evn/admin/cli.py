@@ -40,7 +40,7 @@ class AdminCLI(CLI):
         return AdminCommandLine.__subclasses__()
 
 class DoctestCommandLine(AdminCommandLine):
-    _verbose_ = True
+    _quiet_ = True
 
 class DumpDefaultConfigCommandLine(AdminCommandLine):
     pass
@@ -193,7 +193,7 @@ class CreateCommandLine(AdminCommandLine):
 class RunHookCommandLine(AdminCommandLine):
     _conf_ = True
     _repo_ = True
-    _argc_ = False
+    _vargc_ = True
     _usage_ = '%prog [ OPTIONS ] REPO_PATH HOOK_NAME [HOOK_ARGS ...]'
     _description_ = 'This command should be invoked by hooks only.'
 
@@ -252,6 +252,7 @@ class AnalyzeCommandLine(AdminCommandLine):
     _usage_ = '%prog [ options ] REPO_PATH'
 
 class ShowRootsCommandLine(AdminCommandLine):
+    _rev_   = True
     _repo_  = True
     _conf_  = True
     _usage_ = '%prog [ options ] REPO_PATH'
@@ -266,9 +267,9 @@ class RootInfoCommandLine(AdminCommandLine):
         self.command.root_path = self.args.pop(0)
 
 class FindMergesCommandLine(AdminCommandLine):
-    _repo_ = True
-    _conf_ = True
-    _revision_ = True
+    _rev_   = True
+    _repo_  = True
+    _conf_  = True
     _usage_ = '%prog [ options ] REPO_PATH'
 
 #=============================================================================#

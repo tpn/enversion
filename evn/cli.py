@@ -6,6 +6,8 @@ import re
 import sys
 import optparse
 
+import evn
+
 from abc import (
     ABCMeta,
     abstractmethod,
@@ -29,6 +31,7 @@ from evn.util import (
     prepend_error_if_missing,
     Dict,
     Options,
+    Constant,
 )
 
 #=============================================================================
@@ -72,6 +75,9 @@ class CLI(object):
                 l += [ (ssc.__name__, ssc) for ssc in sc.__subclasses__() ]
         return l
 
+    def __helpstr(self, name):
+        return os.linesep + (' ' * 12) + name
+
     def __load_commandlines(self):
         subclasses = [
             sc[1] for sc in sorted(self.__find_commandline_subclasses())
@@ -80,7 +86,7 @@ class CLI(object):
         for subclass in subclasses:
             cl = subclass(self.program_name)
             assert cl.name not in self.__commandlines_by_name
-            helpstr = os.linesep + (' ' * 12) + cl.name
+            helpstr = self.__helpstr(cl.name)
 
             if cl.shortname:
                 assert cl.shortname not in self.__commandlines_by_shortname
@@ -89,6 +95,13 @@ class CLI(object):
 
             self.__help += helpstr
             self.__commandlines_by_name[cl.name] = cl
+
+        # Meh, this is a dodgy hack.  Add a fake version command so that it'll
+        # appear in the list of available subcommands.  It doesn't matter if
+        # it's None as we intercept 'version', '-v' and '--version' in the
+        # __process_commandline method before doing the normal command lookup.
+        self.__help += self.__helpstr('version')
+        self.__commandlines_by_name['version'] = None
 
     def __find_commandline(self, cmdline):
         return self.__commandlines_by_name.get(cmdline,
@@ -101,6 +114,8 @@ class CLI(object):
             if '-' not in cmdline and hasattr(self, cmdline):
                 getattr(self, cmdline)(args)
                 self._exit(0)
+            elif cmdline in ('-v', '-V', '--version'):
+                self.version()
             else:
                 cl = self.__find_commandline(cmdline)
                 if cl:
@@ -134,7 +149,7 @@ class CLI(object):
 
     def _error(self, msg):
         sys.stderr.write(
-            prepend_error_if_missing(
+            add_linesep_if_missing(
                 dedent(msg).replace(
                     '%prog', self.program_name
                 )
@@ -145,6 +160,10 @@ class CLI(object):
     def usage(self, args=None):
         self._error(self.__usage__)
 
+    def version(self, args=None):
+        sys.stdout.write(add_linesep_if_missing(evn.__version__))
+        self._exit(0)
+
     def help(self, args=None):
         if args:
             l = [ args.pop(0), '-h' ]
@@ -154,6 +173,11 @@ class CLI(object):
         else:
             self._error(self.__help + os.linesep)
 
+class _ArgumentType(Constant):
+    Optional  = 1
+    Mandatory = 2
+ArgumentType = _ArgumentType()
+
 class CommandLine:
     """
     The `CommandLine` class exposes `Command` classes via the `CLI` class.
@@ -161,15 +185,17 @@ class CommandLine:
     """
     __metaclass__ = ABCMeta
 
+    _rev_ = None
     _conf_ = False
     _repo_ = False
     _hook_ = False
     _argc_ = 0
+    _vargc_ = None
     _usage_ = None
     _quiet_ = None
     _verbose_ = None
     _command_ = None
-    _revision_ = None
+    _rev_range_ = None
     _shortname_ = None
     _description_ = None
 
@@ -226,6 +252,11 @@ class CommandLine:
     def _post_run(self):
         pass
 
+    def usage_error(self, msg):
+        self.parser.print_help()
+        sys.stderr.write("\nerror: %s\n" % msg)
+        self.parser.exit(status=1)
+
     def run(self, args):
         k = Dict()
         k.prog = self._subcommand
@@ -277,10 +308,22 @@ class CommandLine:
                 help="hook name (i.e. 'pre-commit')"
             )
 
-        if self._revision_:
+        if self._rev_:
+            assert self._rev_range_ is None
             self.parser.add_option(
                 '-r',
                 dest='revision',
+                metavar='ARG',
+                action='store',
+                default='HEAD',
+                help="revision [default: %default]"
+            )
+
+        if self._rev_range_:
+            assert self._rev_ is None
+            self.parser.add_option(
+                '-r',
+                dest='revision_range',
                 metavar='ARG',
                 action='store',
                 default='0:HEAD',
@@ -290,42 +333,47 @@ class CommandLine:
         self._add_parser_options()
         (opts, self.args) = self.parser.parse_args(args)
 
-        if self._argc_ is not False:
+        # Ignore variable argument commands altogether.
+        if self._vargc_ is not True:
             arglen = len(self.args)
-            if arglen == 0:
-                # XXX TODO usage
-                pass
-            if len(self.args) != self._argc_:
-                self.parser.error("invalid number of arguments")
+            if arglen == 0 and self._argc_ != 0:
+                self.parser.print_help()
+                self.parser.exit(status=1)
+            if len(self.args) != self._argc_ and self._argc_ != 0:
+                self.usage_error("invalid number of arguments")
 
         self.options = Options(opts.__dict__)
 
         self._pre_process_parser_results()
 
+        f = None
         if self._conf_:
             f = self.options.conf
             if f and not os.path.exists(f):
-                self.parser.error("configuration file '%s' does not exist" % f)
-            self.conf.load(f)
-            self.command.conf = self.conf
+                self.usage_error("configuration file '%s' does not exist" % f)
+
+        self.conf.load(filename=f)
+        self.command.conf = self.conf
 
         if self._repo_:
             if len(self.args) < 1:
-                self.parser.error("missing REPO_PATH argument")
+                self.usage_error("missing REPO_PATH argument")
 
             self.command.path = self.args.pop(0)
 
         if self._hook_:
             hn = self.options.hook_name
             if not hn:
-                self.parser.error("missing option: -k/--hook")
+                self.usage_error("missing option: -k/--hook")
             self.command.hook_name = hn
 
-        if self._revision_:
-            if not self.options.revision:
-                self.parser.error("missing option: -r")
+        if self._rev_:
+            assert self.options.revision
+            self.command.rev_str = self.options.revision
 
-            self.command.revision = self.options.revision
+        if self._rev_range_:
+            assert self.options.revision_range
+            self.command.rev_range_str = self.options.revision_range
 
         self.command.args = self.args
         self.command.options = self.options
