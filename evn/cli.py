@@ -26,6 +26,7 @@ from evn.command import (
 
 from evn.util import (
     add_linesep_if_missing,
+    prepend_error_if_missing,
     Dict,
     Options,
 )
@@ -127,13 +128,13 @@ class CLI(object):
 
     def __commandline_error(self, cl, msg):
         args = (self.program_name, cl.name, msg)
-        msg = 'error: %s %s failed: %s' % args
-        sys.stderr.write(add_linesep_if_missing(msg))
+        msg = '%s %s failed: %s' % args
+        sys.stderr.write(prepend_error_if_missing(msg))
         self._exit(1)
 
     def _error(self, msg):
         sys.stderr.write(
-            add_linesep_if_missing(
+            prepend_error_if_missing(
                 dedent(msg).replace(
                     '%prog', self.program_name
                 )
@@ -165,7 +166,8 @@ class CommandLine:
     _hook_ = False
     _argc_ = 0
     _usage_ = None
-    _verbose_ = False
+    _quiet_ = None
+    _verbose_ = None
     _command_ = None
     _revision_ = None
     _shortname_ = None
@@ -190,7 +192,7 @@ class CommandLine:
             self.command_classname = ccn
             self.command_class = ccl
 
-        self.command = self.command_class(sys.stdout, sys.stderr)
+        self.command = self.command_class(sys.stdin, sys.stdout, sys.stderr)
 
         tokens = [ t.lower() for t in tokens[:-2] ]
         self.name = '-'.join(t for t in tokens)
@@ -230,13 +232,14 @@ class CommandLine:
         if self._usage_:
             k.usage = self._usage_
         elif self._repo_:
-            k.usage = '%prog [options] REPO_PATH'
+            k.usage = '%prog [ options ] REPO_PATH'
         if self._description_:
             k.description = self._description_
 
         self.parser = optparse.OptionParser(**k)
 
         if self._verbose_:
+            assert self._quiet_ is None
             self.parser.add_option(
                 '-v', '--verbose',
                 dest='verbose',
@@ -244,6 +247,17 @@ class CommandLine:
                 default=False,
                 help="run in verbose mode [default: %default]"
             )
+
+        if self._quiet_:
+            assert self._verbose_ is None
+            self.parser.add_option(
+                '-q', '--quiet',
+                dest='quiet',
+                action='store_true',
+                default=False,
+                help="run in quiet mode [default: %default]"
+            )
+
 
         if self._conf_:
             self.parser.add_option(
@@ -275,7 +289,18 @@ class CommandLine:
 
         self._add_parser_options()
         (opts, self.args) = self.parser.parse_args(args)
+
+        if self._argc_ is not False:
+            arglen = len(self.args)
+            if arglen == 0:
+                # XXX TODO usage
+                pass
+            if len(self.args) != self._argc_:
+                self.parser.error("invalid number of arguments")
+
         self.options = Options(opts.__dict__)
+
+        self._pre_process_parser_results()
 
         if self._conf_:
             f = self.options.conf
@@ -284,16 +309,11 @@ class CommandLine:
             self.conf.load(f)
             self.command.conf = self.conf
 
-        self._pre_process_parser_results()
         if self._repo_:
             if len(self.args) < 1:
                 self.parser.error("missing REPO_PATH argument")
 
             self.command.path = self.args.pop(0)
-
-        if self._argc_ is not False:
-            if len(self.args) > self._argc_:
-                self.parser.error("invalid number of arguments: %s" % args)
 
         if self._hook_:
             hn = self.options.hook_name

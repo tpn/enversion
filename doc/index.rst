@@ -7,20 +7,14 @@ Enversion Documentation
 Getting Started
 ===============
 
-Welcome to Enversion's documentation!
-=====================================
+:ref:`Quick Start <quick-start>` |
+:ref:`Introduction <intro>`
 
-Contents:
+Administrator's Guide
+=====================
 
-.. toctree::
-   :maxdepth: 2
+Testing 1 2 3.
 
-
-
-Indices and tables
-==================
-
-* :ref:`genindex`
 * :ref:`modindex`
-* :ref:`search`
 
+.. vim:set ts=8 sw=4 sts=4 tw=78 et:

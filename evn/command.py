@@ -25,6 +25,8 @@ from evn.hook import (
 
 from evn.util import (
     add_linesep_if_missing,
+    prepend_error_if_missing,
+    prepend_warning_if_missing,
     requires_context,
     Dict,
     Pool,
@@ -39,7 +41,8 @@ class CommandError(Exception):
 class Command:
     __metaclass__ = ABCMeta
 
-    def __init__(self, ostream, estream):
+    def __init__(self, istream, ostream, estream):
+        self.istream = istream
         self.ostream = ostream
         self.estream = estream
 
@@ -64,29 +67,60 @@ class Command:
         self.ostream.flush()
         self.estream.flush()
 
-    def _err(self, msg):
-        self.estream.write(add_linesep_if_missing(msg))
-
     def _allocate(self):
+        """
+        Called by `__enter__`.  Subclasses should implement this method if
+        they need to do any context-sensitive allocations.  (`_deallocate`
+        should also be implemented if this method is implemented.)
+        """
         pass
 
     def _deallocate(self):
+        """
+        Called by `__exit__`.  Subclasses should implement this method if
+        they've implemented `_allocate` in order to clean up any resources
+        they've allocated once the context has been left.
+        """
         pass
 
-    @property
-    def _verbose(self):
-        try:
-            return (self.options.verbose == True)
-        except AttributeError:
-            return False
+    def _verbose(self, msg):
+        """
+        Writes `msg` to output stream if '--verbose'.
+
+        Does not prepend anything to `msg`.
+        Adds trailing linesep to `msg` if there's not one already.
+        """
+        if self.options.verbose:
+            self.ostream.write(add_linesep_if_missing(msg))
 
     def _out(self, msg):
-        if not self._verbose:
-            return
-        self.ostream.write(add_linesep_if_missing(msg))
+        """
+        Write `msg` to output stream if not '--quiet'.
+
+        Does not prepend anything to `msg`.
+        Adds trailing linesep to `msg` if there's not one already.
+        """
+        if not self._quiet:
+            self.ostream.write(add_linesep_if_missing(msg))
 
     def _warn(self, msg):
-        self.ostream.write(add_linesep_if_missing(msg))
+        """
+        Write `msg` to output stream regardless of '--quiet'.
+
+        Prepends 'warning: ' to `msg` if it's not already present.
+        Adds trailing linesep to `msg` if there's not one already.
+        """
+        self.ostream.write(prepend_warning_if_missing(msg))
+
+    def _err(self, msg):
+        """
+        Write `msg` to error stream regardless of '--quiet'.
+
+
+        Prepends 'error: ' to `msg` if it's not already present.
+        Adds trailing linesep to `msg` if there's not one already.
+        """
+        self.estream.write(prepend_error_if_missing(msg))
 
     @abstractmethod
     def run(self):
@@ -94,7 +128,7 @@ class Command:
 
     @classmethod
     def prime(cls, src, dst_class):
-        c = dst_class(src.ostream, src.estream)
+        c = dst_class(src.istream, src.ostream, src.estream)
         c.conf = src.conf
         c.options = src.options
         return c
@@ -129,12 +163,12 @@ class RepositoryCommand(SubversionCommand):
         k.fs   = self.fs
         k.uri  = self.uri
         k.conf = self.conf
-        #k.pool = self.pool
         k.repo = self.repo
         k.path = self.path
         k.name = self.name
-        k.estream = self.estream
+        k.istream = self.istream
         k.ostream = self.ostream
+        k.estream = self.estream
         k.options = self.options
         k.r0_revprop_conf = self.r0_revprop_conf
         return k
@@ -150,6 +184,7 @@ class RepositoryCommand(SubversionCommand):
 
         self.uri = 'file://%s' % self.path.replace('\\', '/')
         self.name = os.path.basename(self.path)
+        self.conf.repo_name = self.name
         self.hook_names = self.conf.hook_names
 
         #self.repo       = svn.repos.open(self.path, self.pool)

@@ -11,6 +11,8 @@ documentation, see :ref:`index_toplevel`.
 
     quick-start
     intro
+    api/modules
+    tale/index
 ..  overview
 ..  quick-start
 ..  changes
@@ -24,6 +26,7 @@ Indices and tables
 
 * :ref:`genindex`
 * :ref:`search`
+* :ref:`modindex`
 
 
 .. vim:set ts=8 sw=4 sts=4 tw=78 et:

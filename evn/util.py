@@ -54,8 +54,17 @@ def requires_context(f):
     return wrapper
 
 def add_linesep_if_missing(s):
-    assert s and isinstance(s, str)
     return s if s[-1] is os.linesep else s + os.linesep
+
+def prepend_warning_if_missing(s):
+    return add_linesep_if_missing(
+        s if s.startsiwth('warning: ') else 'warning: ' + s
+    )
+
+def prepend_error_if_missing(s):
+    return add_linesep_if_missing(
+        s if s.startswith('error: ') else 'error: ' + s
+    )
 
 def render_text_table(rows, **kwds):
     banner = kwds.get('banner')
@@ -460,234 +469,239 @@ class MutexDecayDict(object):
     keys, except we have an assert_once() method instead of assert_empty()
     that will, er, not assert iff one attribute has been accessed once.
 
-    # Only one attribute can be set to true.
-    >>> m = MutexDecayDict()
-    >>> m.foo = True
-    >>> m.bar = True
-    Traceback (most recent call last):
-        ...
-    AssertionError
+    Only one attribute can be set to true:
+        >>> m = MutexDecayDict()
+        >>> m.foo = True
+        >>> m.bar = True
+        Traceback (most recent call last):
+            ...
+        AssertionError
 
-    # An attribute can only be set to True once.
-    >>> m = MutexDecayDict()
-    >>> m.foo = True
-    >>> m.foo = True
-    Traceback (most recent call last):
-        ...
-    AssertionError
+    An attribute can only be set to True once:
+        >>> m = MutexDecayDict()
+        >>> m.foo = True
+        >>> m.foo = True
+        Traceback (most recent call last):
+            ...
+        AssertionError
 
-    # An attribute can only be set to False once.
-    >>> m = MutexDecayDict()
-    >>> m.foo = False
-    >>> m.foo = False
-    Traceback (most recent call last):
-        ...
-    AssertionError
 
-    # Testing can't begin until we've received our True attribute.
-    >>> m = MutexDecayDict()
-    >>> m.tomcat = False
-    >>> with m as f:
-    ...     f.tomcat
-    Traceback (most recent call last):
-        ...
-    AssertionError
+    An attribute can only be set to False once:
+        >>> m = MutexDecayDict()
+        >>> m.foo = False
+        >>> m.foo = False
+        Traceback (most recent call last):
+            ...
+        AssertionError
 
-    >>> m = MutexDecayDict()
-    >>> m.viper = False
-    >>> m.eagle = True
-    >>> with m as f:
-    ...     f.viper
-    ...     f.eagle
-    False
-    True
+    Testing can't begin until we've received our True attribute:
+        >>> m = MutexDecayDict()
+        >>> m.tomcat = False
+        >>> with m as f:
+        ...     f.tomcat
+        Traceback (most recent call last):
+            ...
+        AssertionError
 
-    # You can't access attributes that haven't been set.
-    >>> m = MutexDecayDict()
-    >>> m.eagle = True
-    >>> m.raptor
-    Traceback (most recent call last):
-        ...
-    AssertionError
-    >>> m = MutexDecayDict()
-    >>> m.eagle = True
-    >>> with m as f:
-    ...     f.tomcat
-    Traceback (most recent call last):
-        ...
-    AssertionError
+        >>> m = MutexDecayDict()
+        >>> m.viper = False
+        >>> m.eagle = True
+        >>> with m as f:
+        ...     f.viper
+        ...     f.eagle
+        False
+        True
 
-    # Once testing's begun, no more attribute assignment is allowed.
-    >>> m = MutexDecayDict()
-    >>> m.viper = False
-    >>> m.eagle = True
-    >>> with m as f:
-    ...     f.tomcat = False
-    Traceback (most recent call last):
-        ...
-    AssertionError
+    You can't access attributes that haven't been set:
+        >>> m = MutexDecayDict()
+        >>> m.eagle = True
+        >>> m.raptor
+        Traceback (most recent call last):
+            ...
+        AssertionError
+        >>> m = MutexDecayDict()
+        >>> m.eagle = True
+        >>> with m as f:
+        ...     f.tomcat
+        Traceback (most recent call last):
+            ...
+        AssertionError
 
-    # Testing's finished once the True attribute has been accessed.  If it
-    # hasn't been accessed, bomb out.
-    >>> m = MutexDecayDict()
-    >>> m.viper = True
-    >>> with m as f:
-    ...     f.viper
-    True
+    Once testing's begun, no more attribute assignment is allowed:
+        >>> m = MutexDecayDict()
+        >>> m.viper = False
+        >>> m.eagle = True
+        >>> with m as f:
+        ...     f.tomcat = False
+        Traceback (most recent call last):
+            ...
+        AssertionError
 
-    >>> m = MutexDecayDict()
-    >>> m.viper = True
-    >>> m.eagle = False
-    >>> with m as f:
-    ...     f.eagle
-    Traceback (most recent call last):
-        ...
-    AssertionError
+    Testing's finished once the True attribute has been accessed (if it hasn't
+    been accessed, bomb out):
 
-    # Once testing's finished, no more attribute assignment or access is
-    # allowed (for any/all attributes).
-    >>> m = MutexDecayDict()
-    >>> m.viper = True
-    >>> m.eagle = False
-    >>> with m as f:
-    ...     f.viper
-    True
-    >>> m.viper
-    Traceback (most recent call last):
-        ...
-    AssertionError
+        >>> m = MutexDecayDict()
+        >>> m.viper = True
+        >>> with m as f:
+        ...     f.viper
+        True
 
-    # No assignment allowed after testing has completed.
-    >>> m = MutexDecayDict()
-    >>> m.viper = True
-    >>> with m as f:
-    ...     f.viper
-    True
-    >>> m.hornet = False
-    Traceback (most recent call last):
-        ...
-    AssertionError
+        >>> m = MutexDecayDict()
+        >>> m.viper = True
+        >>> m.eagle = False
+        >>> with m as f:
+        ...     f.eagle
+        Traceback (most recent call last):
+            ...
+        AssertionError
 
-    # No accessing attributes outside the context of an, er, context manager.
-    >>> m = MutexDecayDict()
-    >>> m.viper  = True
-    >>> m.hornet = False
-    >>> m.hornet
-    Traceback (most recent call last):
-        ...
-    AssertionError
-    >>> m = MutexDecayDict()
-    >>> m.viper  = True
-    >>> m.viper
-    Traceback (most recent call last):
-        ...
-    AssertionError
-    >>> m.viper = False
-    Traceback (most recent call last):
-        ...
-    AssertionError
+    Once testing's finished, no more attribute assignment or access is allowed
+    (for any/all attributes):
 
-    # A false attribute can only be accessed once during testing.
-    >>> m = MutexDecayDict()
-    >>> m.viper  = True
-    >>> m.hornet = False
-    >>> with m as f:
-    ...     f.hornet
-    ...     f.hornet
-    Traceback (most recent call last):
-        ...
-    AssertionError
+        >>> m = MutexDecayDict()
+        >>> m.viper = True
+        >>> m.eagle = False
+        >>> with m as f:
+        ...     f.viper
+        True
+        >>> m.viper
+        Traceback (most recent call last):
+            ...
+        AssertionError
 
-    # If you haven't accessed the True attribute... you'll find out about it
-    # during the with statement's closure.
-    >>> m = MutexDecayDict()
-    >>> m.eagle  = False
-    >>> m.viper  = True
-    >>> with m as f:
-    ...     m.eagle
-    Traceback (most recent call last):
-        ...
-    AssertionError
+    No assignment allowed after testing has completed:
+        >>> m = MutexDecayDict()
+        >>> m.viper = True
+        >>> with m as f:
+        ...     f.viper
+        True
+        >>> m.hornet = False
+        Traceback (most recent call last):
+            ...
+        AssertionError
 
-    >>> m = MutexDecayDict()
-    >>> m.eagle  = False
-    >>> m.hornet = False
-    >>> m.viper  = True
-    >>> with m as f:
-    ...     m.eagle
-    ...     m.hornet
-    Traceback (most recent call last):
-        ...
-    AssertionError
+    No accessing attributes outside the context of an, er, context manager:
+        >>> m = MutexDecayDict()
+        >>> m.viper  = True
+        >>> m.hornet = False
+        >>> m.hornet
+        Traceback (most recent call last):
+            ...
+        AssertionError
+        >>> m = MutexDecayDict()
+        >>> m.viper  = True
+        >>> m.viper
+        Traceback (most recent call last):
+            ...
+        AssertionError
+        >>> m.viper = False
+        Traceback (most recent call last):
+            ...
+        AssertionError
 
-    >>> m = MutexDecayDict()
-    >>> m.eagle  = False
-    >>> m.hornet = False
-    >>> m.viper  = True
-    >>> with m as f:
-    ...     m.viper
-    ...     m.hornet
-    Traceback (most recent call last):
-        ...
-    AssertionError
+    A false attribute can only be accessed once during testing:
+        >>> m = MutexDecayDict()
+        >>> m.viper  = True
+        >>> m.hornet = False
+        >>> with m as f:
+        ...     f.hornet
+        ...     f.hornet
+        Traceback (most recent call last):
+            ...
+        AssertionError
 
-    # Check that we can unlock after a successful run and that there are no
-    # restrictions on how many times we can access an element.  Make sure we
-    # still can't set stuff, though.
-    >>> m = MutexDecayDict()
-    >>> m.viper = False
-    >>> m.eagle = True
-    >>> with m as f:
-    ...     f.viper
-    ...     f.eagle
-    False
-    True
-    >>> m._unlock()
-    >>> m.viper
-    False
-    >>> m.eagle
-    True
-    >>> m.viper
-    False
-    >>> m.tomcat = False
-    Traceback (most recent call last):
-        ...
-    AssertionError
+    If you haven't accessed the True attribute... you'll find out about it
+    during the with statement's closure:
 
-    # Test our ability to reset after unlocking.
-    >>> m = MutexDecayDict()
-    >>> m.viper = False
-    >>> m.eagle = True
-    >>> with m as f:
-    ...     f.viper
-    ...     f.eagle
-    False
-    True
-    >>> m._unlock()
-    >>> m.viper
-    False
-    >>> m.eagle
-    True
-    >>> m._reset()
-    >>> m.hornet = False
-    >>> with m as f:
-    ...     m.hornet
-    ...     m.viper
-    ...     m.eagle
-    False
-    False
-    True
-    >>> m.hornet
-    Traceback (most recent call last):
-        ...
-    AssertionError
-    >>> m._unlock()
-    >>> m.hornet
-    False
-    >>> m._unlock()
-    Traceback (most recent call last):
-        ...
-    AssertionError
+        >>> m = MutexDecayDict()
+        >>> m.eagle  = False
+        >>> m.viper  = True
+        >>> with m as f:
+        ...     m.eagle
+        Traceback (most recent call last):
+            ...
+        AssertionError
+
+        >>> m = MutexDecayDict()
+        >>> m.eagle  = False
+        >>> m.hornet = False
+        >>> m.viper  = True
+        >>> with m as f:
+        ...     m.eagle
+        ...     m.hornet
+        Traceback (most recent call last):
+            ...
+        AssertionError
+
+        >>> m = MutexDecayDict()
+        >>> m.eagle  = False
+        >>> m.hornet = False
+        >>> m.viper  = True
+        >>> with m as f:
+        ...     m.viper
+        ...     m.hornet
+        Traceback (most recent call last):
+            ...
+        AssertionError
+
+    Check that we can unlock after a successful run and that there are no
+    restrictions on how many times we can access an element (make sure we
+    still can't set stuff, though):
+
+        >>> m = MutexDecayDict()
+        >>> m.viper = False
+        >>> m.eagle = True
+        >>> with m as f:
+        ...     f.viper
+        ...     f.eagle
+        False
+        True
+        >>> m._unlock()
+        >>> m.viper
+        False
+        >>> m.eagle
+        True
+        >>> m.viper
+        False
+        >>> m.tomcat = False
+        Traceback (most recent call last):
+            ...
+        AssertionError
+
+    Test our ability to reset after unlocking:
+        >>> m = MutexDecayDict()
+        >>> m.viper = False
+        >>> m.eagle = True
+        >>> with m as f:
+        ...     f.viper
+        ...     f.eagle
+        False
+        True
+        >>> m._unlock()
+        >>> m.viper
+        False
+        >>> m.eagle
+        True
+        >>> m._reset()
+        >>> m.hornet = False
+        >>> with m as f:
+        ...     m.hornet
+        ...     m.viper
+        ...     m.eagle
+        False
+        False
+        True
+        >>> m.hornet
+        Traceback (most recent call last):
+            ...
+        AssertionError
+        >>> m._unlock()
+        >>> m.hornet
+        False
+        >>> m._unlock()
+        Traceback (most recent call last):
+            ...
+        AssertionError
     """
     def __init__(self):
         self.__d = dict()

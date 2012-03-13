@@ -77,7 +77,7 @@ class ShowConfigFileLoadOrderCommand(Command):
     def run(self):
         if not self.conf.files:
             raise CommandError('no configuration files are being loaded')
-        self._warn(os.linesep.join(self.conf.files))
+        self._out(os.linesep.join(self.conf.files))
 
 class DumpHookCodeCommand(RepositoryCommand):
     @requires_context
@@ -209,11 +209,13 @@ class FixHooksCommand(RepositoryCommand):
     def run(self):
         RepositoryCommand.run(self)
 
+        streams = (self.istream, self.ostream, self.estream)
+
         for h in self.hook_files:
             if not h.needs_fixing:
                 continue
 
-            with FixHookCommand(self.ostream, self.estream) as fh:
+            with FixHookCommand(*streams) as fh:
                 fh.path = self.path
                 fh.conf = self.conf
                 fh.options = self.options
@@ -223,7 +225,7 @@ class FixHooksCommand(RepositoryCommand):
         if not self.evn_hook_file.needs_fixing:
             return
 
-        with FixEvnHookCommand(self.ostream, self.estream) as fh:
+        with FixEvnHookCommand(*streams) as fh:
             fh.path = self.path
             fh.conf = self.conf
             fh.options = self.options
@@ -352,7 +354,46 @@ class RunHookCommand(RepoHookCommand):
                     # XXX TODO: err, log this somewhere.
                     raise exc
 
-class AnalyzeRepoCommand(RepositoryCommand):
+class AnalyzeCommand(RepositoryCommand):
+    @requires_context
+    def run(self):
+        RepositoryCommand.run(self)
+
+        rc0 = self.r0_revprop_conf
+
+        last_rev = rc0.get('last_rev', None)
+        start_rev = last_rev if last_rev is not None else 0
+        end_rev = svn.fs.youngest_rev(self.fs)
+
+        if last_rev is not None:
+            if start_rev == end_rev:
+                m = "Repository '%s' is up to date (r%d)."
+                self._out(m % (self.name, end_rev))
+                return
+            elif start_rev == 0:
+                m = "Analyzing repository '%s'..." % self.name
+                self._out(m)
+            else:
+                self._out(
+                    "Resuming analysis for repository '%s' "
+                    'from revision %d..."' % (self.name, start_rev)
+                )
+
+        k = self.repo_kwds
+        import gc
+        gc.disable()
+        try:
+            for i in xrange(start_rev, end_rev+1):
+                with RepositoryRevOrTxn(**k) as r:
+                    r.process_rev_or_txn(i)
+                    if i == 0:
+                        continue
+                    cs = r.changeset
+                    self._out(str(i) + ':' + cs.analysis.one_liner)
+        finally:
+            gc.enable()
+
+class ShowRootsCommand(RepositoryCommand):
     @requires_context
     def run(self):
         RepositoryCommand.run(self)
@@ -385,6 +426,14 @@ class AnalyzeRepoCommand(RepositoryCommand):
         finally:
             gc.enable()
 
+
+
+class RootInfoCommand(RepositoryCommand):
+    @requires_context
+    def run(self):
+        RepositoryCommand.run(self)
+        pass
+
 class ChangeSetCommand(RepositoryCommand):
     rev_or_txn = None
 
@@ -402,6 +451,7 @@ class ChangeSetCommand(RepositoryCommand):
         k.conf = obj.conf
         k.estream = obj.estream
         k.ostream = obj.ostream
+        k.istream = obj.istream
         k.options = obj.options
         return k
 
@@ -432,6 +482,7 @@ class ChangeSetCommand(RepositoryCommand):
         k.conf      = obj.conf
         k.estream   = obj.estream
         k.ostream   = obj.ostream
+        k.istream   = obj.istream
         k.options   = obj.options
 
         #args = (k.fs, rev_or_txn, pool)
@@ -479,6 +530,7 @@ class ChangeSetCommand(RepositoryCommand):
         k = DecayDict(**kwds)
         estream = k.get('estream', sys.stderr)
         ostream = k.get('ostream', sys.stdout)
+        istream = k.get('istream', sys.stdout)
 
         c = ChangeSetCommand(ostream, estream)
 
@@ -571,8 +623,9 @@ class FindMergesCommand(RepositoryRevisionCommand):
         k = DecayDict(**kwds)
         estream = kwds.get('estream', sys.stderr)
         ostream = kwds.get('ostream', sys.stdout)
+        istream = kwds.get('istream', sys.stdout)
 
-        c = FindMergesCommand(ostream, estream)
+        c = FindMergesCommand(istream, ostream, estream)
 
         c.revision = revision
 

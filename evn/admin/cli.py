@@ -180,17 +180,14 @@ class ShowRepoRemoteDebugSessionsCommandLine(AdminCommandLine):
 class FixHooksCommandLine(AdminCommandLine):
     _conf_      = True
     _repo_      = True
-    _verbose_   = True
 
 class EnableCommandLine(AdminCommandLine):
     _conf_      = True
     _repo_      = True
-    _verbose_   = True
 
 class CreateCommandLine(AdminCommandLine):
     _conf_      = True
     _repo_      = True
-    _verbose_   = True
     _command_   = evn.admin.commands.CreateRepoCommand
 
 class RunHookCommandLine(AdminCommandLine):
@@ -211,7 +208,7 @@ class _SetRepoHookRemoteDebugCommandLine(AdminCommandLine):
     _repo_ = True
     _argc_ = 3
     _hook_ = True
-    _usage_ = '%prog [ options ] REPO_PATH'
+    _usage_ = '%prog [ options ] HOOK_NAME REPO_PATH'
     _command_ = evn.admin.commands.SetRepoHookRemoteDebugCommand
 
     def _add_parser_options(self):
@@ -248,16 +245,29 @@ class DisableRemoteDebugCommandLine(_SetRepoHookRemoteDebugCommandLine):
 class ToggleRemoteDebugCommandLine(_SetRepoHookRemoteDebugCommandLine):
     _action_ = 'toggle'
 
-class AnalyzeRepoCommandLine(AdminCommandLine):
-    _repo_ = True
-    _conf_ = True
-    _verbose_ = True
+class AnalyzeCommandLine(AdminCommandLine):
+    _repo_  = True
+    _conf_  = True
+    _quiet_ = True
     _usage_ = '%prog [ options ] REPO_PATH'
+
+class ShowRootsCommandLine(AdminCommandLine):
+    _repo_  = True
+    _conf_  = True
+    _usage_ = '%prog [ options ] REPO_PATH'
+
+class RootInfoCommandLine(AdminCommandLine):
+    _repo_  = True
+    _conf_  = True
+    _argc_  = 3
+    _usage_ = '%prog [ options ] ROOT REPO_PATH'
+
+    def _pre_process_parser_results(self):
+        self.command.root_path = self.args.pop(0)
 
 class FindMergesCommandLine(AdminCommandLine):
     _repo_ = True
     _conf_ = True
-    _verbose_ = True
     _revision_ = True
     _usage_ = '%prog [ options ] REPO_PATH'
 

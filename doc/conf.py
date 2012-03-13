@@ -16,7 +16,29 @@ import sys, os
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
+sys.path.insert(0, os.path.abspath('..'))
 sys.path.insert(0, os.path.abspath('../evn'))
+
+import evn
+import evn.cli
+import evn.util
+import evn.path
+import evn.root
+import evn.repo
+import evn.hook
+import evn.event
+import evn.debug
+import evn.events
+import evn.config
+import evn.change
+import evn.command
+import evn.perfmon
+import evn.constants
+
+import evn.admin
+import evn.admin.cli
+import evn.admin.commands
+
 
 # -- General configuration -----------------------------------------------------
 
@@ -32,6 +54,7 @@ extensions = [
     'sphinx.ext.coverage',
     'sphinx.ext.ifconfig',
     'sphinx.ext.viewcode',
+    'sphinx.ext.autosummary',
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -71,7 +94,10 @@ release = '0.1.0'
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
-exclude_patterns = ['output']
+exclude_patterns = [
+    'output',
+    '*bitrot.py*',
+]
 
 # The reST default role (used for this markup: `text`) to use for all documents.
 #default_role = None
@@ -96,9 +122,16 @@ pygments_style = 'sphinx'
 
 # -- Options for HTML output ---------------------------------------------------
 
+agogo_theme_options = {
+    'bodyfont'  : 'HelveticaNeue-Light, Calibri, Helvetica',
+    'nosidebar' : True,
+}
+
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
-html_theme = 'default'
+html_theme = 'agogo'
+html_theme_options = agogo_theme_options
+modindex_common_prefix = ['evn.']
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
@@ -145,10 +178,10 @@ html_static_path = ['static']
 #html_additional_pages = {}
 
 # If false, no module index is generated.
-#html_domain_indices = True
+html_domain_indices = True
 
 # If false, no index is generated.
-#html_use_index = True
+html_use_index = True
 
 # If true, the index is split into individual pages for each letter.
 #html_split_index = False
