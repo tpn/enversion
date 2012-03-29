@@ -1072,6 +1072,7 @@ class RepositoryRevOrTxn(object):
             known   = set([ d for d in dirs if not d.root_details.is_unknown])
             unknown = set([ d for d in dirs if d.root_details.is_unknown ])
             externals = list()
+            prefixes = ('http', 'svn', 'file')
             for d in known:
                 if not d.is_remove:
                     x = d.proplist.get(SVN_PROP_EXTERNALS)
@@ -1103,7 +1104,6 @@ class RepositoryRevOrTxn(object):
                             externals.append(format_dir(first[2:]))
                             continue
 
-                        prefixes = ('http', 'svn', 'file')
                         uri = second
 
                         if any(uri.startswith(p) for p in prefixes):
