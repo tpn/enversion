@@ -367,6 +367,7 @@ class RepositoryRevOrTxn(object):
         self.name               = k.name
         self.path               = k.path
         self.repo               = k.repo
+        self.istream            = k.istream
         self.estream            = k.estream
         self.ostream            = k.ostream
         self.options            = k.options
@@ -2707,6 +2708,7 @@ class RepositoryRevOrTxn(object):
 
             if new_root:
                 self.rootmatcher.add_root_path(c.path)
+
     def __known_root_renamed(self, change, paths, root_details):
         c = change
         (sp, dp)   = paths
