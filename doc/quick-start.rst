@@ -13,8 +13,8 @@ Download Enversion.
 
 Creating a new, Enversion-enabled Repository
 --------------------------------------------
-Use the `evnadmin create` command to create a new Subversion repository that's
-automatically enabled for Enversion::
+Use the ``evnadmin create`` command to create a new Subversion repository
+that's automatically enabled for Enversion::
 
     % evnadmin create foo
     % svn ls file://`pwd`/foo
@@ -26,9 +26,10 @@ automatically enabled for Enversion::
 
     % svn mkdir -m "" file://`pwd`/foo/tags/test
 
-.. tip:: If you don't want `evnadmin` to create the standard 'trunk', 'tags'
-         and 'branches' directory, you can specify the '--empty' option::
-            `evnadmin create --empty foo`
+
+.. tip:: If you don't want ``evnadmin`` to create the standard ``trunk``,
+         ``tags`` and ``branches`` directories, you can specify the
+         ``--empty`` option: ``evnadmin create --empty foo``.
 
 
 Enabling Enversion against existing Subversion Repositories
