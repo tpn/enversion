@@ -153,6 +153,7 @@ class RepositoryCommand(SubversionCommand):
     hook_dir   = None
     hook_names = None
 
+    last_rev = None
     youngest_rev = None
 
     _hook_files = None
@@ -195,9 +196,11 @@ class RepositoryCommand(SubversionCommand):
 
         self.youngest_rev = svn.fs.youngest_rev(self.fs, self.pool)
 
-        #k = dict(fs=self.fs, rev=0, pool=self.pool)
         k = dict(fs=self.fs, rev=0, conf=self.conf)
-        self.r0_revprop_conf = RepositoryRevisionConfig(**k)
+        rc0 = self.r0_revprop_conf = RepositoryRevisionConfig(**k)
+        last_rev_str = rc0.get('last_rev', None)
+        if last_rev_str is not None:
+            self.last_rev = int(last_rev_str)
 
     def hook_file(self, name):
         if self._repo_hook_files is None:
@@ -231,16 +234,29 @@ class RepoHookCommand(RepositoryCommand):
         self.hook = self.hook_file(self.hook_name)
 
 class RepositoryRevisionCommand(RepositoryCommand):
-    # `rev_str` should be set before calling run(); it will be validated and
-    # the resulting revision integer will be placed in `rev`.
-    rev = None
+    """
+    Subclass of RepositoryCommand that supports a single revision argument.
+
+    ``rev_str`` should be set to a string-representation of the revision
+    argument prior to calling ``run()`` by the calling class (this is taken
+    care of by ``evn.cli.CommandLine``).  It will be validated and the
+    resulting revision integer placed in ``rev``.
+
+    If ``rev_str`` is None, evn:last_rev is looked up and used, if defined and
+    valid.  If not, HEAD is used.
+    """
     rev_str = None
+    rev = None
 
     @requires_context
     def run(self):
         RepositoryCommand.run(self)
 
-        assert self.rev_str
+        if self.rev_str is None:
+            if self.last_rev is None:
+                self.rev_str = 'HEAD'
+            else:
+                self.rev_str = self.last_rev
 
         if self.rev_str == 'HEAD':
             r = self.youngest_rev
@@ -258,6 +274,7 @@ class RepositoryRevisionCommand(RepositoryCommand):
             raise CommandError(m % (r, self.youngest_rev))
 
         self.rev = r
+
 
 
 class RepositoryRevisionRangeCommand(RepositoryCommand):

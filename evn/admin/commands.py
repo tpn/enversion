@@ -406,6 +406,13 @@ class ShowRootsCommand(RepositoryRevisionCommand):
     def run(self):
         RepositoryRevisionCommand.run(self)
 
+        if self.rev == self.last_rev and self.rev < self.youngest_rev:
+            m = (
+                "Note: last analyzed revision of repository '%s' (r%d) lags "
+                "behind HEAD (r%d)."
+            )
+            self._out(m % (self.name, self.last_rev, self.youngest_rev))
+
         k = dict(fs=self.fs, rev=self.rev, conf=self.conf)
         rc = RepositoryRevisionConfig(**k)
         roots = rc.roots
@@ -415,7 +422,7 @@ class ShowRootsCommand(RepositoryRevisionCommand):
             self._out(m % (self.name, self.rev))
         else:
             m = "Showing roots for repository '%s' at r%d:"
-            self._verbose(m % (self.name, self.rev))
+            self._out(m % (self.name, self.rev))
             pprint.pprint(roots, self.ostream)
 
 

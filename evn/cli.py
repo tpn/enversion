@@ -315,8 +315,8 @@ class CommandLine:
                 dest='revision',
                 metavar='ARG',
                 action='store',
-                default='HEAD',
-                help="revision [default: %default]"
+                default=None,
+                help="revision [default: evn:last_rev]"
             )
 
         if self._rev_range_:
@@ -368,7 +368,6 @@ class CommandLine:
             self.command.hook_name = hn
 
         if self._rev_:
-            assert self.options.revision
             self.command.rev_str = self.options.revision
 
         if self._rev_range_:
