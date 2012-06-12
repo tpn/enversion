@@ -384,7 +384,7 @@ class AnalyzeCommand(RepositoryCommand):
             else:
                 self._out(
                     "Resuming analysis for repository '%s' "
-                    'from revision %d..."' % (self.name, start_rev)
+                    "from revision %d..." % (self.name, start_rev)
                 )
 
         k = self.repo_kwds
