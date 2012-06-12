@@ -58,7 +58,7 @@ class _Errors(Constant):
     TagCopied = 'tag copied'
     UncleanCopy = 'unclean copy'
     FileRemovedFromTag = 'file removed from tag'
-    CopyKnownRootSubtreeToValidAbsRootPath = 'copy known root subtree to valid absolute root path'
+    CopyKnownRootSubtreeToValidAbsoluteRootPath = 'copy known root subtree to valid absolute root path'
     MixedRootsNotClarifiedByExternals = 'multiple known and unknown roots in commit could not be clarified by svn:externals'
     CopyKnownRootToIncorrectlyNamedRootPath = 'known root copied to an incorrectly-named new root path'
     CopyKnownRootSubtreeToIncorrectlyNamedRootPath = 'known root subtree copied to incorrectly-named new root path'
