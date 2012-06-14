@@ -22,8 +22,8 @@ class _EventType(Constant):
         ----
 
         The original intent of notes was to mark commits that contained
-        interesting or unexpected metadata that wasn’t considered to be
-        erroneous (i.e. the commit didn’t need to be blocked).
+        interesting or unexpected metadata that wasn't considered to be
+        erroneous (i.e. the commit didn't need to be blocked).
 
         In practice, though, this information has never been consulted,
         mainly because there were no facilities provided to harvest notes
@@ -46,7 +46,7 @@ class _EventType(Constant):
 
         This is a new event type that, when encountered, blocks the commit
         and provides a user with an explanation of what they're doing, why
-        it’s been blocked, and how to re-commit if they really want to do it.
+        it's been blocked, and how to re-commit if they really want to do it.
 
         In that respect, it's identical to warnings below (with a slightly
         less confrontational error message). The only difference is that any
@@ -67,12 +67,12 @@ class _EventType(Constant):
         repository super-users (who can no longer override errors, see below).
 
         Out of the box, there is only one warning: known root removed. The
-        rest are either errors or fatal – which can no longer be overridden by
+        rest are either errors or fatal - which can no longer be overridden by
         repository super-users.
 
         As errors can be re-mapped to warnings on a per-repository basis, this
         event type provides administrators with the facility to demote certain
-        errors to warnings based on a comprehensive review of the team’s
+        errors to warnings based on a comprehensive review of the team's
         SCM/Subversion usage.
 
     .. _events-error:
@@ -100,7 +100,7 @@ class _EventType(Constant):
         Fatal
         -----
 
-        A fatal event will block a commit, and it can’t be overridden by
+        A fatal event will block a commit, and it can't be overridden by
         anyone, including administrators. These events will be limited to a
         small subset of existing errors that deal with Enversion invariants
         being broken, or unexpected but catastrophic issues like runtime
