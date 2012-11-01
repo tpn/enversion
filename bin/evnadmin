@@ -1,7 +1,18 @@
 #!/usr/bin/env python
 
+import os
 import sys
-from evn.admin.cli import AdminCLI
+try:
+    from evn.admin.cli import AdminCLI
+except ImportError:
+    path = os.path.abspath(__file__)
+    if os.path.islink(path):
+        target = os.readlink(path)
+        if target.endswith('enversion/bin/evnadmin'):
+            libdir = target[:-len('bin/evnadmin')-1]
+            sys.path.insert(0, libdir)
+
+    from evn.admin.cli import AdminCLI
 
 if __name__ == '__main__':
     AdminCLI(sys.argv[1:])
