@@ -1,7 +1,11 @@
 #=============================================================================
 # Imports
 #=============================================================================
-import psutil
+try:
+    import psutil
+except ImportError:
+    pass
+
 import itertools
 
 from collections import (
