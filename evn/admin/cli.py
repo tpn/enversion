@@ -42,6 +42,9 @@ class AdminCLI(CLI):
 class DoctestCommandLine(AdminCommandLine):
     _quiet_ = True
 
+class SelftestCommandLine(AdminCommandLine):
+    _quiet_ = True
+
 class DumpDefaultConfigCommandLine(AdminCommandLine):
     pass
 
@@ -255,7 +258,7 @@ class ShowRootsCommandLine(AdminCommandLine):
     _rev_       = True
     _repo_      = True
     _conf_      = True
-    _verbose_   = True
+    _quiet_     = True
     _usage_     = '%prog [ options ] REPO_PATH'
 
 class RootInfoCommandLine(AdminCommandLine):

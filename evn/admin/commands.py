@@ -63,14 +63,31 @@ from evn.util import (
 
 class DoctestCommand(Command):
     def run(self):
+        DoctestCommand.run_standalone(quiet=self.options.quiet)
+
+    @classmethod
+    def run_standalone(cls, quiet=None):
+        assert quiet in (True, False)
         import doctest
         import evn.path
         import evn.root
         import evn.util
-        verbose = not self.options.quiet
+        verbose = not quiet
         doctest.testmod(evn.path, verbose=verbose)
         doctest.testmod(evn.root, verbose=verbose)
         doctest.testmod(evn.util, verbose=verbose)
+
+
+class SelftestCommand(Command):
+    def run(self):
+        quiet = self.options.quiet
+        self._out("running doctests")
+        DoctestCommand.run_standalone(quiet=quiet)
+
+        self._out("running unit tests")
+        import evn.test
+        evn.test.main(quiet=quiet)
+
 
 class DumpDefaultConfigCommand(Command):
     def run(self):
@@ -406,6 +423,13 @@ class ShowRootsCommand(RepositoryRevisionCommand):
     def run(self):
         RepositoryRevisionCommand.run(self)
 
+        if self.rev == self.last_rev and self.rev < self.youngest_rev:
+            m = (
+                "Note: last analyzed revision of repository '%s' (r%d) lags "
+                "behind HEAD (r%d)."
+            )
+            self._out(m % (self.name, self.last_rev, self.youngest_rev))
+
         k = dict(fs=self.fs, rev=self.rev, conf=self.conf)
         rc = RepositoryRevisionConfig(**k)
         roots = rc.roots
@@ -415,7 +439,7 @@ class ShowRootsCommand(RepositoryRevisionCommand):
             self._out(m % (self.name, self.rev))
         else:
             m = "Showing roots for repository '%s' at r%d:"
-            self._verbose(m % (self.name, self.rev))
+            self._out(m % (self.name, self.rev))
             pprint.pprint(roots, self.ostream)
 
 

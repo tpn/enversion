@@ -24,6 +24,7 @@ from svn.core import (
 
     svn_mergeinfo_parse,
 
+    SVN_PROP_EXTERNALS,
     SVN_PROP_MERGEINFO,
     SVN_PROP_REVISION_LOG,
     SVN_PROP_REVISION_AUTHOR,
