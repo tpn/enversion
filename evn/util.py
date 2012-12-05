@@ -43,18 +43,48 @@ def requires_context(f):
     @wraps(f)
     def wrapper(*args, **kwds):
         obj = args[0]
-        n = '%s.%s' % (obj.__class__.__name__, f.func_name)
+        fname = f.func_name
+        n = '%s.%s' % (obj.__class__.__name__, fname)
         if not obj.entered:
             m = "%s must be called from within an 'with' statement." % n
             raise RuntimeError(m)
         elif obj.exited:
-            m = "%s can not be called after leaving a 'with' statement." % n
-            raise RuntimeError(m)
+            allow = False
+            try:
+                allow = obj.allow_reentry_after_exit
+            except AttributeError:
+                pass
+            if not allow:
+                m = "%s can not be called after leaving a 'with' statement."
+                raise RuntimeError(m % n)
+            else:
+                obj.exited = False
         return f(*args, **kwds)
+    return wrapper
+
+def implicit_context(f):
+    @wraps(f)
+    def wrapper(*args, **kwds):
+        obj = args[0]
+        fname = f.func_name
+        n = '%s.%s' % (obj.__class__.__name__, fname)
+        if not obj.entered:
+            with obj as obj:
+                return f(*args, **kwds)
+        else:
+            return f(*args, **kwds)
     return wrapper
 
 def add_linesep_if_missing(s):
     return s if s[-1] is os.linesep else s + os.linesep
+
+def strip_linesep_if_present(s):
+    if s.endswith('\r\n'):
+        return s[-2]
+    elif s[-1] == '\n':
+        return s[-1]
+    else:
+        return s
 
 def prepend_warning_if_missing(s):
     return add_linesep_if_missing(
@@ -345,6 +375,57 @@ class Constant(dict):
         return self.__getitem__(name)
     def __setattr__(self, name, value):
         return self.__setitem__(name, value)
+
+class ContextSensitiveObject(object):
+    allow_reentry_after_exit = True
+
+    def __init__(self, *args, **kwds):
+        self.context_depth = 0
+        self.entered = False
+        self.exited = False
+
+    def __enter__(self):
+        assert self.entered is False
+        if self.allow_reentry_after_exit:
+            self.exited = False
+        else:
+            assert self.exited is False
+        result = self._enter()
+        self.entered = True
+        assert isinstance(result, self.__class__)
+        return result
+
+    def __exit__(self, *exc_info):
+        assert self.entered is True and self.exited is False
+        self._exit()
+        self.exited = True
+        self.entered = False
+
+    def _enter(self):
+        raise NotImplementedError
+
+    def _exit(self, *exc_info):
+        raise NotImplementedError
+
+class ImplicitContextSensitiveObject(object):
+
+    def __init__(self, *args, **kwds):
+        self.context_depth = 0
+
+    def __enter__(self):
+        self.context_depth += 1
+        self._enter()
+        return self
+
+    def __exit__(self, *exc_info):
+        self.context_depth -= 1
+        self._exit(*exc_in)
+
+    def _enter(self):
+        raise NotImplementedError
+
+    def _exit(self, *exc_info):
+        raise NotImplementedError
 
 class ConfigList(list):
     def __init__(self, parent, name, args):

@@ -59,12 +59,14 @@ from evn.change import (
 
 from evn.util import (
     literal_eval,
-    requires_context,
+    implicit_context,
+    strip_linesep_if_present,
     Pool,
     Dict,
     DecayDict,
     ConfigDict,
     UnexpectedCodePath,
+    ImplicitContextSensitiveObject,
 )
 
 from evn.constants import (
@@ -358,7 +360,7 @@ class RepositoryRevisionConfig(AbstractRepositoryConfig):
 class RepositoryError(Exception):
     pass
 
-class RepositoryRevOrTxn(object):
+class RepositoryRevOrTxn(ImplicitContextSensitiveObject):
     def __init__(self, **kwds):
         k = DecayDict(**kwds)
 
@@ -427,6 +429,10 @@ class RepositoryRevOrTxn(object):
         self.authz_groups                       = dict()
         self.authz_overrides                    = set()
 
+        name_override = join_path(self.path, '.name')
+        if os.path.isfile(name_override):
+            with open(name_override, 'r') as f:
+                self.name = strip_linesep_if_present(f.read())
 
     def __enter__(self):
         assert self.entered is False
@@ -441,7 +447,7 @@ class RepositoryRevOrTxn(object):
         self.pool.destroy()
         self.exited = True
 
-    @requires_context
+    @implicit_context
     def process_rev_or_txn(self, rev_or_txn):
         self.rev_or_txn = rev_or_txn
         assert self.rev_or_txn is not None

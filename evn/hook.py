@@ -32,7 +32,7 @@ from evn.repo import (
 
 from evn.util import (
     add_linesep_if_missing,
-    requires_context,
+    implicit_context,
     pid_exists,
     touch_file,
     DecayDict,
@@ -67,7 +67,7 @@ class RepositoryHook(RepositoryRevOrTxn):
     def is_repository_hook(self):
         return True
 
-    @requires_context
+    @implicit_context
     def run_hook(self, hook_name, hook_args):
         self.hook_name = hook_name.replace('-', '_')
         self.hook_args = hook_args

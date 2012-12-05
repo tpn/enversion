@@ -27,9 +27,10 @@ from evn.util import (
     add_linesep_if_missing,
     prepend_error_if_missing,
     prepend_warning_if_missing,
-    requires_context,
+    implicit_context,
     Dict,
     Pool,
+    ImplicitContextSensitiveObject,
 )
 
 #=============================================================================
@@ -38,7 +39,7 @@ from evn.util import (
 class CommandError(Exception):
     pass
 
-class Command:
+class Command(ImplicitContextSensitiveObject):
     __metaclass__ = ABCMeta
 
     def __init__(self, istream, ostream, estream):
@@ -176,7 +177,7 @@ class RepositoryCommand(SubversionCommand):
         k.r0_revprop_conf = self.r0_revprop_conf
         return k
 
-    @requires_context
+    @implicit_context
     def run(self):
         assert self.path
         self.path = os.path.abspath(self.path)
@@ -227,7 +228,7 @@ class RepoHookCommand(RepositoryCommand):
     hook_name = None
     hook = None
 
-    @requires_context
+    @implicit_context
     def run(self):
         RepositoryCommand.run(self)
         assert self.hook_name in self.hook_names
@@ -248,7 +249,7 @@ class RepositoryRevisionCommand(RepositoryCommand):
     rev_str = None
     rev = None
 
-    @requires_context
+    @implicit_context
     def run(self):
         RepositoryCommand.run(self)
 
@@ -292,7 +293,7 @@ class RepositoryRevisionRangeCommand(RepositoryCommand):
         pass
 
 
-    @requires_context
+    @implicit_context
     def run(self):
         RepositoryCommand.run(self)
 
