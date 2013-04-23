@@ -490,15 +490,16 @@ class Pool(object):
         self.__pool.destroy()
         del self.__pool
 
-
 class Options(dict):
     def __init__(self, values=dict()):
         assert isinstance(values, dict)
-        self.__dict__.update(values)
+        dict.__init__(self, **values)
 
     def __getattr__(self, name):
-        return False
-
+        if name not in self:
+            return False
+        else:
+            return self.__getitem__(name)
 
 class Dict(dict):
     """
