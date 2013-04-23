@@ -72,10 +72,12 @@ class DoctestCommand(Command):
         import evn.path
         import evn.root
         import evn.util
+        import evn.logic
         verbose = not quiet
         doctest.testmod(evn.path, verbose=verbose)
         doctest.testmod(evn.root, verbose=verbose)
         doctest.testmod(evn.util, verbose=verbose)
+        doctest.testmod(evn.logic, verbose=verbose)
 
 
 class SelftestCommand(Command):

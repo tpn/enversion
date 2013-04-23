@@ -1,6 +1,11 @@
 #=============================================================================
 # Imports
 #=============================================================================
+from abc import (
+    ABCMeta,
+    abstractmethod,
+)
+
 from evn.util import (
     Constant,
 )
@@ -114,8 +119,64 @@ class _EventType(Constant):
     Fatal   = 5
 EventType = _EventType()
 
-class Event(object):
-    pass
+class _Phase(Constant):
+    ChangeSet                = 1
+    ChangeSetMergeinfo       = 2
+    ChangeSetRoots           = 3
+    Change                   = 4
+    ChangeMergeinfo          = 5
 
+    Copy                     = 6
+    Create                   = 7
+    Modify                   = 8
+    Remove                   = 9
+    Rename                   = 10
+
+    Replace                  = 11
+
+    PropertyChange           = 12
+
+    Merge                    = 13
+
+Phase = _Phase()
+
+
+class Event:
+    __metaclass__ = ABCMeta
+    @property
+    def desc(self):
+        return self._desc_
+    description = desc
+
+    @property
+    def id(self):
+        return self._id_
+
+    @property
+    def type(self):
+        return self._type_
+
+    @property
+    def phase(self):
+        return self._phase_
+
+    @abstractmethod
+    def test(self, change):
+        pass
+
+    @abstractmethod
+    def activate(self, change):
+        pass
+
+    @abstractmethod
+    def finalize(self, change):
+        pass
+
+class RootEvent(Event):
+    """
+    An event that affects a root.
+
+    """
+    pass
 
 # vim:set ts=8 sw=4 sts=4 tw=78 et:

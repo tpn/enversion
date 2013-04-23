@@ -101,66 +101,66 @@ check_event_id_invariants()
 #=============================================================================
 class MergeinfoRemovedFromRepositoryRoot(Event):
     _id_ = 1
-    _severity_ = EventType.Note
+    _type_ = EventType.Note
 
 class SubtreeMergeinfoModified(Event):
     _id_ = 2
-    _severity_ = EventType.Note
+    _type_ = EventType.Note
 
 class SubtreeMergeinfoRemoved(Event):
     _id_ = 3
-    _severity_ = EventType.Note
+    _type_ = EventType.Note
 
 class Merge(Event):
     _id_ = 4
-    _severity_ = EventType.Note
+    _type_ = EventType.Note
 
 class RootRemoved(Event):
     _id_ = 5
-    _severity_ = EventType.Note
+    _type_ = EventType.Note
 
 class ValidMultirootCommit(Event):
     _id_ = 6
-    _severity_ = EventType.Note
+    _type_ = EventType.Note
     _desc_ = "valid multi-root commit"
 
 class MultipleUnknownAndKnowRootsVerifiedByExternals(Event):
     _id_ = 7
-    _severity_ = EventType.Note
+    _type_ = EventType.Note
     _desc_ = "multiple known and unknown roots verified by svn:externals"
 
 class BranchRenamed(Event):
     _id_ = 8
-    _severity_ = EventType.Note
+    _type_ = EventType.Note
 
 class TrunkRelocated(Event):
     _id_ = 9
-    _severity_ = EventType.Note
+    _type_ = EventType.Note
 
 class FileReplacedViaCopyDuringMerge(Event):
     _id_ = 10
-    _severity_ = EventType.Note
+    _type_ = EventType.Note
 
 class FileUnchangedButParentCopyOrRenameBug(Event):
     _id_ = 11
-    _severity_ = EventType.Note
+    _type_ = EventType.Note
     _desc_ = "file is unchanged but there is a parent rename or copy action"
 
 class DirUnchangedButParentCopyOrRenameBug(Event):
     _id_ = 12
-    _severity_ = EventType.Note
+    _type_ = EventType.Note
     _desc_ = (
         "directory is unchanged but there is a parent rename or copy action"
     )
 
 class UnchangedFileDuringMerge(Event):
     _id_ = 13
-    _severity_ = EventType.Note
+    _type_ = EventType.Note
     _desc_ = "file unchanged during merge"
 
 class UnchangedDirDuringMerge(Event):
     _id_ = 14
-    _severity_ = EventType.Note
+    _type_ = EventType.Note
     _desc_ = "dir unchanged during merge"
 
 #=============================================================================
@@ -168,139 +168,139 @@ class UnchangedDirDuringMerge(Event):
 #=============================================================================
 class KnownRootRemoved(Event):
     _id_ = 15
-    _severity_ = EventType.Warn
+    _type_ = EventType.Warn
 
 #=============================================================================
 # Warn
 #=============================================================================
 class TagRenamed(Event):
     _id_ = 16
-    _severity_ = EventType.Warn
+    _type_ = EventType.Warn
 
 class TagModified(Event):
     _id_ = 17
-    _severity_ = EventType.Warn
+    _type_ = EventType.Warn
 
 class MultipleUnknownAndKnownRootsModified(Event):
     _id_ = 18
-    _severity_ = EventType.Warn
+    _type_ = EventType.Warn
     _desc_ = "multiple known and unknown roots modified in the same commit"
 
 class MixedRootNamesInMultiRootCommit(Event):
     _id_ = 19
-    _severity_ = EventType.Warn
+    _type_ = EventType.Warn
     _desc_ = "mixed root names in multi-root commit"
 
 class MixedRootTypesInMultiRootCommit(Event):
     _id_ = 20
-    _severity_ = EventType.Warn
+    _type_ = EventType.Warn
     _desc_ = "mixed root types in multi-root commit"
 
 class SubversionRepositoryCheckedIn(Event):
     _id_ = 21
-    _severity_ = EventType.Warn
+    _type_ = EventType.Warn
 
 class MergeinfoAddedToRepositoryRoot(Event):
     _id_ = 22
-    _severity_ = EventType.Warn
+    _type_ = EventType.Warn
     _desc_ = "svn:mergeinfo added to repository root '/'"
 
 class MergeinfoModifiedOnRepositoryRoot(Event):
     _id_ = 23
-    _severity_ = EventType.Warn
+    _type_ = EventType.Warn
     _desc_ = "svn:mergeinfo modified on repository root '/'"
 
 class SubtreeMergeinfoAdded(Event):
     _id_ = 24
-    _severity_ = EventType.Warn
+    _type_ = EventType.Warn
     _desc_ = "svn:mergeinfo added to subtree"
 
 class RootMergeinfoRemoved(Event):
     _id_ = 25
-    _severity_ = EventType.Warn
+    _type_ = EventType.Warn
     _desc_ = "svn:mergeinfo removed from root"
 
 class DirectoryReplacedDuringMerge(Event):
     _id_ = 26
-    _severity_ = EventType.Warn
+    _type_ = EventType.Warn
 
 class EmptyMergeinfoCreated(Event):
     _id_ = 27
-    _severity_ = EventType.Warn
+    _type_ = EventType.Warn
     _desc_ = "empty svn:mergeinfo property set on path"
 
 class MultipleRootsAffectedByRemove(Event):
     _id_ = 28
-    _severity_ = EventType.Warn
+    _type_ = EventType.Warn
 
 #=============================================================================
 # Error
 #=============================================================================
 class TagDirectoryCreatedManually(Event):
     _id_ = 29
-    _severity_ = EventType.Error
+    _type_ = EventType.Error
 
 class BranchDirectoryCreatedManually(Event):
     _id_ = 30
-    _severity_ = EventType.Error
+    _type_ = EventType.Error
 
 class BranchRenamedToTrunk(Event):
     _id_ = 31
-    _severity_ = EventType.Error
+    _type_ = EventType.Error
 
 class TrunkRenamedToBranch(Event):
     _id_ = 32
-    _severity_ = EventType.Error
+    _type_ = EventType.Error
 
 class TrunkRenamedToTag(Event):
     _id_ = 33
-    _severity_ = EventType.Error
+    _type_ = EventType.Error
 
 class BranchRenamedToTag(Event):
     _id_ = 34
-    _severity_ = EventType.Error
+    _type_ = EventType.Error
 
 class BranchRenamedOutsideRootBaseDir(Event):
     _id_ = 35
-    _severity_ = EventType.Error
+    _type_ = EventType.Error
     _desc_ = "branch renamed to location outside root base dir"
 
 class TagSubtreePathRemoved(Event):
     _id_ = 36
-    _severity_ = EventType.Error
+    _type_ = EventType.Error
 
 class RenameAffectsMultipleRoots(Event):
     _id_ = 37
-    _severity_ = EventType.Error
+    _type_ = EventType.Error
 
 class UncleanRenameAffectsMultipleRoots(Event):
     _id_ = 38
-    _severity_ = EventType.Error
+    _type_ = EventType.Error
 
 class MultipleRootsCopied(Event):
     _id_ = 39
-    _severity_ = EventType.Error
+    _type_ = EventType.Error
 
 class TagCopied(Event):
     _id_ = 40
-    _severity_ = EventType.Error
+    _type_ = EventType.Error
 
 class UncleanCopy(Event):
     _id_ = 41
-    _severity_ = EventType.Error
+    _type_ = EventType.Error
 
 class FileRemovedFromTag(Event):
     _id_ = 42
-    _severity_ = EventType.Error
+    _type_ = EventType.Error
 
 class CopyKnownRootSubtreeToValidAbsRootPath(Event):
     _id_ = 43
-    _severity_ = EventType.Error
+    _type_ = EventType.Error
     _desc_ = "copy known root subtree to valid absolute root path"
 
 class MixedRootsNotClarifiedByExternals(Event):
     _id_ = 44
-    _severity_ = EventType.Error
+    _type_ = EventType.Error
     _desc_ = (
         "multiple known and unknown roots in commit could not be "
         "clarified by svn:externals"
@@ -308,44 +308,44 @@ class MixedRootsNotClarifiedByExternals(Event):
 
 class CopyKnownRootToIncorrectlyNamedRootPath(Event):
     _id_ = 45
-    _severity_ = EventType.Error
+    _type_ = EventType.Error
     _desc_ = "known root copied to an incorrectly-named new root path"
 
 class CopyKnownRootSubtreeToIncorrectlyNamedRootPath(Event):
     _id_ = 46
-    _severity_ = EventType.Error
+    _type_ = EventType.Error
     _desc_ = "known root subtree copied to incorrectly-named new root path"
 
 class UnknownPathRenamedToIncorrectlyNamedNewRootPath(Event):
     _id_ = 47
-    _severity_ = EventType.Error
+    _type_ = EventType.Error
     _desc_ = "unknown path renamed incorrectly to new root path name"
 
 class RenamedKnownRootToIncorrectlyNamedRootPath(Event):
     _id_ = 48
-    _severity_ = EventType.Error
+    _type_ = EventType.Error
 
 class MixedChangeTypesInMultiRootCommit(Event):
     _id_ = 49
-    _severity_ = EventType.Error
+    _type_ = EventType.Error
     _desc_ = "mixed change types in multi-root commit"
 
 class CopyKnownRootToKnownRootSubtree(Event):
     _id_ = 50
-    _severity_ = EventType.Error
+    _type_ = EventType.Error
 
 class UnknownPathCopiedToIncorrectlyNamedNewRootPath(Event):
     _id_ = 51
-    _severity_ = EventType.Error
+    _type_ = EventType.Error
 
 class RenamedKnownRootToKnownRootSubtree(Event):
     _id_ = 52
-    _severity_ = EventType.Error
+    _type_ = EventType.Error
     _desc_ = "renamed root to known root subtree"
 
 class FileUnchangedAndNoParentCopyOrRename(Event):
     _id_ = 53
-    _severity_ = EventType.Error
+    _type_ = EventType.Error
     _desc_ = (
         "file has no text or property changes, and no parent copy or rename "
         "actions can be found"
@@ -353,7 +353,7 @@ class FileUnchangedAndNoParentCopyOrRename(Event):
 
 class DirUnchangedAndNoParentCopyOrRename(Event):
     _id_ = 54
-    _severity_ = EventType.Error
+    _type_ = EventType.Error
     _desc_ = (
         "directory has not changed, and no parent copy or rename actions can "
         "be found"
@@ -361,139 +361,139 @@ class DirUnchangedAndNoParentCopyOrRename(Event):
 
 class EmptyChangeSet(Event):
     _id_ = 55
-    _severity_ = EventType.Error
+    _type_ = EventType.Error
 
 class RenameRelocatedPathOutsideKnownRoot(Event):
     _id_ = 56
-    _severity_ = EventType.Error
+    _type_ = EventType.Error
 
 class TagRemoved(Event):
     _id_ = 57
-    _severity_ = EventType.Error
+    _type_ = EventType.Error
 
 class CopyKnownRootToUnknownPath(Event):
     _id_ = 58
-    _severity_ = EventType.Error
+    _type_ = EventType.Error
     _desc_ = "known root copied to unknown path"
 
 class CopyKnownRootSubtreeToInvalidRootPath(Event):
     _id_ = 59
-    _severity_ = EventType.Error
+    _type_ = EventType.Error
     _desc_ = "known root copied to invalid root path"
 
 class NewRootCreatedByRenamingUnknownPath(Event):
     _id_ = 60
-    _severity_ = EventType.Error
+    _type_ = EventType.Error
 
 class UnknownPathCopiedToKnownRootSubtree(Event):
     _id_ = 61
-    _severity_ = EventType.Error
+    _type_ = EventType.Error
 
 class NewRootCreatedByCopyingUnknownPath(Event):
     _id_ = 62
-    _severity_ = EventType.Error
+    _type_ = EventType.Error
 
 class RenamedKnownRootToUnknownPath(Event):
     _id_ = 63
-    _severity_ = EventType.Error
+    _type_ = EventType.Error
     _desc_ = "known root renamed to unknown path"
 
 class RenamedKnownRootSubtreeToUnknownPath(Event):
     _id_ = 64
-    _severity_ = EventType.Error
+    _type_ = EventType.Error
     _desc_ = "known root subtree renamed to unknown path"
 
 class RenamedKnownRootSubtreeToValidRootPath(Event):
     _id_ = 65
-    _severity_ = EventType.Error
+    _type_ = EventType.Error
     _desc_ = "known root subtree renamed to valid root path"
 
 class RenamedKnownRootSubtreeToIncorrectlyNamedRootPath(Event):
     _id_ = 66
-    _severity_ = EventType.Error
+    _type_ = EventType.Error
     _desc_ = "known root subtree renamed to incorrectly-named root path"
 
 class UncleanRename(Event):
     _id_ = 67
-    _severity_ = EventType.Error
+    _type_ = EventType.Error
 
 class PathCopiedFromOutsideRootDuringNonMerge(Event):
     _id_ = 68
-    _severity_ = EventType.Error
+    _type_ = EventType.Error
     _desc_ = "path copied from outside root during non-merge"
 
 class UnknownDirReplacedViaCopyDuringNonMerge(Event):
     _id_ = 69
-    _severity_ = EventType.Error
+    _type_ = EventType.Error
     _desc_ = "unknown directory replaced via copy during non-merge"
 
 class DirReplacedViaCopyDuringNonMerge(Event):
     _id_ = 70
-    _severity_ = EventType.Error
+    _type_ = EventType.Error
     _desc_ = "directory replaced via copy during non-merge"
 
 class DirectoryReplacedDuringNonMerge(Event):
     _id_ = 71
-    _severity_ = EventType.Error
+    _type_ = EventType.Error
     _desc_ = "directory replaced during non-merge"
 
 class PreviousPathNotMatchedToPathsInMergeinfo(Event):
     _id_ = 72
-    _severity_ = EventType.Error
+    _type_ = EventType.Error
     _desc_ = "previous path not matched to paths in mergeinfo"
 
 class PreviousRevDiffersFromParentCopiedFromRev(Event):
     _id_ = 73
-    _severity_ = EventType.Error
+    _type_ = EventType.Error
     _desc_ = "previous rev differs from parent copied-from rev"
 
 class PreviousPathDiffersFromParentCopiedFromPath(Event):
     _id_ = 74
-    _severity_ = EventType.Error
+    _type_ = EventType.Error
     _desc_ = "previous path differs from parent copied-from path"
 
 class PreviousRevDiffersFromParentRenamedFromRev(Event):
     _id_ = 75
-    _severity_ = EventType.Error
+    _type_ = EventType.Error
     _desc_ = "previous rev differs from parent renamed-from rev"
 
 class PreviousPathDiffersFromParentRenamedFromPath(Event):
     _id_ = 76
-    _severity_ = EventType.Error
+    _type_ = EventType.Error
     _desc_ = "previous path differs from parent renamed-from path"
 
 class KnownRootPathReplacedViaCopy(Event):
     _id_ = 77
-    _severity_ = EventType.Error
+    _type_ = EventType.Error
 
 class BranchesDirShouldBeCreatedManuallyNotCopied(Event):
     _id_ = 78
-    _severity_ = EventType.Error
+    _type_ = EventType.Error
     _desc_ = "'branches' directory should be created manually not copied"
 
 class TagsDirShouldBeCreatedManuallyNotCopied(Event):
     _id_ = 79
-    _severity_ = EventType.Error
+    _type_ = EventType.Error
     _desc_ = "'tags' directory should be created manually not copied"
 
 class CopiedFromPathNotMatchedToPathsInMergeinfo(Event):
     _id_ = 80
-    _severity_ = EventType.Error
+    _type_ = EventType.Error
     _desc_ = "copied-from path not matched to paths in mergeinfo"
 
 class InvariantViolatedModifyContainsMismatchedPreviousPath(Event):
     _id_ = 81
-    _severity_ = EventType.Error
+    _type_ = EventType.Error
     _desc_ = "invariant violated: modify contains mismatched previous path"
 
 class InvariantViolatedModifyContainsMismatchedPreviousRev(Event):
     _id_ = 82
-    _severity_ = EventType.Error
+    _type_ = EventType.Error
     _desc_ = "invariant violated: modify contains mismatched previous path"
 
 class InvariantViolatedCopyNewPathInRootsButNotReplace(Event):
     _id_ = 83
-    _severity_ = EventType.Error
+    _type_ = EventType.Error
     _desc_ = (
         "invariant violated: the new path name created (via copy) is already "
         "a known root, but the change isn't marked as a replace."
@@ -501,14 +501,14 @@ class InvariantViolatedCopyNewPathInRootsButNotReplace(Event):
 
 class AbsoluteRootOfRepositoryCopied(Event):
     _id_ = 84
-    _severity_ = EventType.Error
+    _type_ = EventType.Error
 
 #=============================================================================
 # Fatal
 #=============================================================================
 class InvariantViolatedDieCalledWithoutErrorInfo(Event):
     _id_ = 85
-    _severity_ = EventType.Fatal
+    _type_ = EventType.Fatal
     _desc_ = (
         "invariant violated: Repository.die() method called without any error "
         "information being set."
@@ -516,7 +516,7 @@ class InvariantViolatedDieCalledWithoutErrorInfo(Event):
 
 class VersionMismatch(Event):
     _id_ = 86
-    _severity_ = EventType.Fatal
+    _type_ = EventType.Fatal
     _desc_ = (
         "version mismatch: we are at version %d, but the 'evn:version'"
         "revision property found on revision 0 reports the repository is at "
@@ -525,12 +525,12 @@ class VersionMismatch(Event):
 
 class MissingOrEmptyRevPropOnRev0(Event):
     _id_ = 87
-    _severity_ = EventType.Fatal
+    _type_ = EventType.Fatal
     _desc_ = "missing or empty 'evn:%s' revision property on revision 0"
 
 class InvalidIntegerRevPropOnRev0(Event):
     _id_ = 88
-    _severity_ = EventType.Fatal
+    _type_ = EventType.Fatal
     _desc_ = (
         "invalid value for 'evn:%s' revision property on revision 0; "
         "expected an integer greater than or equal to %d, got: %s"
@@ -538,17 +538,17 @@ class InvalidIntegerRevPropOnRev0(Event):
 
 class PropertyValueConversionFailed(Event):
     _id_ = 89
-    _severity_ = EventType.Fatal
+    _type_ = EventType.Fatal
     _desc_ = "failed to convert property %s's value: %s"
 
 class PropertyValueLiteralEvalFailed(Event):
     _id_ = 90
-    _severity_ = EventType.Fatal
+    _type_ = EventType.Fatal
     _desc_ = "invalid value for property '%s': %s"
 
 class LastRevTooHigh(Event):
     _id_ = 91
-    _severity_ = EventType.Fatal
+    _type_ = EventType.Fatal
     _desc_ = (
         "the value for the revision property 'evn:last_rev' on revision 0 "
         "of the repository is too high; it indicates the last processed "
@@ -560,7 +560,7 @@ class LastRevTooHigh(Event):
 
 class RepositoryOutOfSyncTxn(Event):
     _id_ = 92
-    _severity_ = EventType.Fatal
+    _type_ = EventType.Fatal
     _desc_ = (
         "the repository is out of sync and can not be committed to at this "
         "time (base revision for this transaction: %d, repository last "
@@ -569,7 +569,7 @@ class RepositoryOutOfSyncTxn(Event):
 
 class LastRevNotSetToBaseRevDuringPostCommit(Event):
     _id_ = 93
-    _severity_ = EventType.Fatal
+    _type_ = EventType.Fatal
     _desc_ = (
         "the repository is out of sync (last_rev is not set to base_rev "
         "during post-commit), preventing post-commit processing of this "
@@ -580,7 +580,7 @@ class LastRevNotSetToBaseRevDuringPostCommit(Event):
 
 class OutOfOrderRevisionProcessingAttempt(Event):
     _id_ = 94
-    _severity_ = EventType.Fatal
+    _type_ = EventType.Fatal
     _desc_ = (
         "unable to process repository revision %d until the base revision "
         "%d has been processed; however, the last processed revision "
@@ -589,7 +589,7 @@ class OutOfOrderRevisionProcessingAttempt(Event):
 
 class RootsMissingFromBaseRevTxn(Event):
     _id_ = 95
-    _severity_ = EventType.Fatal
+    _type_ = EventType.Fatal
     _desc_ = (
         "missing or empty 'evn:roots' revision property on base revision "
         "(this transaction: %s, base revision: %d, repository last "
@@ -598,7 +598,7 @@ class RootsMissingFromBaseRevTxn(Event):
 
 class RootsMissingFromBaseRevDuringPostCommit(Event):
     _id_ = 96
-    _severity_ = EventType.Fatal
+    _type_ = EventType.Fatal
     _desc_ = (
         "missing or empty 'evn:roots' revision property on base revision, "
         "preventing post-commit processing of this revision; is the pre-"
@@ -609,12 +609,12 @@ class RootsMissingFromBaseRevDuringPostCommit(Event):
 
 class ChangeSetOnlyApplicableForRev1AndHigher(Event):
     _id_ = 97
-    _severity_ = EventType.Fatal
+    _type_ = EventType.Fatal
     _desc_ = "changeset only applicable to revisions 1 and higher"
 
 class InvalidRootsForRev(Event):
     _id_ = 98
-    _severity_ = EventType.Fatal
+    _type_ = EventType.Fatal
     _desc_ = (
         "invalid value for 'evn:roots' revision property on revision "
         "(this revision: %d, base revision: %d, repository last "
@@ -623,7 +623,7 @@ class InvalidRootsForRev(Event):
 
 class StaleTxnProbablyDueToHighLoad(Event):
     _id_ = 99
-    _severity_ = EventType.Fatal
+    _type_ = EventType.Fatal
     _desc_ = (
         "please re-try your commit -- the repository is under load and your "
         "transaction became out-of-date while it was being queued for "
@@ -633,7 +633,7 @@ class StaleTxnProbablyDueToHighLoad(Event):
 
 class PropertyChangedButOldAndNewValuesAreSame(Event):
     _id_ = 100
-    _severity_ = EventType.Fatal
+    _type_ = EventType.Fatal
     _desc_ = (
         "the property '%s' is recorded as having changed, but the old "
         "value and new value are identical ('%s')"
