@@ -153,6 +153,9 @@ class SimpleRootMatcher(object):
             roots = self.__root_dirs_by_length.get(i)
             if roots:
                 s = '/%s/' % '/'.join(dirs[:i])
+                #if s in self.__root_dirs_by_length[i]:
+                #    import ipdb
+                #    ipdb.set_trace()
                 assert s not in self.__root_dirs_by_length[i]
 
         roots = self.__root_dirs_by_length.get(length)

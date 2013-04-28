@@ -503,6 +503,11 @@ class AbsoluteRootOfRepositoryCopied(Event):
     _id_ = 84
     _type_ = EventType.Error
 
+class RootAncestorRenamedToKnownRootSubtree(Event):
+    _id_ = 101
+    _type_ = EventType.Fatal
+    _desc_ = "root ancestor renamed to known-root subtree"
+
 #=============================================================================
 # Fatal
 #=============================================================================

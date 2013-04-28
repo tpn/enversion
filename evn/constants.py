@@ -83,6 +83,7 @@ class _Errors(Constant):
     RenamedKnownRootSubtreeToValidRootPath = 'known root subtree renamed to valid root path'
     RenamedKnownRootSubtreeToIncorrectlyNamedRootPath = 'known root subtree renamed to incorrectly-named root path'
     UncleanRename = 'unclean rename'
+    RootAncestorRenamedToKnownRootSubtree = "root ancestor renamed to known-root subtree"
     PathCopiedFromOutsideRootDuringNonMerge = 'path copied from outside root during non-merge'
     UnknownDirReplacedViaCopyDuringNonMerge = 'unknown directory replaced via copy during non-merge'
     DirReplacedViaCopyDuringNonMerge = 'directory replaced via copy during non-merge'

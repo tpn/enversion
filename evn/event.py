@@ -156,22 +156,6 @@ class Event:
     def type(self):
         return self._type_
 
-    @property
-    def phase(self):
-        return self._phase_
-
-    @abstractmethod
-    def test(self, change):
-        pass
-
-    @abstractmethod
-    def activate(self, change):
-        pass
-
-    @abstractmethod
-    def finalize(self, change):
-        pass
-
 class RootEvent(Event):
     """
     An event that affects a root.

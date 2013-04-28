@@ -1815,6 +1815,16 @@ class ChangeSet(AbstractChangeSet):
         )
 
     @property
+    def log_msg(self):
+        assert self.__closed
+        return self.revprops.get('svn:log')
+
+    @property
+    def user(self):
+        assert self.__closed
+        return self.revprops.get('svn:author')
+
+    @property
     def is_rev(self):
         return self.__is_rev
 
