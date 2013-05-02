@@ -485,7 +485,11 @@ class PathMatcher(object):
         ('/tags/1.0.0/', 'tag', '1.0.0')
         >>> pm.get_root_details_tuple('/tags/trunk/')
         ('/tags/trunk/', 'tag', 'trunk')
+        >>> pm.get_root_details_tuple('/')
+        ('/', 'absolute', '/')
         """
+        if path == '/':
+            return ('/', 'absolute', '/')
         found = False
         matches = list()
         root_dir = self.get_root_dir(path)

@@ -287,6 +287,14 @@ class FindMergesCommandLine(AdminCommandLine):
     _conf_  = True
     _usage_ = '%prog [ options ] REPO_PATH'
 
+class PurgeEvnPropsCommandLine(AdminCommandLine):
+    _repo_  = True
+    _conf_  = True
+    _quiet_ = True
+    _usage_ = '%prog [ options ] REPO_PATH'
+    _rev_range_ = True
+
+
 #=============================================================================#
 # Main                                                                        #
 #=============================================================================#

@@ -279,7 +279,7 @@ class RepositoryRevisionCommand(RepositoryCommand):
 
 
 class RepositoryRevisionRangeCommand(RepositoryCommand):
-    rev_range_str = None
+    revision_range = None
 
     _end_rev = None
     _start_rev = None
@@ -297,17 +297,20 @@ class RepositoryRevisionRangeCommand(RepositoryCommand):
     def run(self):
         RepositoryCommand.run(self)
 
-        if not self.revision:
-            self.revision = '%d:HEAD' % self._minimum_rev
+        if not self.revision_range:
+            self.revision_range = '%d:HEAD' % self._minimum_rev
 
-        if ':' not in self.revision:
-            self.revision += ':HEAD'
+        if ':' not in self.revision_range:
+            self.revision_range += ':HEAD'
 
-        if self.revision.endswith(':'):
-            self.revision += ':HEAD'
+        if self.revision_range.endswith(':'):
+            self.revision_range += ':HEAD'
 
-        if self.revision.startswith(':'):
-            self.revision = '%d%s' % (self._minimum_rev, self.revision)
+        if self.revision_range.startswith(':'):
+            self.revision_range = '%d%s' % (
+                self._minimum_rev,
+                self.revision_range
+            )
 
         rev_t = svn.core.svn_opt_revision_t
         parse_rev = svn.core.svn_opt_parse_revision
@@ -315,16 +318,20 @@ class RepositoryRevisionRangeCommand(RepositoryCommand):
         with Pool() as pool:
             self._highest_rev = svn.fs.youngest_rev(self.fs, pool)
 
-            if self.revision.endswith('HEAD'):
-                self.revision = self.revision[:-4] + str(self._highest_rev)
+            if self.revision_range.endswith('HEAD'):
+                self.revision_range = (
+                    self.revision_range[:-4] +
+                    str(self._highest_rev)
+                )
 
             (start, end) = (rev_t(), rev_t())
             start.set_parent_pool(pool)
             end.set_parent_pool(pool)
-            result = parse_rev(start, end, self.revision, pool)
+            result = parse_rev(start, end, self.revision_range, pool)
             assert result in (0, -1)
             if result == -1:
-                raise CommandError("invalid revision: %s" % self.revision)
+                m = "invalid revision: %s" % self.revision_range
+                raise CommandError(m)
 
             if start.kind != svn.core.svn_opt_revision_number:
                 raise CommandError("only numbers are supported for start rev")

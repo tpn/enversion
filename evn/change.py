@@ -1606,6 +1606,17 @@ class ChangeSet(AbstractChangeSet):
 
         self.__destroyed = None
 
+        self.__possible_merge_sources = set()
+
+    @property
+    def possible_merge_sources(self):
+        return self.__possible_merge_sources
+
+    def add_possible_merge_source(self, path, rev):
+        if path[-1] != '/':
+            path = path + '/'
+        self.__possible_merge_sources.add((path, rev))
+
     def destroy(self):
         """
         Destroy a ChangeSet object, releasing all acquired resources.

@@ -30,6 +30,15 @@ from subprocess import (
 #=============================================================================
 # Helper Methods
 #=============================================================================
+def one(r):
+    return bool(sum((1 if i else 0) for i in r) == 1)
+
+def one_or_none(r):
+    return bool(sum((1 if i else 0) for i in r) <= 1)
+
+def none(r):
+    return bool(sum((1 if i else 0) for i in r) == 0)
+
 def bytes_to_mb(b):
     return '%0.3fMB' % (float(b)/1024.0/1024.0)
 

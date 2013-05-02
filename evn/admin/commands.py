@@ -36,6 +36,7 @@ from evn.command import (
     SubversionCommand,
     RepositoryCommand,
     RepositoryRevisionCommand,
+    RepositoryRevisionRangeCommand,
 )
 
 from evn.hook import (
@@ -716,5 +717,20 @@ class FindMergesCommand(RepositoryRevisionCommand):
         with c:
             c.run()
             return c
+
+class PurgeEvnPropsCommand(RepositoryRevisionRangeCommand):
+    @requires_context
+    def run(self):
+        RepositoryRevisionRangeCommand.run(self)
+
+        fs = self.fs
+        prefix = self.conf.propname_prefix
+        revproplist = svn.fs.revision_proplist
+        changerevprop = svn.fs.change_rev_prop
+        for i in xrange(self._start_rev, self._end_rev+1):
+            for key in revproplist(fs, i).keys():
+                if key.startswith(prefix):
+                    changerevprop(fs, i, key, None)
+                    self._out('[%i]: deleting %s' % (i, key))
 
 # vim:set ts=8 sw=4 sts=4 tw=78 et:

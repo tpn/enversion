@@ -1,3 +1,8 @@
+#=============================================================================
+# Classes
+#=============================================================================
+class Break:
+    pass
 
 class Mutex(object):
     """
@@ -247,6 +252,17 @@ class Mutex(object):
         Traceback (most recent call last):
             ...
         RuntimeError: foobar
+
+    Test raising BreakWith cleanly exits the context.
+
+        >>> m = Mutex()
+        >>> m.viper = True
+        >>> m.eagle = False
+        >>> with m as f:
+        ...     f.viper
+        ...     raise Break
+        ...     f.eagle
+        True
     """
     def __init__(self):
         self.__d = dict()
@@ -311,6 +327,9 @@ class Mutex(object):
         d[name] = value
         s.add(name)
 
+    def _peek(self, name):
+        return (self.__d.get(name, False) is True)
+
     def __enter__(self):
         assert self._is_setup
         if not self._have_true:
@@ -321,9 +340,16 @@ class Mutex(object):
         return self
 
     def __exit__(self, *exc_info):
-        if not exc_info or exc_info == (None, None, None):
+        clean_exit = (
+            not exc_info or
+            exc_info == (None, None, None) or
+            exc_info[0] == Break
+        )
+
+        if clean_exit:
             assert self._is_end
             self._mode = 'exit'
+            return True
 
     def __repr__(self):
         return self._name

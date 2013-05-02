@@ -34,6 +34,9 @@ w = _Warnings()
 class _Errors(Constant):
     TagRenamed = 'tag renamed'
     TagModified = 'tag modified'
+    RootReplaced = 'root replaced'
+    RootAncestorRemoved = 'root ancestor removed'
+    RootAncestorReplaced = 'root ancestor replaced'
     MultipleUnknownAndKnownRootsModified = 'multiple known and unknown roots modified in the same commit'
     MixedRootNamesInMultiRootCommit = 'mixed root names in multi-root commit'
     MixedRootTypesInMultiRootCommit = 'mixed root types in multi-root commit'
@@ -71,7 +74,8 @@ class _Errors(Constant):
     FileUnchangedAndNoParentCopyOrRename = 'file has no text or property changes, and no parent copy or rename actions can be found'
     DirUnchangedAndNoParentCopyOrRename = 'directory has not changed, and no parent copy or rename actions can be found'
     EmptyChangeSet = 'empty change set'
-    RenameRelocatedPathOutsideKnownRoot = 'rename relocated path outside known root'
+    RenameRelocatedPathOutsideKnownRootDuringNonMerge = 'rename relocated path outside known root during non-merge'
+    RenameRelocatedPathBetweenKnownRootsDuringMerge = 'rename relocated path between known roots during merge'
     TagRemoved = 'tag removed'
     CopyKnownRootToUnknownPath = 'known root copied to unknown path'
     CopyKnownRootSubtreeToInvalidRootPath = 'known root copied to invalid root path'
@@ -85,6 +89,8 @@ class _Errors(Constant):
     UncleanRename = 'unclean rename'
     RootAncestorRenamedToKnownRootSubtree = "root ancestor renamed to known-root subtree"
     PathCopiedFromOutsideRootDuringNonMerge = 'path copied from outside root during non-merge'
+    PathCopiedFromUnrelatedKnownRootDuringMerge = 'path copied from unrelated known root during merge'
+    PathCopiedFromUnrelatedRevisionDuringMerge = 'path copied from unrelated revision root during merge'
     UnknownDirReplacedViaCopyDuringNonMerge = 'unknown directory replaced via copy during non-merge'
     DirReplacedViaCopyDuringNonMerge = 'directory replaced via copy during non-merge'
     DirectoryReplacedDuringNonMerge = 'directory replaced during non-merge'
