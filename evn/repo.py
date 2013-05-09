@@ -3253,22 +3253,25 @@ class RepositoryRevOrTxn(ImplicitContextSensitiveObject):
                         clean_check = False
 
                 elif dst.valid_root:
-                    if vdrd.is_trunk:
-                        rm.add_root_path(dst_path)
-                        c.root_details = rm.get_root_details(dst_path)
-                        if self.is_rev:
-                            ipdb.set_trace()
-                            d = Dict()
-                            d.created = cs.rev
-                            d.creation_method = 'copied'
-                            d.copied_from = (src_path, src_rev)
-                            d.copies = {}
-                            if c.errors:
-                                d.errors = c.errors
-
-                            self.roots[dst_path] = d
-                    else:
+                    if not vdrd.is_trunk:
                         CopyOrRename.KnownRootSubtreeToValidRoot(c)
+                        raise logic.Break
+
+                    rm.add_root_path(dst_path)
+                    c.root_details = rm.get_root_details(dst_path)
+                    if self.is_txn:
+                        raise logic.Break
+
+                    ipdb.set_trace()
+                    d = Dict()
+                    d.created = cs.rev
+                    d.creation_method = 'copied'
+                    d.copied_from = (src_path, src_rev)
+                    d.copies = {}
+                    if c.errors:
+                        d.errors = c.errors
+
+                    self.roots[dst_path] = d
 
                 elif dst.valid_root_subtree:
                     CopyOrRename.KnownRootSubtreeToValidRootSubtree(c)
