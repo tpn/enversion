@@ -1324,6 +1324,7 @@ class DirectoryChange(AbstractChangeSet, NodeChange):
     def destroy(self):
         assert not self.__destroyed
         self.__destroyed = True
+        self.__root_details = None
         AbstractChangeSet.destroy(self)
 
     def __hash__(self):
@@ -1350,7 +1351,19 @@ class DirectoryChange(AbstractChangeSet, NodeChange):
 
     @property
     def root_details(self):
-        return self.__root_details or self.parent.root_details
+        root_details = self.__root_details
+        if root_details:
+            if root_details.version is None:
+                return root_details
+
+            path = self.path
+            rootmatcher = root_details.rootmatcher
+            if root_details.version < rootmatcher.version:
+                root_details = rootmatcher.get_root_details(path)
+                self.__root_details = root_details
+            return root_details
+        else:
+            return self.parent.root_details
 
     @root_details.setter
     def root_details(self, value):

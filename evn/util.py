@@ -89,9 +89,9 @@ def add_linesep_if_missing(s):
 
 def strip_linesep_if_present(s):
     if s.endswith('\r\n'):
-        return s[-2]
+        return s[:-2]
     elif s[-1] == '\n':
-        return s[-1]
+        return s[:-1]
     else:
         return s
 

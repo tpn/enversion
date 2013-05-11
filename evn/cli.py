@@ -372,7 +372,7 @@ class CommandLine:
 
         if self._rev_range_:
             assert self.options.revision_range
-            self.command.rev_range_str = self.options.revision_range
+            self.command.revision_range = self.options.revision_range
 
         self.command.args = self.args
         self.command.options = self.options

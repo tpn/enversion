@@ -55,6 +55,8 @@ class _Errors(Constant):
     BranchRenamedToTag = 'branch renamed to tag'
     BranchRenamedOutsideRootBaseDir = 'branch renamed to location outside root base dir'
     TagSubtreePathRemoved = 'tag subtree path removed'
+    TagSubtreeCopied = 'tag subtree copied'
+    TagSubtreeRenamed = 'tag subtree renamed'
     RenameAffectsMultipleRoots = 'rename affects multiple roots'
     UncleanRenameAffectsMultipleRoots = 'unclean rename affects multiple roots'
     MultipleRootsCopied = 'multiple roots copied'
