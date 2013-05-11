@@ -1221,6 +1221,28 @@ class RepositoryRevOrTxn(ImplicitContextSensitiveObject):
 
         self.roots[c.path] = d
 
+    def __new_trunk_via_copy_or_rename(self, change, src_path, src_rev):
+        c = change
+        assert c.is_copy or c.is_rename
+        rm = self.rootmatcher
+        rm.add_root_path(c.path)
+        c.root_details = rm.get_root_details(c.path)
+
+        if self.is_txn:
+            return
+
+        method = 'copy' if c.is_copy else 'rename'
+
+        d = Dict()
+        d.created = c.changeset.rev
+        d.creation_method = method
+        d.copies = {}
+        setattr(d, '%s_from' % method, (src_path, src_rev))
+        if c.errors:
+            d.errors = c.errors
+
+        self.roots[c.path] = d
+
     def __root_replaced(self, change):
         c = change
         rm = self.rootmatcher
@@ -1258,6 +1280,20 @@ class RepositoryRevOrTxn(ImplicitContextSensitiveObject):
 
         c.note(n.RootRemoved)
 
+    def __find_closest_change(self, change, path):
+        c = change
+        changeset = c.changeset
+        new_change = None
+        while path != c.path:
+            try:
+                new_change = changeset[path]
+                break
+            except KeyError:
+                pass
+            path = path[:path[:-1].rfind('/')+1]
+
+        return new_change
+
     def __roots_removed_indirectly(self, change, roots):
         c = change
         rm = self.rootmatcher
@@ -1267,6 +1303,7 @@ class RepositoryRevOrTxn(ImplicitContextSensitiveObject):
 
         for root_path in roots:
             assert root_path.startswith(c.path)
+
             rm.remove_root_path(root_path)
 
             if self.is_txn:
@@ -1324,10 +1361,8 @@ class RepositoryRevOrTxn(ImplicitContextSensitiveObject):
         if self.is_txn and rev == self.base_rev:
             return self.rootmatcher
 
-        if rev not in self._rootmatchers:
-            roots = self.rconf(rev=rev).roots
-            self._rootmatchers[rev] = SimpleRootMatcher(set(roots.keys()))
-        return self._rootmatchers[rev]
+        roots = self.rconf(rev=rev).roots
+        return SimpleRootMatcher(set(roots.keys()))
 
     def __get_copied_root_configdict(self, change):
         c = change
@@ -1539,305 +1574,6 @@ class RepositoryRevOrTxn(ImplicitContextSensitiveObject):
                 c._save('warnings', cs.warnings)
                 dbg('warnings: %s' % repr(cs.warnings))
 
-    def _process_copy(self, c):
-        # Types of copies (similar to types of renames):
-        #   - Replacing an existing absolute root path: defer.
-        #   - Copying a known absolute root path to another absolute path:
-        #       Valid:
-        #             trunk/            -> branches/foo
-        #             trunk/            -> tags/2010.01.1
-        #             branches/foo      -> branches/bar
-        #             branches/foo      -> tags/2.0
-        #       Invalid:
-        #             tags/2010.01.1    ->  *
-        #   - Prevent copying a path that has multiple roots under it:
-        #       i.e. copying /src to /source when /src looks like this:
-        #           /src/branches/xxx
-        #           /src/tags/yyy
-        #           /src/trunk
-        #   - Copying an unknown path to an absolute valid root path name,
-        #     i.e. /foo/junk -> /src/trunk.  This will treat 'trunk' as a
-        #     new root, and it'll also convert /foo/junk to be a valid root
-        #     by virtue of the fact it was copied to another path.
-        #   - Copying an absolute root path
-        #   - Copying an unknown path to another unknown path: valid.
-        #   - Copying a subtree of a known root to an absolute valid root
-        #     path: prevent if we're a txn, and raise a RuntimeError now
-        #     if we're a rev.
-        #   - Copying an absolute known root to a valid but not absolute
-        #     root path name that doesn't reside under an existing known
-        #     root, i.e.:
-        #       trunk/ -> branches/bugzilla/8101
-        #     Prevent this if we're a txn, allow if we're a rev.
-        #   - Copying an absolute known root to a subtree of an existing
-        #     known root, i.e.:
-        #       UI/trunk/ -> /desktop/trunk/UI
-        #     Prevent if we're a txn, allow if we're a rev (I guess).
-        #   - Copying a subtree of a known root to a valid but not absolute
-        #     root path name that doesn't reside under an existing known
-        #     root, i.e.
-        #       trunk/UI/ -> branches/bugzilla/8130
-        #     Prevent if we're a txn, allow if we're a rev (I guess).
-        assert c.is_copy
-
-        if c.copied_from_path == '/':
-            c.error(e.AbsoluteRootOfRepositoryCopied)
-            if c.is_replace:
-                self.__processed_replace(c)
-            return
-
-        rm = self.rootmatcher
-        pm = self.pathmatcher
-
-        if c.path in self.rootmatcher.roots:
-            # The only way the path could already exist as a root is if this
-            # action is a replace.  Super annoying, as we'll still have to
-            # update all the root information if we're a revision to reflect
-            # the replace.  (Well, that's what we'll *have* to do, at some
-            # point down the track.  For now, if we're a rev, just bomb out.)
-            assert c.is_dir
-            if c.is_replace:
-                assert c.is_root
-                assert c.root_details.root_path == c.path
-                m = e.KnownRootPathReplacedViaCopy
-                c.error(m)
-                err = '%s: %s' % (m, c.path)
-                if self.is_rev:
-                    import ipdb
-                    ipdb.set_trace()
-                    raise RuntimeError(err)
-                return
-            else:
-                m = e.InvariantViolatedCopyNewPathInRootsButNotReplace
-                c.error(m)
-                err = '%s: %s' % (m, c.path)
-                if self.is_rev:
-                    raise RuntimeError(err)
-                return
-
-        #  rd: root details via rootmatcher (if existing known root)
-        # crm: historical rootmatcher from rev c.copied_from_rev
-        # crd: root details of copied from path
-        # nrd: root details of new path via pathmatcher
-        rd  = c.root_details
-        crm = self.__get_historical_rootmatcher(c.copied_from_rev)
-        crd = crm.get_root_details(c.copied_from_path)
-        nrd = pm.get_root_details(c.path)
-
-        # See if our copy from path has any existing roots under it.
-        if c.is_dir:
-            paths = crm.find_roots_under_path(c.copied_from_path)
-            if paths:
-                m = e.MultipleRootsCopied
-                c.error(m)
-                return
-            else:
-                assert c.path[-1] == '/'
-                if c.path.endswith('branches/'):
-                    c.error(e.BranchesDirShouldBeCreatedManuallyNotCopied)
-                    return
-                elif c.path.endswith('tags/'):
-                    c.error(e.TagsDirShouldBeCreatedManuallyNotCopied)
-                    return
-
-            assert not rm.find_roots_under_path(c.path)
-
-        # -> tags/2.0.x, branches/foobar
-        copied_to_valid_absolute_root_path = (
-            rd.is_unknown and
-            not nrd.is_unknown and
-            nrd.root_path == c.path
-        )
-
-        # -> trunk/UI/foo/ (where 'trunk' is a known root)
-        copied_to_known_root_subtree = (
-            not rd.is_unknown and
-            rd.root_path != c.path and
-            c.path.startswith(rd.root_path)
-        )
-
-        # -> branches/bugzilla/8101 (where bugzilla is not a known root)
-        copied_to_subtree_of_valid_root_path = (
-            rd.is_unknown and
-            not nrd.is_unknown and
-            nrd.root_path != c.path and
-            c.path.startswith(nrd.root_path)
-        )
-
-        # -> junk/foo/bar/
-        copied_to_unknown = (
-            rd.is_unknown and
-            nrd.is_unknown
-        )
-
-        # trunk, branches/2.0.x ->
-        copied_from_known_root = (
-            not crd.is_unknown and
-            crd.root_path == c.copied_from_path
-        )
-
-        # trunk/UI/foo ->
-        copied_from_known_root_subtree = (
-            not crd.is_unknown and
-            crd.root_path != c.copied_from_path and
-            c.copied_from_path.startswith(crd.root_path)
-        )
-
-        copied_from_unknown = crd.is_unknown
-
-        # Make sure all of our mutually-exclusive invariants are correct.
-        assert (
-            (copied_from_known_root and (
-                not copied_from_known_root_subtree and
-                not copied_from_unknown
-            )) or (copied_from_known_root_subtree and (
-                not copied_from_known_root and
-                not copied_from_unknown
-            )) or (copied_from_unknown and (
-                not copied_from_known_root_subtree and
-                not copied_from_known_root
-            ))
-        )
-        assert (
-            (copied_to_valid_absolute_root_path and (
-                not copied_to_subtree_of_valid_root_path and
-                not copied_to_known_root_subtree and
-                not copied_to_unknown
-            )) or (copied_to_known_root_subtree and (
-                not copied_to_subtree_of_valid_root_path and
-                not copied_to_valid_absolute_root_path and
-                not copied_to_unknown
-            )) or (copied_to_subtree_of_valid_root_path and (
-                not copied_to_valid_absolute_root_path and
-                not copied_to_known_root_subtree and
-                not copied_to_unknown
-            )) or (copied_to_unknown and (
-                not copied_to_subtree_of_valid_root_path and
-                not copied_to_valid_absolute_root_path and
-                not copied_to_known_root_subtree
-            ))
-        )
-
-        new_root = True
-        clean_check = True
-        errors_before_copy_processing = set(c.errors)
-
-        if copied_from_known_root:
-            assert c.is_dir
-
-            if crd.is_tag:
-                c.error(e.TagCopied)
-
-            if copied_to_valid_absolute_root_path:
-                assert not c.is_replace
-
-            elif copied_to_known_root_subtree:
-                new_root = False
-                c.error(e.CopyKnownRootToKnownRootSubtree)
-
-            elif copied_to_subtree_of_valid_root_path:
-                c.error(e.CopyKnownRootToIncorrectlyNamedRootPath)
-
-            else:
-                assert copied_to_unknown
-                c.error(e.CopyKnownRootToUnknownPath)
-
-        elif copied_from_known_root_subtree:
-
-            if copied_to_valid_absolute_root_path:
-                assert c.is_dir
-                c.error(e.CopyKnownRootSubtreeToValidAbsoluteRootPath)
-
-            elif copied_to_known_root_subtree:
-                new_root = False
-                clean_check = False
-                if crd.root_path != rd.root_path:
-                    if not c.is_merge:
-                        # todo: promote this back to error status
-                        c.note(e.PathCopiedFromOutsideRootDuringNonMerge)
-                    else:
-                        self.__process_copy_during_merge(c)
-
-            elif copied_to_subtree_of_valid_root_path:
-                c.error(e.CopyKnownRootSubtreeToIncorrectlyNamedRootPath)
-
-            else:
-                assert copied_to_unknown
-                c.error(e.CopyKnownRootSubtreeToInvalidRootPath)
-
-        else:
-            assert copied_from_unknown
-            new_root = False
-
-            if copied_to_valid_absolute_root_path:
-                c.error(e.NewRootCreatedByCopyingUnknownPath)
-
-            elif copied_to_known_root_subtree:
-                c.error(e.UnknownPathCopiedToKnownRootSubtree)
-
-            elif copied_to_subtree_of_valid_root_path:
-                c.error(e.UnknownPathCopiedToIncorrectlyNamedNewRootPath)
-
-            else:
-                assert copied_to_unknown
-                clean_check = False
-
-        if c.is_replace and (c.path not in self._replacements_processed):
-            if copied_to_unknown:
-                if not c.is_merge:
-                    if c.is_dir:
-                        c.error(e.UnknownDirReplacedViaCopyDuringNonMerge)
-                    else:
-                        # Permit file replacements to unknown paths if a merge
-                        # isn't taking place.
-                        assert c.is_file
-                else:
-                    # We don't currently verify merges to unknown paths; if
-                    # the replacement can be explained by a merge, that's good
-                    # enough for now.
-                    pass
-            else:
-                if not c.is_merge:
-                    if c.is_dir:
-                        c.note(e.DirReplacedViaCopyDuringNonMerge)
-                    else:
-                        # Again, permit file replacements to known paths if a
-                        # merge is taking place.
-                        assert c.is_file
-                else:
-                    # Permit file/directory replacements during merges.
-                    pass
-            self.__processed_replace(c)
-
-        if c.is_file:
-            return
-        else:
-            assert c.is_dir
-            if clean_check:
-                if not c.is_empty:
-                    if nrd.is_tag:
-                        c.error(e.UncleanCopy)
-                    elif not c.is_merge:
-                        c.error(e.UncleanCopy)
-
-            if new_root and copied_from_known_root:
-                self.rootmatcher.add_root_path(c.path)
-
-                if self.is_rev:
-                    d = Dict()
-                    d.created = c.changeset.rev
-                    d.creation_method = 'copied'
-                    d.copied_from = (c.copied_from_path, c.copied_from_rev)
-                    d.copies = {}
-                    if c.errors:
-                        d.errors = c.errors
-
-                    self.roots[c.path] = d
-                    root = self.__get_copied_root_configdict(c)
-                    root._add_copy(c.copied_from_rev, c.path, c.changeset.rev)
-
-        return
-
     def __known_subtree_to_other_known_subtree(self, change, **kwds):
         k = DecayDict(kwds)
         src_rev = k.src_rev
@@ -1857,7 +1593,6 @@ class RepositoryRevOrTxn(ImplicitContextSensitiveObject):
         dst_root = dst_root_details.root_path
         assert src_root != dst_root
 
-        import ipdb
         if not c.is_merge:
 
             if c.is_rename:
@@ -1868,7 +1603,6 @@ class RepositoryRevOrTxn(ImplicitContextSensitiveObject):
             return
 
         if c.is_rename:
-            ipdb.set_trace()
             c.error(e.RenameRelocatedPathBetweenKnownRootsDuringMerge)
             return
 
@@ -1879,35 +1613,53 @@ class RepositoryRevOrTxn(ImplicitContextSensitiveObject):
         pc = c.merge_root.propchanges
         mipc = pc[SVN_PROP_MERGEINFO]
         merged = mipc.merged
+        reverse_merged = mipc.reverse_merged
         # Lop off the trailing '/'
         assert src_root[-1] == '/'
-        src_merge_revs = mipc.merged.get(src_root[:-1])
-        if not src_merge_revs:
-            c.error(e.PathCopiedFromUnrelatedKnownRootDuringMerge)
-            return
-
-        # Fast-path check that the revision is valid.
-        if src_merge_revs.endswith(str(src_rev)):
-            return
-
-        # Make sure the incoming revision intersects the revision range being
-        # merged.
-        p = svn.core.Pool()
-        c_mi_str = '%s:%d' % (src_root[:-1], src_rev)
-        c_mi = svn_mergeinfo_parse(c_mi_str, p)
-        c_ri = c_mi[src_root[:-1]]
-
-        src_mi_str = '%s:%s' % (src_root[:-1], src_merge_revs)
-        src_mi = svn_mergeinfo_parse(src_mi_str, p)
-        src_ri = src_mi[src_root[:-1]]
-
+        src_rev_str = str(src_rev)
         consider_inheritance = False
-        ri = svn_rangelist_intersect(c_ri, src_ri, consider_inheritance)
-        if not ri:
-            c.error(e.PathCopiedFromUnrelatedRevisionDuringMerge)
+        rangelist_intersect = lambda a, b, c: svn_rangelist_intersect(a, b, c)
+        targets = (merged, reverse_merged)
+        found_path = False
+        for target in targets:
+            for (path, revs) in target.items():
+                if not src_path.startswith(path):
+                    continue
 
-        p.destroy()
-        del p
+                found_path = True
+
+                # Fast-path check that the revision is valid.
+                if revs.startswith(src_rev_str) or revs.endswith(src_rev_str):
+                    return
+
+                # Another fast-path for '123-456'-type rev ranges.
+                if ',' not in revs and revs.count('-') == 1:
+                    (start, end) = [ int(s) for s in revs.split('-') ]
+                    if src_rev >= start and src_rev <= end:
+                        return
+                    else:
+                        continue
+
+                # Do a proper rangelist intersection check.
+                p = svn.core.Pool()
+                c_mi_str = '%s:%d' % (src_root[:-1], src_rev)
+                c_mi = svn_mergeinfo_parse(c_mi_str, p)
+                c_ri = c_mi[src_root[:-1]]
+
+                src_mi_str = '%s:%s' % (src_root[:-1], src_merge_revs)
+                src_mi = svn_mergeinfo_parse(src_mi_str, p)
+                src_ri = src_mi[src_root[:-1]]
+
+                ri = bool(intersect(c_ri, src_ri, consider_inheritance))
+                p.destroy()
+                del p
+                if ri:
+                    return
+
+        if not found_path:
+            c.error(e.PathCopiedFromUnrelatedKnownRootDuringMerge)
+        else:
+            c.error(e.PathCopiedFromUnrelatedRevisionDuringMerge)
 
     def __process_copy_during_merge(self, c):
         assert c.is_merge
@@ -2041,7 +1793,6 @@ class RepositoryRevOrTxn(ImplicitContextSensitiveObject):
             elif dst.root_ancestor:
                 c.error(e.RootAncestorReplaced)
 
-                ipdb.set_trace()
                 for root_path in dst_roots:
                     self.__root_removed_indirectly(c, root_path)
 
@@ -2061,103 +1812,6 @@ class RepositoryRevOrTxn(ImplicitContextSensitiveObject):
                 self.__processed_replace(c)
 
         return
-
-        # Unknown path is tricky when the actual path involves legitimate
-        # roots (like 'trunk' or 'branches/foo' etc) that weren't created
-        # correctly and thus, weren't ever added to evn:roots.  In these
-        # cases, root_details (rd) will rightly be unknown, but new root
-        # details (nrd) will regex match the valid root part.  We still
-        # class such paths as unknown.
-        created_unknown_path = (
-            rd.is_unknown and (
-                nrd.is_unknown or (
-                    not nrd.is_unknown and
-                    nrd.root_path != c.path
-                )
-            )
-        )
-
-        created_trunk = (
-            rd.is_unknown and
-            nrd.is_trunk and
-            nrd.root_path == c.path
-        )
-
-        created_absolute_valid_root_path = (
-            rd.is_unknown and
-            (nrd.is_branch or nrd.is_tag) and
-            nrd.root_path == c.path
-        )
-
-        created_path_under_known_root = (
-            not rd.is_unknown and
-            rd.root_path != c.path and
-            c.path.startswith(rd.root_path)
-        )
-
-        # Assert mutually-exclusive invariants.
-        assert (
-            (created_unknown_path and (
-                not created_trunk and
-                not created_path_under_known_root and
-                not created_absolute_valid_root_path
-            )) or (created_trunk and (
-                not created_unknown_path and
-                not created_path_under_known_root and
-                not created_absolute_valid_root_path
-            )) or (created_path_under_known_root and (
-                not created_trunk and
-                not created_unknown_path and
-                not created_absolute_valid_root_path
-            )) or (created_absolute_valid_root_path and (
-                not created_trunk and
-                not created_unknown_path and
-                not created_path_under_known_root
-            ))
-        )
-
-        if created_trunk:
-            assert c.path.endswith('trunk/')
-            assert not c.is_replace
-            self.rootmatcher.add_root_path(c.path)
-            c.root_details = self.rootmatcher.get_root_details(c.path)
-
-        if created_unknown_path:
-            pass
-
-        elif created_trunk and self.is_txn:
-            pass
-
-        elif created_trunk and self.is_rev:
-            d = Dict()
-            d.created = c.changeset.rev
-            d.creation_method = 'created'
-            d.copies = {}
-            if c.errors:
-                d.errors = c.errors
-
-            self.roots[c.path] = d
-
-        elif created_path_under_known_root:
-            if rd.is_tag:
-                c.error(e.TagModified)
-
-        else:
-            assert created_absolute_valid_root_path
-            assert c.is_dir
-            if nrd.is_tag:
-                c.error(e.TagDirectoryCreatedManually)
-            else:
-                assert nrd.is_branch
-                c.error(e.BranchDirectoryCreatedManually)
-
-        if c.is_replace:
-            # Permit file/directory replacements during merges.  Only allow
-            # file replacements during non-merges.
-            if not c.is_merge:
-                if c.is_dir:
-                    c.error(e.DirectoryReplacedDuringNonMerge)
-            self.__processed_replace(c)
 
     def __has_mismatched_previous_details(self, c):
         assert c.is_modify
@@ -2380,66 +2034,6 @@ class RepositoryRevOrTxn(ImplicitContextSensitiveObject):
 
         return
 
-        rd = c.root_details
-
-        paths = self.rootmatcher.find_roots_under_path(c.path)
-        if paths:
-            c.error(e.MultipleRootsAffectedByRemove)
-            if self.is_rev:
-                for path in paths:
-                    self.__remove_root(c, root_path=path)
-
-        rd = c.root_details
-
-        removed_unknown_path = rd.is_unknown
-
-        removed_tag = (
-            rd.is_tag and
-            rd.root_path == c.path
-        )
-
-        removed_tag_subtree = (
-            rd.is_tag and
-            rd.root_path != c.path and
-            c.path.startswith(rd.root_path)
-        )
-
-        removed_subtree_from_non_tag_known_root = (
-            not rd.is_unknown and
-            not rd.is_tag and
-            rd.root_path != c.path and
-            c.path.startswith(rd.root_path)
-        )
-
-        removed_absolute_non_tag_known_root = (
-            not rd.is_unknown and
-            not rd.is_tag and
-            rd.root_path == c.path
-        )
-
-        remove_root = False
-
-        if removed_unknown_path:
-            pass
-
-        elif removed_tag:
-            remove_root = True
-            c.note(e.TagRemoved)
-
-        elif removed_tag_subtree:
-            c.error(e.TagSubtreePathRemoved)
-
-        elif removed_subtree_from_non_tag_known_root:
-            pass
-
-        else:
-            assert removed_absolute_non_tag_known_root
-            remove_root = True
-            c.note(w.KnownRootRemoved)
-
-        if remove_root:
-           self.__remove_root(c)
-
     def __valid_subdirs(self, c):
         # Check to see if they've checked in a repository.
         paths = [ d.path for d in c.dirs ]
@@ -2523,9 +2117,6 @@ class RepositoryRevOrTxn(ImplicitContextSensitiveObject):
                 raise UnexpectedCodePath(m)
 
         if c.is_replace:
-            if c.path not in self._replacements_processed:
-                import ipdb
-                ipdb.set_trace()
             assert c.path in self._replacements_processed
 
         if c.is_dir:
@@ -2537,385 +2128,6 @@ class RepositoryRevOrTxn(ImplicitContextSensitiveObject):
                 self.__process_change(child)
 
         return
-
-    def _process_rename(self, c):
-        # Types of renames:
-        #   - Rename of an absolute root path name to another absolute root
-        #     path name...:
-        #       - branch -> branch: valid if the base dir is the same, i.e.
-        #         /src/branches/product-2.0.x -> /src/branches/product-2.1.x
-        #       - branch -> trunk: invalid
-        #       - branch -> tag: invalid
-        #       - trunk -> branch: invalid
-        #       - trunk -> trunk: invalid
-        #       - tag -> trunk: invalid
-        #       - tag -> branch: invalid
-        #       - tag -> tag: invalid
-        #   - Renaming an absolute known root to an unknown path.
-        #   - Renaming a subtree of a known root to an unknown path.
-        #   - Renaming a subtree of an absolute known root to a new valid
-        #     absolute root path... prevent if txn, allow if rev.
-        #   - Renaming a subtree of a known root to another location within
-        #     the same root.
-        #   - Renaming a subtree of a known root to another location within
-        #     a different known root.
-        #   - Renaming a path that has multiple roots under it, i.e.:
-        #       - Renaming /src to /source:
-        #           /src/branches/xxx
-        #           /src/tags/xxx
-        #           /src/trunk/xxx
-        #   - Renaming an unknown path to an absolute valid root path name:
-        #       - /contrib/junk/component -> /junk/trunk: valid
-        #   - Renaming an unknown path to another unknown path
-
-        if c.is_dir:
-            return self._process_rename_dir(c)
-
-        assert c.is_rename
-        assert not c.path in self.rootmatcher.roots
-        assert c.renamed_from_rev == c.changeset.base_rev
-        assert c.renamed_from_rev == self.base_rev
-
-        # Originally, there was an assumption that a rename couldn't be a
-        # replace.  So, about here, we had an 'assert not c.is_replace'.  Fast
-        # forward a few months after deployment in the wild and yes, it turns
-        # out, we certainly can have renames that are also replacements.  How
-        # should we deal with them?  Should we flag them as an error?  I would
-        # personally like to eradicate all replace actions, but alas, the mod-
-        # _dav bug that causes prolific replacements tends to make it impossi-
-        # ble to discern the difference between a replace that we should be
-        # blocking because the user is doing something wrong, versus a replace
-        # that's simply an artefact of committing through http://.  So, for
-        # now, let's do... *drum roll* nothing.
-        if c.is_replace:
-            self.__processed_replace(c)
-
-        rm = self.rootmatcher
-        pm = self.pathmatcher
-
-        #  rd: root details of path (if existing known root)
-        # rrd: root details of renamed path
-        # nrd: root details of new path via pathmatcher
-        rd  = c.root_details
-        rf  = (c.renamed_from_path, c.renamed_from_rev)
-        rp  = (c.renamed_from_path, c.path)
-        # Note: unlike _process_copy(), which has to deal with paths being
-        # copied from any revision, we don't need to load a historical root-
-        # matcher object below, because renamed_from_rev will always equal
-        # our (changeset|self).base_rev (see assertions a few lines up),
-        # which is what self.rootmatcher will be tied to.
-        rrd = rm.get_root_details(c.renamed_from_path)
-        nrd = pm.get_root_details(c.path)
-
-        if c.is_dir:
-            # There shouldn't ever be any existing roots under the new path
-            # name.  (XXX: could weird directory replacements break this?)
-            assert not rm.find_roots_under_path(c.path)
-
-            old_paths = rm.find_roots_under_path(c.renamed_from_path)
-            if old_paths:
-                assert rrd.is_unknown
-
-                # Multi-root renames are permitted IFF the rename is clean.
-
-                # In the context of a txn, the user must explicitly confirm
-                # the multi-root rename in the log message.  In the context
-                # of a revision, if the confirmation is in the log message,
-                # add a note indicating the multi-root rename; if not, mark
-                # it as an error.
-
-                # We don't currently permit unclean multi-root renames 'cause
-                # it would increase complexity immensely; every rename would
-                # have to be analysed to verify all the original roots are
-                # being brought over, any new roots that have been created,
-                # any existing roots that have been modified (i.e. cheeky tag
-                # modifications during the rename), any existing roots that
-                # have subsequently been renamed and deleted, etc.  Absolute
-                # nightmare.
-
-                if not c.is_empty:
-                    m = e.UncleanRenameAffectsMultipleRoots
-                    if self.is_txn:
-                        c.error(m)
-                        return
-                    else:
-                        assert self.is_rev
-                        raise RuntimeError(m)
-
-                m = e.RenameAffectsMultipleRoots
-                confirmation = EVN_ERROR_CONFIRMATIONS[m]
-
-                new_paths = [ p.replace(*rp) for p in old_paths ]
-                # Temporary preventative measures for preventing dodgy
-                # commits from corrupting evn:roots.
-                for (old_path, new_path) in zip(old_paths, new_paths):
-                    # Until the root refactoring work is complete, call
-                    # SimpleRootMatcher's remove_root_path and add_root-
-                    # path before persisting changes in the revprop; both
-                    # of those methods will raise an AssertionError if
-                    # there is anything dodgy going on with evn:roots.
-                    rm.remove_root_path(old_path)
-                    rm.add_root_path(new_path)
-
-                if self.is_txn:
-                    if confirmation not in self.log_msg:
-                        c.error(m)
-                    else:
-                        # No need to 'c.note(m)' as with revision processing
-                        # below if we're a txn.
-                        pass
-                    return
-                else:
-                    assert self.is_rev
-                    if confirmation not in self.log_msg:
-                        c.error(m)
-                    else:
-                        c.note(m)
-
-                    for (old_path, new_path) in zip(old_paths, new_paths):
-                        # Find the relevant evn:roots entry for when the old
-                        # path was created, then record the fact it's just
-                        # been renamed.
-                        rfrev = c.renamed_from_rev
-                        rc = self.rconf(rev=rfrev)
-                        crev = rc.roots[old_path]['created']
-                        rc = self.rconf(rev=crev)
-                        root = rc.roots[old_path]
-                        root.removed = c.changeset.rev
-                        root.removal_method = 'renamed_indirectly'
-                        root.renamed_indirectly = rp
-                        root.renamed = (new_path, c.changeset.rev)
-
-                        # Delete the old root from our current roots.
-                        del self.roots[old_path]
-
-                        # ....and add the new root.
-                        d = Dict()
-                        d.created = c.changeset.rev
-                        d.creation_method = 'renamed_indirectly'
-                        d.renamed_indirectly_from = rp
-                        d.renamed_from = (old_path, rfrev)
-                        d.copies = {}
-                        if c.errors:
-                            d.errors = c.errors
-
-                        self.roots[new_path] = d
-
-                    return
-
-        # -> tags/2.0.x/, branches/foo/, trunk/
-        renamed_to_valid_absolute_root_path = (
-            rd.is_unknown and
-            not nrd.is_unknown and
-            nrd.root_path == c.path
-        )
-
-        # -> trunk/UI/foo/ (where 'trunk' is a known root)
-        renamed_to_known_root_subtree = (
-            not rd.is_unknown and
-            rd.root_path != c.path and
-            c.path.startswith(rd.root_path)
-        )
-
-        # -> branches/bugzilla/8101 (where bugzilla is not a known root)
-        renamed_to_subtree_of_valid_root_path = (
-            rd.is_unknown and
-            not nrd.is_unknown and
-            nrd.root_path != c.path and
-            c.path.startswith(nrd.root_path)
-        )
-
-        # -> junk/foo/bar/
-        renamed_to_unknown = (
-            rd.is_unknown and
-            nrd.is_unknown
-        )
-
-        # trunk, branches/2.0.x ->
-        renamed_from_known_root = (
-            not rrd.is_unknown and
-            rrd.root_path == c.renamed_from_path
-        )
-
-        # trunk/UI/foo ->
-        renamed_from_known_root_subtree = (
-            not rrd.is_unknown and
-            rrd.root_path != c.renamed_from_path and
-            c.renamed_from_path.startswith(rrd.root_path)
-        )
-
-        renamed_from_unknown = rrd.is_unknown
-
-        # Make sure all of our mutually-exclusive invariants are correct.
-        assert (
-            (renamed_from_known_root and (
-                not renamed_from_known_root_subtree and
-                not renamed_from_unknown
-            )) or (renamed_from_known_root_subtree and (
-                not renamed_from_known_root and
-                not renamed_from_unknown
-            )) or (renamed_from_unknown and (
-                not renamed_from_known_root_subtree and
-                not renamed_from_known_root
-            ))
-        )
-        assert (
-            (renamed_to_valid_absolute_root_path and (
-                not renamed_to_subtree_of_valid_root_path and
-                not renamed_to_known_root_subtree and
-                not renamed_to_unknown
-            )) or (renamed_to_known_root_subtree and (
-                not renamed_to_subtree_of_valid_root_path and
-                not renamed_to_valid_absolute_root_path and
-                not renamed_to_unknown
-            )) or (renamed_to_subtree_of_valid_root_path and (
-                not renamed_to_valid_absolute_root_path and
-                not renamed_to_known_root_subtree and
-                not renamed_to_unknown
-            )) or (renamed_to_unknown and (
-                not renamed_to_subtree_of_valid_root_path and
-                not renamed_to_valid_absolute_root_path and
-                not renamed_to_known_root_subtree
-            ))
-        )
-
-        clean_check = True
-        new_root = None
-
-        if renamed_from_known_root:
-            assert c.is_dir
-
-            if rrd.is_tag:
-                # Always flag attempts to rename tags, regardless of what
-                # they're being renamed to.
-                c.error(e.TagRenamed)
-
-            elif renamed_to_valid_absolute_root_path:
-                new_root = True
-                if rrd.is_branch:
-                    if nrd.is_branch:
-                        dn = os.path.dirname
-                        rrbd = dn(c.renamed_from_path[:-1])
-                        nrbd = dn(c.path[:-1])
-                        if rrbd == nrbd:
-                            c.note(n.BranchRenamed)
-                        else:
-                            c.error(e.BranchRenamedOutsideRootBaseDir)
-                    elif nrd.is_trunk:
-                        c.error(e.BranchRenamedToTrunk)
-                    else:
-                        assert nrd.is_tag
-                        c.error(e.BranchRenamedToTag)
-                else:
-                    assert rrd.is_trunk
-                    if nrd.is_trunk:
-                        # Permit trunk relocations ('cause I can't think of
-                        # any reason not to, at the moment).
-                        c.note(n.TrunkRelocated)
-                    elif nrd.is_branch:
-                        c.error(e.TrunkRenamedToBranch)
-                    else:
-                        assert nrd.is_tag
-                        c.error(e.TrunkRenamedToTag)
-
-            elif renamed_to_known_root_subtree:
-                new_root = False
-                c.error(e.RenamedKnownRootToKnownRootSubtree)
-
-            elif renamed_to_subtree_of_valid_root_path:
-                new_root = True
-                c.error(e.RenamedKnownRootToIncorrectlyNamedRootPath)
-
-            else:
-                assert renamed_to_unknown
-                new_root = True
-                c.error(e.RenamedKnownRootToUnknownPath)
-
-        elif renamed_from_known_root_subtree:
-            new_root = False
-
-            if renamed_to_valid_absolute_root_path:
-                assert c.is_dir
-                c.error(e.RenamedKnownRootSubtreeToValidRootPath)
-                if nrd.is_trunk:
-                    new_root = True
-
-            elif renamed_to_known_root_subtree:
-                clean_check = False
-
-                if rrd.root_path != rd.root_path:
-                    c.error(e.RenameRelocatedPathOutsideKnownRoot)
-
-            elif renamed_to_subtree_of_valid_root_path:
-                c.error(e.RenamedKnownRootSubtreeToIncorrectlyNamedRootPath)
-
-            else:
-                assert renamed_to_unknown
-                c.error(e.RenamedKnownRootSubtreeToUnknownPath)
-
-        else:
-            assert renamed_from_unknown
-            new_root = False
-
-            if renamed_to_valid_absolute_root_path:
-                c.error(e.NewRootCreatedByRenamingUnknownPath)
-                if nrd.is_trunk:
-                    new_root = True
-
-            elif renamed_to_known_root_subtree:
-                c.error(e.NewRootCreatedByRenamingUnknownPath)
-
-            elif renamed_to_subtree_of_valid_root_path:
-                c.error(e.UnknownPathRenamedToIncorrectlyNamedNewRootPath)
-
-            else:
-                assert renamed_to_unknown
-                clean_check = False
-
-        if c.is_file:
-            return
-
-        if new_root:
-            assert renamed_from_known_root or nrd.is_trunk
-
-        if clean_check:
-            if not c.is_empty:
-                c.error(e.UncleanRename)
-
-        if self.is_rev:
-            if renamed_from_known_root:
-                # Need to mark the old root as removed and delete it from
-                # our current roots.
-                rev = c.renamed_from_rev
-                rc = self.rconf(rev=rev)
-                crev = rc.roots[c.renamed_from_path]['created']
-                rc = self.rconf(rev=crev)
-                root = rc.roots[c.renamed_from_path]
-                root.removed = c.changeset.rev
-                root.removal_method = 'renamed'
-                root.renamed = (c.path, c.changeset.rev)
-
-                self.rootmatcher.remove_root_path(c.renamed_from_path)
-                del self.roots[c.renamed_from_path]
-
-            if new_root:
-                d = Dict()
-                d.created = c.changeset.rev
-                d.creation_method = 'renamed'
-                d.renamed_from = (c.renamed_from_path, c.renamed_from_rev)
-                d.copies = {}
-                if c.errors:
-                    d.errors = c.errors
-
-                self.roots[c.path] = d
-
-        else:
-            assert self.is_txn
-            if renamed_from_known_root:
-                self.rootmatcher.remove_root_path(c.renamed_from_path)
-
-            if new_root:
-                self.rootmatcher.add_root_path(c.path)
 
     def _process_copy_or_rename(self, c):
         # I've gone back and forward a few times on whether or not to deal
@@ -3099,8 +2311,6 @@ class RepositoryRevOrTxn(ImplicitContextSensitiveObject):
 
         clean_check = True
 
-        import ipdb
-
         en = 'Copied' if c.is_copy else 'Renamed'
 
         with contextlib.nested(src, dst) as (src, dst):
@@ -3131,10 +2341,10 @@ class RepositoryRevOrTxn(ImplicitContextSensitiveObject):
                     CopyOrRename.UnknownToKnownRootSubtree(c)
 
                 elif dst.valid_root:
-                    ipdb.set_trace()
                     CopyOrRename.UnknownToValidRoot(c)
-                    #if drd.is_trunk:
-                    #    create_root = True
+                    if valid_dst_root_details.is_trunk:
+                        args = (c, src_path, src_rev)
+                        self.__new_trunk_via_copy_or_rename(*args)
 
                 elif dst.valid_root_subtree:
                     CopyOrRename.UnknownToValidRootSubtree(c)
@@ -3309,6 +2519,7 @@ class RepositoryRevOrTxn(ImplicitContextSensitiveObject):
                     self.__root_replaced_directly(c)
 
                 elif dst.known_root_subtree:
+                    clean_check = False
                     src_root = known_src_root_details.root_path
                     dst_root = known_dst_root_details.root_path
                     if src_root != dst_root:
@@ -3320,29 +2531,14 @@ class RepositoryRevOrTxn(ImplicitContextSensitiveObject):
                         k.dst_root_details = known_dst_root_details
                         fn = self.__known_subtree_to_other_known_subtree
                         fn(c, **k)
-                    else:
-                        clean_check = False
 
                 elif dst.valid_root:
-                    if not vdrd.is_trunk:
+                    if not valid_dst_root_details.is_trunk:
                         CopyOrRename.KnownRootSubtreeToValidRoot(c)
                         raise logic.Break
 
-                    rm.add_root_path(dst_path)
-                    c.root_details = rm.get_root_details(dst_path)
-                    if self.is_txn:
-                        raise logic.Break
-
-                    ipdb.set_trace()
-                    d = Dict()
-                    d.created = cs.rev
-                    d.creation_method = 'copied'
-                    d.copied_from = (src_path, src_rev)
-                    d.copies = {}
-                    if c.errors:
-                        d.errors = c.errors
-
-                    self.roots[dst_path] = d
+                    args = (c, src_path, src_rev)
+                    self.__new_trunk_via_copy_or_rename(*args)
 
                 elif dst.valid_root_subtree:
                     CopyOrRename.KnownRootSubtreeToValidRootSubtree(c)
@@ -3368,6 +2564,9 @@ class RepositoryRevOrTxn(ImplicitContextSensitiveObject):
 
                 elif dst.valid_root:
                     CopyOrRename.ValidRootToValidRoot(c)
+                    if valid_dst_root_details.is_trunk:
+                        args = (c, src_path, src_rev)
+                        self.__new_trunk_via_copy_or_rename(*args)
 
                 elif dst.valid_root_subtree:
                     CopyOrRename.ValidRootToValidRootSubtree(c)
@@ -3393,6 +2592,9 @@ class RepositoryRevOrTxn(ImplicitContextSensitiveObject):
 
                 elif dst.valid_root:
                     CopyOrRename.ValidRootSubtreeToValidRoot(c)
+                    if valid_dst_root_details.is_trunk:
+                        args = (c, src_path, src_rev)
+                        self.__new_trunk_via_copy_or_rename(*args)
 
                 elif dst.valid_root_subtree:
                     CopyOrRename.ValidRootSubtreeToValidRootSubtree(c)
@@ -3455,7 +2657,6 @@ class RepositoryRevOrTxn(ImplicitContextSensitiveObject):
                     CopyOrRename.RootAncestorToValidRootSubtree(c)
 
                 elif dst.root_ancestor:
-                    ipdb.set_trace()
                     CopyOrRename.RootAncestorReplacesRootAncestor(c)
 
                     rp = (sp, dp)
@@ -3492,15 +2693,15 @@ class RepositoryRevOrTxn(ImplicitContextSensitiveObject):
                 # when the src root was created (i.e. as either being
                 # copied, renamed or removed).
                 for (old_root, new_root) in zip(src_roots, new_roots):
-                    if c.is_rename:
-                        rm.remove_root_path(old_root)
-                    else:
-                        assert c.is_copy
-
-                    try:
-                        new_change = c.changeset[new_root]
-                    except KeyError:
-                        new_change = None
+                    path = new_root
+                    new_change = None
+                    while path != c.path:
+                        try:
+                            new_change = c.changeset[path]
+                            break
+                        except KeyError:
+                            pass
+                        path = path[:path[:-1].rfind('/')+1]
 
                     if not new_change or not new_change.is_change:
                         # The original root has been brought over
@@ -3511,24 +2712,21 @@ class RepositoryRevOrTxn(ImplicitContextSensitiveObject):
                             action = 'remove'
                         elif new_change.is_rename:
                             action = 'rename'
+                        elif new_change.is_copy:
+                            action = 'copy'
                         else:
                             ct = ChangeType[new_change.change_type]
                             msg = "unexpected change type: %s" % ct
                             raise RuntimeError(msg)
 
                     if action == 'keep':
+                        # Weird delete ordering (asf@122645) may result in the
+                        # old root already being removed by this point.
+                        if not old_root in rm.roots_removed:
+                            rm.remove_root_path(old_root)
                         rm.add_root_path(new_root)
 
-                    if self.is_txn:
-                        continue
-
-                    if action in ('remove', 'rename'):
-                        # XXX TODO: add a check in after the changeset
-                        # has been analyzed to ensure that the correct
-                        # root actions were performed for removed or
-                        # renamed roots.
-                        raise RuntimeError
-                        ipdb.set_trace()
+                    if self.is_txn or action != 'keep':
                         continue
 
                     # Prepare the new root entry...
@@ -3548,6 +2746,7 @@ class RepositoryRevOrTxn(ImplicitContextSensitiveObject):
                         del self.roots[old_root]
 
                     # ....then add it to our roots.
+                    assert new_root not in self.roots
                     self.roots[new_root] = d
 
                     # Find the evn:roots entry for when the old root

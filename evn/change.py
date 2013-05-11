@@ -61,6 +61,8 @@ from evn.util import (
     UnexpectedCodePath,
 )
 
+import ipdb
+
 #=============================================================================
 # Helper Methods
 #=============================================================================
@@ -1172,6 +1174,7 @@ class AbstractChangeSet(set, AbstractChange):
     def __init__(self, **kwds):
         if kwds:
             AbstractChange.__init__(self, **kwds)
+        self.__paths = set()
         self.__subdir = None
         self.__dir_count = 0
         self.__file_count = 0
@@ -1197,6 +1200,10 @@ class AbstractChangeSet(set, AbstractChange):
             mi.append((self, pl[SVN_PROP_MERGEINFO]))
         for child in self:
             child.collect_mergeinfo_forward(mi)
+
+    @property
+    def paths(self):
+        return self.__paths
 
     @property
     def subdir(self):
@@ -1249,6 +1256,10 @@ class AbstractChangeSet(set, AbstractChange):
         assert child not in self
         assert child.parent == self
         set.add(self, child)
+        if child.path in self.paths:
+            self.changeset._quirky_adds.append((child.path, self))
+        else:
+            self.paths.add(child.path)
         self.__child_count += 1
         if child.is_file:
             self.__file_count += 1
@@ -1259,6 +1270,10 @@ class AbstractChangeSet(set, AbstractChange):
     def remove(self, child):
         assert child in self
         assert child.parent == self
+        if child.path not in self.paths:
+            self.changeset._quirky_removes.append((child.path, self))
+        else:
+            self.paths.remove(child.path)
         set.remove(self, child)
         self.__child_count -= 1
         if child.is_file:
@@ -1569,6 +1584,9 @@ class ChangeSet(AbstractChangeSet):
         self._replace = dict()
         self._copied_from = dict()
         self._renamed_from = dict()
+
+        self._quirky_adds = list()
+        self._quirky_removes = list()
 
         self.__change_type = ChangeType.Nada
 
