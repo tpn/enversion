@@ -2614,7 +2614,7 @@ class RepositoryRevOrTxn(ImplicitContextSensitiveObject):
                     CopyOrRename.RootAncestorToUnknown(c)
 
                 elif dst.known_root:
-                    CopyOrRename.RootAncestorReplacesKnownRoot(c)
+                    CopyOrRename.RootAncestorToKnownRoot(c)
                     self.__root_replaced_directly(c)
 
                 elif dst.known_root_subtree:
@@ -2657,7 +2657,7 @@ class RepositoryRevOrTxn(ImplicitContextSensitiveObject):
                     CopyOrRename.RootAncestorToValidRootSubtree(c)
 
                 elif dst.root_ancestor:
-                    CopyOrRename.RootAncestorReplacesRootAncestor(c)
+                    CopyOrRename.RootAncestorToRootAncestor(c)
 
                     rp = (sp, dp)
                     if src_roots_len > dst_roots_len:
