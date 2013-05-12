@@ -2789,6 +2789,7 @@ class RepositoryRevOrTxn(ImplicitContextSensitiveObject):
         (sp, dp)   = paths
         (srd, drd) = root_details
 
+        assert not drd.is_absolute
         if srd.is_branch:
             if drd.is_branch:
                 dn = os.path.dirname
@@ -2801,16 +2802,17 @@ class RepositoryRevOrTxn(ImplicitContextSensitiveObject):
                     c.error(e.BranchRenamedOutsideRootBaseDir)
             elif drd.is_trunk:
                 c.error(e.BranchRenamedToTrunk)
-            else:
-                assert drd.is_tag
+            elif drd.is_tag:
                 c.error(e.BranchRenamedToTag)
+            else:
+                assert drd.is_unknown
+                c.error(e.BranchRenamedToUnknown)
         elif srd.is_tag:
             # No need to do anything here as we would have already
             # flagged the tag rename error above.
             pass
         else:
             assert srd.is_trunk
-            assert not drd.is_absolute
             if drd.is_trunk:
                 # Permit trunk relocations ('cause I can't think of
                 # any reason not to, at the moment).
