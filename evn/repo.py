@@ -1646,7 +1646,7 @@ class RepositoryRevOrTxn(ImplicitContextSensitiveObject):
                 c_mi = svn_mergeinfo_parse(c_mi_str, p)
                 c_ri = c_mi[src_root[:-1]]
 
-                src_mi_str = '%s:%s' % (src_root[:-1], src_merge_revs)
+                src_mi_str = '%s:%s' % (src_root[:-1], revs)
                 src_mi = svn_mergeinfo_parse(src_mi_str, p)
                 src_ri = src_mi[src_root[:-1]]
 
