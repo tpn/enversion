@@ -2810,15 +2810,18 @@ class RepositoryRevOrTxn(ImplicitContextSensitiveObject):
             pass
         else:
             assert srd.is_trunk
+            assert not drd.is_absolute
             if drd.is_trunk:
                 # Permit trunk relocations ('cause I can't think of
                 # any reason not to, at the moment).
                 c.note(n.TrunkRelocated)
             elif drd.is_branch:
                 c.error(e.TrunkRenamedToBranch)
-            else:
-                assert drd.is_tag
+            elif drd.is_tag:
                 c.error(e.TrunkRenamedToTag)
+            else:
+                assert drd.is_unknown
+                c.error(e.TrunkRenamedToUnknownPath)
 
     def _get_revlock_filename(self, r):
         pass

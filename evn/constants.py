@@ -52,6 +52,7 @@ class _Errors(Constant):
     BranchRenamedToTrunk = 'branch renamed to trunk'
     TrunkRenamedToBranch = 'trunk renamed to branch'
     TrunkRenamedToTag = 'trunk renamed to tag'
+    TrunkRenamedToUnknownPath = 'trunk renamed to unknown path'
     BranchRenamedToTag = 'branch renamed to tag'
     BranchRenamedOutsideRootBaseDir = 'branch renamed to location outside root base dir'
     TagSubtreePathRemoved = 'tag subtree path removed'
