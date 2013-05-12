@@ -1618,7 +1618,7 @@ class RepositoryRevOrTxn(ImplicitContextSensitiveObject):
         assert src_root[-1] == '/'
         src_rev_str = str(src_rev)
         consider_inheritance = False
-        rangelist_intersect = lambda a, b, c: svn_rangelist_intersect(a, b, c)
+        intersect = lambda a, b, c: svn_rangelist_intersect(a, b, c)
         targets = (merged, reverse_merged)
         found_path = False
         for target in targets:
