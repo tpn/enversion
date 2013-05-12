@@ -1257,7 +1257,11 @@ class AbstractChangeSet(set, AbstractChange):
         assert child.parent == self
         set.add(self, child)
         if child.path in self.paths:
-            self.changeset._quirky_adds.append((child.path, self))
+            if self.is_changeset:
+                quirky = self._quirky_adds
+            else:
+                quirky = self.changeset._quirky_adds
+            quirky.append((child.path, self))
         else:
             self.paths.add(child.path)
         self.__child_count += 1
@@ -1271,7 +1275,11 @@ class AbstractChangeSet(set, AbstractChange):
         assert child in self
         assert child.parent == self
         if child.path not in self.paths:
-            self.changeset._quirky_removes.append((child.path, self))
+            if self.is_changeset:
+                quirky = self._quirky_removes
+            else:
+                quirky = self.changeset._quirky_removes
+            quirky.append((child.path, self))
         else:
             self.paths.remove(child.path)
         set.remove(self, child)
