@@ -421,6 +421,8 @@ class AnalyzeCommand(RepositoryCommand):
         finally:
             gc.enable()
 
+        self._out("Finished analyzing repository '%s'." % self.name)
+
 class ShowRootsCommand(RepositoryRevisionCommand):
     @requires_context
     def run(self):
