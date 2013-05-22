@@ -1633,7 +1633,8 @@ class RepositoryRevOrTxn(ImplicitContextSensitiveObject):
                     return
 
                 # Another fast-path for '123-456'-type rev ranges.
-                if ',' not in revs and revs.count('-') == 1:
+                dashes = revs.count('-')
+                if ',' not in revs and '*' not in revs and dashes == 1:
                     (start, end) = [ int(s) for s in revs.split('-') ]
                     if src_rev >= start and src_rev <= end:
                         return
