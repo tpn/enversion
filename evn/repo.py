@@ -2423,7 +2423,21 @@ class RepositoryRevOrTxn(ImplicitContextSensitiveObject):
                         root.renamed = (dst_path, cs.rev)
 
                 elif dst.known_root_subtree:
+                    # Known root is being renamed to an existing root's
+                    # subtree.  The existing root takes precedence so we need
+                    # to remove the old root.
                     CopyOrRename.KnownRootToKnownRootSubtree(c)
+
+                    rm.remove_root_path(src_path)
+
+                    if self.is_txn:
+                        raise logic.Break
+
+                    root = self.__get_root(src_path, src_rev)
+                    root.removed = cs.rev
+                    root.removal_method = 'removed_indirectly_via_rename'
+
+                    del self.roots[src_path]
 
                 elif dst.unknown or dst.valid_root or dst.valid_root_subtree:
                     # A known root is being renamed/copied to a new path that
