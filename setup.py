@@ -13,12 +13,12 @@ except ImportError:
     raise Exception(msg)
 
 try:
+    import ez_setup
+    ez_setup.use_setuptools()
     from setuptools import setup
     has_setuptools = True
 except ImportError:
     try:
-        import ez_setup
-        ez_setup.use_setuptools()
         from setuptools import setup
         has_setuptools = True
     except:
