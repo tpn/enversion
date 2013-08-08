@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+import re
 import os
 import sys
 
@@ -7,35 +7,79 @@ if vi.major != 2 or vi.minor not in (6, 7):
     raise Exception("Enversion requires either Python 2.6 or 2.7.")
 
 try:
+    from svn import core, fs, ra
+except ImportError:
+    msg = "Enversion requires Subversion's Python bindings to be installed."
+    raise Exception(msg)
+
+try:
     from setuptools import setup
     has_setuptools = True
 except ImportError:
     has_setuptools = False
     from distutils.core import setup
 
-def find_packages(dir_):
+basedir = os.path.abspath(os.path.dirname(__file__))
+
+def join_path(*args):
+    return os.path.abspath(os.path.normpath(os.path.join(*args)))
+
+def read(*parts):
+    with open(join_path(basedir, *parts), 'r') as f:
+        return f.read()
+
+def find_packages(base):
     packages = []
     for pkg in ['evn']:
-        for _dir, subdirectories, files in (
-                os.walk(os.path.join(dir_, pkg))
-            ):
+        path = os.path.join(base, pkg)
+        for (dirname, subdirs, files) in os.walk(path):
             if '__init__.py' in files:
-                lib, fragment = _dir.split(os.sep, 1)
+                (lib, fragment) = dirname.split(os.sep, 1)
                 packages.append(fragment.replace(os.sep, '.'))
     return packages
+
+def version():
+    return (
+        re.compile(r"^__version__ = '(.*?)'$", re.S)
+          .match(read('lib', 'evn', '__init__.py'))
+          .group(1)
+    )
 
 def run_setup():
     setup(
         name='enversion',
-        version='0.1',
-        license=open('LICENSE').read(),
+        version=version(),
+        license='Apache',
         description='Enterprise Subversion Framework',
         author='Trent Nelson',
         author_email='trent@snakebite.org',
         url='http://www.enversion.org/',
-        packages=find_packages(''),
-        package_dir={'evn': 'evn'},
-        scripts=['scripts/evnadmin'],
+        keywords='subversion,svn,scm,pysvn',
+        packages=find_packages('lib'),
+        package_dir={'': 'lib'},
+        install_requires=['psutil>=0.6',],
+        entry_points={
+            'console_scripts': [
+                'evnadmin = evn.admin.cli:main',
+            ],
+        },
+        classifiers=[
+            'Environment :: Console',
+            'License :: OSI Approved :: Apache Software License',
+            'Development Status :: 3 - Alpha',
+            'Operating System :: POSIX',
+            'Operating System :: MacOS :: MacOS X',
+            'Operating System :: Microsoft :: Windows',
+            'Intended Audience :: Developers',
+            'Intended Audience :: System Administrators',
+            'Intended Audience :: Configuration Managers',
+            'Intended Audience :: Information Technology',
+            'Programming Language :: Python',
+            'Programming Language :: Unix Shell',
+            'Topic :: Software Development :: Quality Assurance',
+            'Topic :: Software Development :: Version Control',
+            'Topic :: Software Development :: Version Control :: Subversion',
+        ],
     )
 
 if __name__ == '__main__':

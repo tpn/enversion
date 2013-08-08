@@ -298,7 +298,10 @@ class PurgeEvnPropsCommandLine(AdminCommandLine):
 #=============================================================================#
 # Main                                                                        #
 #=============================================================================#
-if __name__ == '__main__':
+def main():
     AdminCLI(sys.argv[1:])
+
+if __name__ == '__main__':
+    main()
 
 # vim:set ts=8 sw=4 sts=4 tw=78 et:
