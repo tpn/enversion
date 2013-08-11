@@ -3,7 +3,8 @@ import os
 import sys
 
 vi = sys.version_info
-if vi.major != 2 or vi.minor not in (6, 7):
+(major, minor) = (vi[0], vi[2])
+if major != 2 or minor not in (6, 7):
     raise Exception("Enversion requires either Python 2.6 or 2.7.")
 
 try:
