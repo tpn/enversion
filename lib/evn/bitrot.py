@@ -1,3 +1,5 @@
+# This file is a dumping ground for old/deprecated/scratch code.  It isn't
+# intended to ever be even close to a working/parseable state.  Go nuts.
 
 def __init_svn_libraries(g):
     import svn
