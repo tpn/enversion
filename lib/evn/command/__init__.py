@@ -42,6 +42,9 @@ class CommandError(Exception):
 class Command(ImplicitContextSensitiveObject):
     __metaclass__ = ABCMeta
 
+    __first_command__ = None
+    __active_command__ = None
+
     def __init__(self, istream, ostream, estream):
         self.istream = istream
         self.ostream = ostream
@@ -55,14 +58,44 @@ class Command(ImplicitContextSensitiveObject):
         self.entered = False
         self.exited = False
 
+        self.is_first = False
+        self.first = None
+        self.prev = None
+        self.next = None
+
+        self._next_commands = []
+
+        self._stash = None
+        self._quiet = None
+
     def __enter__(self):
+        if not Command.__active_command__:
+            Command.__first_command__ = self
+            self.is_first = True
+            self.first = self
+            self._stash = Dict()
+        else:
+            active = Command.__active_command__
+            self.first = Command.__first_command__
+            self.prev = active
+            active.next = self
+
+        Command.__active_command__ = self
         self.entered = True
         self._allocate()
         return self
 
     def __exit__(self, *exc_info):
         self.exited = True
-        self._deallocate()
+        suppress = self._deallocate(*exc_info)
+        self.formatter.end(suppress, *exc_info)
+        if not suppress and self._next_commands:
+            self.run_next()
+        Command.__active_command__ = self.prev
+        if not self.prev:
+            assert self.is_first
+            assert self.first == Command.get_first_command()
+            Command.__first_command__ = None
 
     def _flush(self):
         self.ostream.flush()
@@ -76,7 +109,7 @@ class Command(ImplicitContextSensitiveObject):
         """
         pass
 
-    def _deallocate(self):
+    def _deallocate(self, *exc_info):
         """
         Called by `__exit__`.  Subclasses should implement this method if
         they've implemented `_allocate` in order to clean up any resources
@@ -123,16 +156,69 @@ class Command(ImplicitContextSensitiveObject):
         """
         self.estream.write(prepend_error_if_missing(msg))
 
+    @property
+    def is_quiet(self):
+        if self._quiet is not None:
+            return self._quiet
+        else:
+            return self.options.quiet
+
     @abstractmethod
     def run(self):
         raise NotImplementedError
 
+    def after(self):
+        pass
+
+    def run_next(self):
+        seen = set()
+        for cls in iterable(self._next_commands):
+            if cls in seen:
+                continue
+            command = self.prime(cls)
+            with command:
+                command.run()
+            command.after()
+            seen.add(cls)
+
     @classmethod
-    def prime(cls, src, dst_class):
+    def prime_class(cls, src, dst_class):
         c = dst_class(src.istream, src.ostream, src.estream)
         c.conf = src.conf
         c.options = src.options
         return c
+
+    def prime(self, cls):
+        """
+        Create a new instance of ``cls``, primed with the same values as this
+        command instance.
+        """
+        c = cls(self.istream, self.ostream, self.estream)
+        c.conf = self.conf
+        c.options = self.options
+        self_cls = self.__class__
+        attrs = [
+            d for d in dir(cls) if (
+                d[0] != '_' and
+                d[0].islower() and (
+                    hasattr(self, d) and
+                    bool(getattr(self, d)) and
+                    getattr(cls, d) is None
+                )
+            )
+        ]
+        for attr in attrs:
+            setattr(c, attr, getattr(self, attr))
+
+        return c
+
+    @classmethod
+    def get_active_command(cls):
+        return Command.__active_command__
+
+    @classmethod
+    def get_first_command(cls):
+        return Command.__first_command__
 
 
 class SubversionCommand(Command):
@@ -275,8 +361,6 @@ class RepositoryRevisionCommand(RepositoryCommand):
             raise CommandError(m % (r, self.youngest_rev))
 
         self.rev = r
-
-
 
 class RepositoryRevisionRangeCommand(RepositoryCommand):
     revision_range = None
