@@ -1,4 +1,3 @@
-
 #=============================================================================
 # Imports
 #=============================================================================
@@ -6,6 +5,7 @@ import os
 import re
 import sys
 import stat
+import subprocess
 
 from os.path import abspath, dirname
 
@@ -19,18 +19,161 @@ from ConfigParser import (
 
 from evn.path import join_path
 
+from evn.util import (
+    first,
+    which,
+    Dict,
+    Options,
+)
+
+#=============================================================================
+# Globals
+#=============================================================================
+CONFIG = None
+
+CONNECT_STRING_FORMAT = (
+    'postgresql+psycopg2://'
+    '%(username)s'  ':'
+    '%(password)s'  '@'
+    '%(hostname)s'  '/'
+    '%(dbname)s'
+)
+
+#=============================================================================
+# Helpers
+#=============================================================================
+def get_config():
+    global CONFIG
+    if not CONFIG:
+        raise RuntimeError("Global config object has not yet been created.")
+    return CONFIG
+
 #=============================================================================
 # Classes
 #=============================================================================
 class ConfigError(Exception):
     pass
 
+class DatabaseConfig(object):
+    port = None
+    hostname = None
+    username = None
+    password = None
+
+    def __init__(self, conf, section, defaults):
+        self.__conf = conf
+        self.__section = section
+        self.__connect_string = None
+        self.__sqlalchemy_engine = None
+
+        cls = self.__class__
+        attrs = [
+            n for n in dir(cls) if (
+                n[0] != '_' and
+                n != 'dbname' and
+                n[0].islower() and
+                getattr(cls, n) is None and
+                getattr(self, n) is None
+            )
+        ]
+
+        for attr in attrs:
+            default = getattr(defaults, attr)
+            value = conf._rget(section, attr, default)
+            if value and attr == 'port':
+                value = int(value)
+            setattr(self, attr, value)
+
+    @property
+    def conf(self):
+        return self.__conf
+
+    @property
+    def section(self):
+        return self.__section
+
+    @property
+    def defaults(self):
+        return self.__defaults
+
+    @property
+    def connect_string(self):
+        if not self.__connect_string:
+            self.__connect_string = CONNECT_STRING_FORMAT % self.__dict__
+        return self.__connect_string
+
+    @property
+    def sqlalchemy_engine(self):
+        if not self.__sqlalchemy_engine:
+            k = Dict()
+            if self.conf.options.sqlalchemy_verbose:
+                k.echo = True
+            from sqlalchemy import create_engine
+            self.__sqlalchemy_engine = create_engine(self.connect_string, **k)
+        return self.__sqlalchemy_engine
+
+class PostgresConfig(DatabaseConfig):
+    bindir = None
+
+    def __init__(self, conf):
+        default_username = os.getenv('PGUSER') or os.getlogin()
+        default_hostname = os.getenv('PGHOST') or 'localhost'
+
+        defaults = Dict({
+            'port' : 5432,
+            'bindir' : first(which('psql'), then=dirname),
+            'username' : default_username,
+            'hostname' : default_hostname,
+            'password' : '',
+        })
+
+        section = 'postgres'
+        DatabaseConfig.__init__(self, conf, section, defaults)
+        self.defaultdb = conf._rget(section, 'defaultdb', self.username)
+
+        bindir = self.bindir
+        self.bin = Dict({
+            'psql'  : join_path(bindir, 'psql'),
+            'pg_ctl' : join_path(bindir, 'pg_ctl'),
+            'dropdb' :  join_path(bindir, 'dropdb'),
+            'createdb' : join_path(bindir, 'createdb'),
+        })
+
+class SiteDatabaseConfig(DatabaseConfig):
+    def __init__(self, conf):
+        section = conf.sitename + '_database'
+        DatabaseConfig.__init__(self, conf, section, conf.postgres)
+        self.dbname = conf._rget(section, 'dbname', 'enversion')
+
+class RepositoryDatabaseConfig(DatabaseConfig):
+    def __init__(self, conf):
+        assert conf.repo_name
+        section = conf.repo_name + '_database'
+        DatabaseConfig.__init__(self, conf, section, conf.sitedb)
+        self.dbname = conf._rget(section, 'dbname', conf.repo_name)
+
 class Config(RawConfigParser):
-    def __init__(self, repo_name=None):
+    def __init__(self, options=None, repo_name=None):
+        global CONFIG
+        if CONFIG is not None:
+            raise RuntimeError("Config object already created elsewhere.")
+        CONFIG = self
+
+        self.optionxform = str
+        self.options = options if options else Options()
+        self.hostname = subprocess.check_output('hostname')[:-1] # -1 = \n
+        self.shortname = self.hostname.split('.')[0]
+        self.loaded = False
+
         RawConfigParser.__init__(self)
         if repo_name is not None:
             assert isinstance(repo_name, str)
         self.__repo_name = repo_name
+
+        self.__sitedb = None
+        self.__repodb = None
+        self.__postgres = None
+        self.__sitename = None
 
         d = dirname(abspath(__file__))
         f = join_path(d, 'admin', 'cli.py')
@@ -40,6 +183,18 @@ class Config(RawConfigParser):
         self.__load_defaults()
         self.__multiline_pattern = re.compile(r'([^\s].*?)([\s]+\\)?')
         self.__validate()
+
+    @property
+    def postgres(self):
+        return self.__postgres
+
+    @property
+    def sitedb(self):
+        return self.__sitedb
+
+    @property
+    def repodb(self):
+        return self.__repodb
 
     @property
     def python_evn_module_dir(self):
@@ -57,9 +212,23 @@ class Config(RawConfigParser):
     def repo_name(self, value):
         assert isinstance(value, str)
         self.__repo_name = value
+        if not self.__repodb and self.loaded:
+            self.__repodb = RepositoryDatabaseConfig(self)
+
+    @property
+    def sitename(self):
+        if not self.__sitename:
+            self.__sitename = self._rget('main', 'sitename')
+        return self.__sitename
 
     def load(self, filename=None):
         self.__filename = filename
+
+        # Handy to have a local configuration file set relative to the lib
+        # directory/source tree during development.
+        base = dirname(abspath(__file__))
+        local_conf = join_path(base, '../../conf/evn.conf')
+        local_host = local_conf.replace('evn.conf', self.shortname + '.conf')
 
         self.__files = [
             f for f in (
@@ -67,6 +236,8 @@ class Config(RawConfigParser):
                 '/usr/local/etc/evn.conf',
                 '/opt/etc/evn.conf',
                 '/opt/local/etc/evn.conf',
+                local_conf if os.path.isfile(local_conf) else None,
+                local_host if os.path.isfile(local_host) else None,
                 os.environ.get('EVN_CONF') or None,
                 filename or None,
             ) if f
@@ -74,8 +245,14 @@ class Config(RawConfigParser):
         self.read(self.files)
         self.__validate()
 
+        self.__postgres = PostgresConfig(self)
+        self.__sitedb = SiteDatabaseConfig(self)
+        if self.repo_name:
+            self.__repodb = RepositoryDatabaseConfig(self)
+
     def __validate(self):
         dummy = self.unix_hook_permissions
+        self.loaded = True
 
     @property
     def files(self):
@@ -125,6 +302,7 @@ class Config(RawConfigParser):
         logfmt = "%(asctime)s:%(name)s:%(levelname)s:%(message)s"
 
         self.add_section('main')
+        self.set('main', 'sitename', 'enversion')
         self.set('main', 'max-revlock-waits', '3')
         self.set('main', 'verbose', 'off')
         self.set('main', 'admins', '')
@@ -252,8 +430,29 @@ class Config(RawConfigParser):
         except (NoSectionError, NoOptionError):
             return RawConfigParser.get(self, 'main', option)
 
-    def _get(self, section, option):
-        return RawConfigParser.get(self, section, option)
+    def _rget(self, section, option, default=None):
+        if default is None:
+            return RawConfigParser.get(self, section, option)
+
+        try:
+            return RawConfigParser.get(self, section, option)
+        except (NoSectionError, NoOptionError):
+            pass
+        return default
+
+    def _getboolean(self, section, option, default=None):
+        try:
+            return self.getboolean(section, option)
+        except (NoSectionError, NoOptionError):
+            pass
+        return bool(default)
+
+    def _getint(self, section, option, default=None):
+        try:
+            return self.getint(section, option)
+        except (NoSectionError, NoOptionError):
+            pass
+        return int(default)
 
     @property
     def propname_prefix(self):

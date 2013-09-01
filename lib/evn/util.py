@@ -2,10 +2,12 @@
 # Imports
 #=============================================================================
 import os
+import re
 import sys
 import inspect
 import datetime
 import itertools
+import linecache
 
 import cStringIO as StringIO
 
@@ -47,6 +49,26 @@ def bytes_to_kb(b):
 
 def iterable(i):
     return (i,) if not hasattr(i, '__iter__') else i
+
+def first(i, then=None):
+    i = iterable(i)
+    value = None
+    success = False
+    try:
+        value = i[0]
+        success = True
+    except:
+        try:
+            for v in i:
+                value = v
+                success = True
+                break
+        except:
+            pass
+    if success and then:
+        return then(value)
+    else:
+        return value
 
 def requires_context(f):
     @wraps(f)
@@ -365,6 +387,42 @@ def pid_exists(pid):
         else:
             return True
 
+def which(name, flags=os.X_OK):
+    # From twisted.python.procutils.py.
+    """Search PATH for executable files with the given name.
+
+    On newer versions of MS-Windows, the PATHEXT environment variable will be
+    set to the list of file extensions for files considered executable. This
+    will normally include things like ".EXE". This fuction will also find files
+    with the given name ending with any of these extensions.
+
+    On MS-Windows the only flag that has any meaning is os.F_OK. Any other
+    flags will be ignored.
+
+    @type name: C{str}
+    @param name: The name for which to search.
+
+    @type flags: C{int}
+    @param flags: Arguments to L{os.access}.
+
+    @rtype: C{list}
+    @param: A list of the full paths to files found, in the
+    order in which they were found.
+    """
+    result = []
+    exts = filter(None, os.environ.get('PATHEXT', '').split(os.pathsep))
+    path = os.environ.get('PATH', None)
+    if path is None:
+        return []
+    for p in os.environ.get('PATH', '').split(os.pathsep):
+        p = os.path.join(p, name)
+        if os.access(p, flags):
+            result.append(p)
+        for e in exts:
+            pext = p + e
+            if os.access(pext, flags):
+                result.append(pext)
+    return result
 
 #=============================================================================
 # Helper Classes
@@ -878,6 +936,230 @@ class MutexDecayDict(object):
         assert self._is_exit or self._is_unlocked
         self.__s = set(self.__d.keys())
         self._mode = 'setup'
+
+class Invariant(BaseException):
+    __filter = lambda _, n: (n[0] != '_' and n not in ('message', 'args'))
+    __keys = lambda _, n: (
+        n[0] != '_' and n not in {
+            'args',
+            'actual',
+            'message',
+            'expected',
+        }
+    )
+
+    def _test_regex(self):
+        return bool(self._pattern.match(self.actual))
+
+    def _test_simple_equality(self):
+        return (self.actual == self.expected)
+
+    def __check_existing(self):
+        obj = self._obj
+        name = self._name
+        actual = self.actual
+
+        check_existing = (
+            not hasattr(self, '_check_existing_') or (
+                hasattr(self, '_check_existing_') and
+                self._check_existing_
+            )
+        )
+
+        has_existing = (
+            hasattr(obj, '_existing') and
+            obj._existing
+        )
+
+        if not has_existing:
+            return
+
+        ex_obj = obj._existing
+        existing = getattr(ex_obj, name)
+        existing_str = existing
+        actual_str = str(actual)
+
+        if isiterable(existing):
+            existing_str = ','.join(str(e) for e in existing)
+
+        elif isinstance(existing, datetime.date):
+            existing_str = existing.strftime(self._date_format)
+
+        elif isinstance(existing, datetime.datetime):
+            existing_str = existing.strftime(self._datetime_format)
+
+        elif not isinstance(existing, str):
+            existing_str = str(existing)
+
+        self._existing = existing
+        self._existing_str = existing_str
+
+        if not check_existing:
+            return
+
+        if not (existing_str != actual_str):
+            message = "%s already has a value of '%s'"
+            BaseException.__init__(self, message % (name, actual_str))
+            raise self
+
+    def __init__(self, obj, name, actual):
+        self._obj = obj
+        self._name = name
+        self.actual = actual
+        self._existing = None
+        self._existing_str = None
+        n = self.__class__.__name__.replace('Error', '').lower()
+        if hasattr(self, '_regex'):
+            self._pattern = re.compile(self._regex)
+            if not hasattr(self, 'expected'):
+                self.expected = "%s to match regex '%s'" % (n, self._regex)
+            self._test = self._test_regex
+
+        self.__check_existing()
+
+        if not hasattr(self, '_test'):
+            self._test = self._test_simple_equality
+
+        result = self._test()
+        if result not in (True, False):
+            raise RuntimeError(
+                "invalid return value from %s's validation "
+                "routine, expected True/False, got: %s (did "
+                "you forget to 'return True'?)" % (self._name, repr(result))
+            )
+
+        if not result:
+            if hasattr(self, 'message') and self.message:
+                message = self.message
+                prefix = ''
+            else:
+                keys = [
+                    'expected',
+                    'actual'
+                ] + sorted(filter(self.__keys, dir(self)))
+                f = lambda k: 'got' if k == 'actual' else k
+                items = ((f(k), repr(getattr(self, k))) for k in keys)
+                message = ', '.join('%s: %s' % (k, v) for (k, v) in items)
+                prefix = "%s is invalid: " % self._name
+            BaseException.__init__(self, prefix + message)
+            raise self
+
+class StringInvariant(Invariant):
+    _type = str
+    _type_desc = 'string'
+    _maxlen = None
+    _minlen = 2
+    @property
+    def expected(self):
+        assert isinstance(self._maxlen, int) and self._maxlen > 0
+        return '%s with length between %d and %d characters' % (
+            self._type_desc,
+            self._minlen,
+            self._maxlen
+        )
+
+    def _test(self):
+        if not isinstance(self.actual, self._type):
+            return False
+
+        l = len(self.actual)
+        return (
+            l >= self._minlen and
+            l <= self._maxlen
+        )
+
+class UnicodeInvariant(StringInvariant):
+    _type = unicode
+    _type_desc = 'unicode string'
+
+class PositiveIntegerInvariant(Invariant):
+    expected = "an integer greater than 0"
+
+    def _test(self):
+        try:
+            return (int(self.actual) > 0)
+        except:
+            return False
+
+class InvariantAwareObject(object):
+    _existing_ = None
+
+    __filter = lambda _, n: (n[0] != '_' and n.endswith('Error'))
+    __convert = lambda _, n: '_'.join(t.lower() for t in n[:-1])
+    __pattern = re.compile('[A-Z][^A-Z]*')
+    __inner_classes_pattern = re.compile(r'    class ([^\s]+Error)\(.*')
+
+    def __init__(self, *args, **kwds):
+        f = self.__filter
+        c = self.__convert
+        p = self.__pattern
+
+        invariants = dict(
+            (c(t), getattr(self, n)) for (n, t) in [
+                (n, p.findall(n)) for n in filter(f, dir(self))
+            ]
+        )
+
+        names = dict((v.__name__, k) for (k, v) in invariants.items())
+
+        cls = self.__class__
+        classname = cls.__name__
+        filename = inspect.getsourcefile(cls)
+        lines = linecache.getlines(filename)
+        lines_len = len(lines)
+        prefix = 'class %s(' % classname
+        found = False
+        for i in range(lines_len):
+            line = lines[i]
+            if prefix in line:
+                found = i
+                break
+
+        if not found:
+            raise IOError('could not find source code for class')
+
+        block = inspect.getblock(lines[found:])
+        text = ''.join(block)
+        classes = self.__inner_classes_pattern
+
+        order = [
+            (i, names[n]) for (i, n) in enumerate(classes.findall(text))
+        ]
+
+
+        self._invariants = invariants
+        self._invariant_names = names
+        self._invariant_order = order
+
+        self._invariants_processed = list()
+
+    def __setattr__(self, name, new_value):
+        object.__setattr__(self, name, new_value)
+        if hasattr(self, '_invariants') and name in self._invariants:
+            invariant_class = self._invariants[name]
+            existing = (self._existing_ or (None, None))
+            (existing_obj_attr, dependencies) = existing
+            if not dependencies or name in dependencies:
+                invariant = invariant_class(self, name, new_value)
+                self._invariants_processed.append(invariant)
+                return
+
+            # All necessary dependencies have been set (assuming the class has
+            # correctly ordered the invariant classes), so set the object's
+            # '_existing' attribute, which signals to future invariants that
+            # they are to begin checking existing values during the the normal
+            # setattr interception and validation.
+            if not self._existing:
+                self._existing = getattr(self, existing_obj_attr)
+
+            invariant = invariant_class(self, name, new_value)
+
+            # And make a note of the existing value as well as the new value
+            # in the 'processed' list.  This is done for convenience of the
+            # subclass that may want easy access to the old/new values down
+            # the track (i.e. for logging purposes).
+            old_value = invariant._existing_str
+            self._invariants_processed.append(invariant)
 
 
 class ProcessWrapper(object):
