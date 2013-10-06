@@ -278,7 +278,14 @@ class CreateRepoCommand(SubversionCommand):
 
         with Command.prime(self, EnableCommand) as command:
             command.path = self.path
+            command.options.quiet = True
             command.run()
+
+        with Command.prime(self, AnalyzeCommand) as command:
+            command.path = self.path
+            command.options.quiet = True
+            command.run()
+
 
 class SetRepoHookRemoteDebugCommand(RepoHookCommand):
     action = None
