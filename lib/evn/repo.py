@@ -41,8 +41,6 @@ from abc import (
 
 from evn import logic
 
-import evn.events as ev
-
 from evn.path import (
     join_path,
     format_dir,
@@ -920,7 +918,7 @@ class RepositoryRevOrTxn(ImplicitContextSensitiveObject):
         self._reload_last_rev()
         highest_rev = svn.fs.youngest_rev(self.fs, self.pool)
         if self.last_rev > highest_rev:
-            self.die(ev.LastRevTooHigh % (self.last_rev, highest_rev))
+            self.die(e.LastRevTooHigh % (self.last_rev, highest_rev))
 
         if self.is_rev and self.is_repository_hook:
             with open(self.rev_lockfile, 'w') as f:
@@ -998,10 +996,11 @@ class RepositoryRevOrTxn(ImplicitContextSensitiveObject):
         d = lambda v: { 'created' : v['created'] }
         return dict((k, d(v)) for (k, v) in roots.items())
 
-    def die(self, event):
-        assert isinstance(event, Event)
-        assert event.type == EventType.Fatal
-        self.error = event.desc
+    def die(self, error=None):
+        if error is not None:
+            self.error = error
+        if not self.error:
+            self.error = e.InvariantViolatedDieCalledWithoutErrorInfo
 
         needs_prefix = (
             not self.error.startswith('error') and
@@ -2868,14 +2867,14 @@ class RepositoryRevOrTxn(ImplicitContextSensitiveObject):
     @property
     def _raw_changeset(self):
         if self.is_rev and self.rev == 0:
-            self.die(ev.ChangeSetOnlyApplicableForRev1AndHigher)
+            self.die(e.ChangeSetOnlyApplicableForRev1AndHigher)
 
         return ChangeSet(self.fs, self.root)
 
     @property
     def changeset(self):
         if self.is_rev and self.rev == 0:
-            self.die(ev.ChangeSetOnlyApplicableForRev1AndHigher)
+            self.die(e.ChangeSetOnlyApplicableForRev1AndHigher)
 
         if not self.__changeset_initialised:
             self._init_rootmatcher()
