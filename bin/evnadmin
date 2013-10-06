@@ -2,6 +2,10 @@
 
 import os
 import sys
+
+def join_path(*args):
+    return os.path.abspath(os.path.normpath(os.path.join(*args)))
+
 try:
     from evn.admin.cli import AdminCLI
 except ImportError:
@@ -11,6 +15,9 @@ except ImportError:
         if target.endswith('enversion/bin/evnadmin'):
             libdir = target[:-len('bin/evnadmin')-1]
             sys.path.insert(0, libdir)
+    else:
+        libdir = join_path(path, '../../lib')
+        sys.path.insert(0, libdir)
 
     from evn.admin.cli import AdminCLI
 
