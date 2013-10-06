@@ -98,20 +98,20 @@ class RepositoryHook(RepositoryRevOrTxn):
         )
 
     # Lock operations.
-    def pre_lock(self, path, user, comment, steal):
+    def pre_lock(self, path, user, comment, steal, *args):
         #self.error = 'locking not permitted'
         pass
 
-    def pre_unlock(self, path, user, token, _break):
+    def pre_unlock(self, path, user, token, _break, *args):
         pass
 
-    def post_lock(self, user):
+    def post_lock(self, user, *args):
         pass
 
-    def post_unlock(self, user):
+    def post_unlock(self, user, *args):
         pass
 
-    def pre_revprop_change(self, rev, user, propname, action):
+    def pre_revprop_change(self, rev, user, propname, action, *args):
         # XXX TODO: when we introduce the new override facilities, make sure
         # log messages can't be changed to have confirmations added/removed.
         pn = svn.core.SVN_PROP_REVISION_LOG
@@ -129,19 +129,19 @@ class RepositoryHook(RepositoryRevOrTxn):
                 )
             )
 
-    def post_revprop_change(self, rev, user, propname, action):
+    def post_revprop_change(self, rev, user, propname, action, *args):
         pass
 
-    def pre_unlock(self, path, user):
+    def pre_unlock(self, path, user, *args):
         pass
 
-    def start_commit(self, user, capabilities):
+    def start_commit(self, user, capabilities, *args):
         # XXX TODO: we should really do all of our repository sanity checks
         # regarding evn:* revprops at this point, so we can block the commit
         # at the earliest possible point if an error is detected.
         pass
 
-    def post_commit(self, rev, txn_name=None):
+    def post_commit(self, rev, *args):
         # XXX TODO: add support for txn_name if it's present.
 
         # The only thing we *have* to do during post-commit is to access the
@@ -150,7 +150,7 @@ class RepositoryHook(RepositoryRevOrTxn):
         self.process_rev_or_txn(rev)
         cs = self.changeset
 
-    def pre_commit(self, txn):
+    def pre_commit(self, txn, *args):
         self.process_rev_or_txn(txn)
 
         ignore_errors = False
