@@ -1,0 +1,5 @@
+#!/bin/sh
+
+$(dirname "$0")/evn.sh $(basename "$0") $* || exit 1
+
+exit 0
