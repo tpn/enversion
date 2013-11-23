@@ -2415,7 +2415,7 @@ class RepositoryRevOrTxn(ImplicitContextSensitiveObject):
                     # with the rename/removal details.
                     root = self.__get_root(src_path, src_rev)
                     if c.is_copy:
-                        root._add_copy(src_rev, src_path, cs.rev)
+                        root._add_copy(src_rev, dst_path, cs.rev)
                     else:
                         root.removed = cs.rev
                         root.removal_method = 'renamed_via_replace'
@@ -2505,7 +2505,7 @@ class RepositoryRevOrTxn(ImplicitContextSensitiveObject):
                     # with the rename/removal details.
                     root = self.__get_root(src_path, src_rev)
                     if c.is_copy:
-                        root._add_copy(src_rev, src_path, cs.rev)
+                        root._add_copy(src_rev, dst_path, cs.rev)
                     else:
                         root.removed = cs.rev
                         root.removal_method = 'renamed'

@@ -298,21 +298,21 @@ class Roots(ConfigDict):
 
 class Root(ConfigDict):
 
-    def _add_copy(self, copied_from_rev, path, rev):
-        copy = (path, rev)
+    def _add_copy(self, copied_from_rev, copied_to_path, rev):
+        copy = (copied_to_path, rev)
         if 'copies' in self:
             copies = self['copies']
             if copied_from_rev in copies:
                 l = copies[copied_from_rev]
-                if (path, rev) not in l:
-                    l.append((path, rev))
+                if (copied_to_path, rev) not in l:
+                    l.append((copied_to_path, rev))
             else:
-                copies[copied_from_rev] = [ (path, rev), ]
+                copies[copied_from_rev] = [ (copied_to_path, rev), ]
         else:
             ConfigDict.__setitem__(
                 self,
                 'copies',
-                { copied_from_rev : [ (path, rev), ] }
+                { copied_from_rev : [ (copied_to_path, rev), ] }
             )
 
 # vim:set ts=8 sw=4 sts=4 tw=78 et:
