@@ -1,9 +1,0 @@
-
-Enversion is a server-side tool that sits in front of your Subversion
-repositories and validates incoming commits.  It can detect a wide variety
-of problematic commits (over 80) and will block them at the pre-commit stage.
-
-Enversion was designed specifically for enterprise Subversion deployments,
-which have vastly different usage patterns than typical open source Subversion
-repositories.
-
