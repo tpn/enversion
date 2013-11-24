@@ -13,7 +13,7 @@ See the [wiki](/../../wiki/) for more information.
 
 ### Quick Start
 
-Once [installed](http://github.com/tpn/enversion/wiki//Installation-Guide/):
+Once [installed](/../wiki/Installation-Guide/):
 
 ```
 evnadmin create foo
@@ -70,7 +70,7 @@ Forward-copy information:
 }
 ```
 
-Extensive protection [against over 80+ types of undesirable commits](https://github.com/tpn/enversion/blob/master/lib/evn/constants.py#L34):
+Extensive protection [against over 80+ types of undesirable commits](/lib/evn/constants.py#L34):
 
 ```
 % svn co file://`pwd`/foo foo.wc
