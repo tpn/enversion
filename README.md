@@ -9,11 +9,11 @@ Enversion was designed specifically for enterprise Subversion deployments,
 which have vastly different usage patterns than typical open source Subversion
 repositories.
 
-See the [wiki](/tpn/enversion/wiki/) for more information.
+See the [wiki](/../../wiki/) for more information.
 
 ### Quick Start
 
-Once [installed](/tpn/enversion/wiki/Installation-Guide/):
+Once [installed](http://github.com/tpn/enversion/wiki//Installation-Guide/):
 
 ```
 evnadmin create foo
