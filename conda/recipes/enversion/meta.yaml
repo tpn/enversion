@@ -1,0 +1,31 @@
+package:
+  name: enversion
+  version: 0.2.5
+
+build:
+  number: 0
+  entry_points:
+    - evnadmin = evn.admin.cli:main
+
+requirements:
+  build:
+    - python
+    - subversion
+
+  run:
+    - psutil
+    - python
+    - subversion
+
+test:
+  commands:
+    - evnadmin version
+  imports:
+    - evn
+
+about:
+  home: http://github.com/tpn/enversion
+  license: BSD
+  summary: 'Enterprise Subversion'
+
+# vim:set ts=8 sw=2 sts=2 tw=78 et:
