@@ -1,0 +1,18 @@
+package:
+  name: expat
+  version: 2.1.0
+
+source:
+  #fn: tpn-apr-1.5.0-win32.zip [win]
+  #url: https://github.com/tpn/apr-win/archive/1.5.0-vc9.zip [win]
+  fn: expat-2.1.0.tar.gz [not win]
+  url: http://sourceforge.net/projects/expat/files/expat/2.1.0/expat-2.1.0.tar.gz [not win]
+
+build:
+  number: 0
+
+about:
+  home: http://expat.sourceforge.net/
+  license: Unknown
+
+# vim:set ts=8 sw=2 sts=2 tw=78 et:

@@ -1,0 +1,23 @@
+package:
+  name: apr-iconv
+  version: 1.2.1
+
+source:
+  # apr-util and apr-iconv are bundled with apr on windows
+  fn: apr-iconv-1.2.1.tar.bz2 [not win]
+  url: http://apache.mirrors.pair.com/apr/apr-iconv-1.2.1.tar.bz2 [not win]
+
+build:
+  number: 0
+
+requirements:
+  build:
+    - apr
+  run:
+    - apr
+
+about:
+  home: http://apr.apache.org/
+  license: Apache License 2.0
+
+# vim:set ts=8 sw=2 sts=2 tw=78 et:

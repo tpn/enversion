@@ -1,0 +1,22 @@
+package:
+  name: ctypesgen
+  version: 0.125
+
+source:
+  fn: ctypesgen-0.r125.tar.gz
+  url: https://pypi.python.org/packages/source/c/ctypesgen/ctypesgen-0.r125.tar.gz
+  md5: 2d4694bc9fcc277d7f626cc804c25881
+
+requirements:
+  build:
+    - python
+
+  run:
+    - python
+
+about:
+  home: http://code.google.com/p/ctypesgen/
+  license: BSD
+  summary: 'Python wrapper generator for ctypes'
+
+# vim:set ts=8 sw=2 sts=2 tw=78 et:

@@ -1,0 +1,35 @@
+package:
+  name: apr-util
+  version: 1.5.3
+
+source:
+  # apr-util and apr-iconv are bundled with apr on windows
+  fn: apr-util-1.5.3.tar.bz2 [not win]
+  url: http://apache.mirrors.pair.com/apr/apr-util-1.5.3.tar.bz2 [not win]
+
+build:
+  number: 0
+
+requirements:
+  build:
+    - apr
+    - apr-iconv
+    - sqlite
+    - openssl
+    - expat
+  run:
+    - apr
+    - apr-iconv
+    - sqlite
+    - openssl
+    - expat
+
+test:
+  commands:
+    - apu-1-config --help
+
+about:
+  home: http://apr.apache.org/
+  license: Apache License 2.0
+
+# vim:set ts=8 sw=2 sts=2 tw=78 et:

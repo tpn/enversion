@@ -1,0 +1,58 @@
+package:
+  name: subversion
+  version: 1.8.8
+
+source:
+  #fn: tpn-apr-1.5.0-win32.zip [win]
+  #url: https://github.com/tpn/apr-win/archive/1.5.0-vc9.zip [win]
+  fn: subversion-1.8.8.tar.bz2 [not win]
+  url: http://apache.mirror.quintex.com/subversion/subversion-1.8.8.tar.bz2 [not win]
+
+build:
+  number: 0
+
+requirements:
+  build:
+    - libtool
+    - autoconf
+    - swig
+    - ctypesgen
+
+    - apr
+    - apr-util
+    - apr-iconv
+    - serf
+    - pcre
+    - python
+    - zlib
+    - sqlite
+    - openssl
+    - expat
+    - httpd
+  run:
+    - apr
+    - apr-util
+    - apr-iconv
+    - serf
+    - swig
+    - pcre
+    - python
+    - zlib
+    - sqlite
+    - openssl
+    - expat
+    - httpd
+
+test:
+  commands:
+    - svn --help
+  imports:
+    - svn
+    - svn.core
+    - svn.repos
+
+about:
+  home: http://subversion.apache.org/
+  license: Apache License 2.0
+
+# vim:set ts=8 sw=2 sts=2 tw=78 et:
