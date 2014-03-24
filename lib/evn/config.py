@@ -135,6 +135,7 @@ class Config(RawConfigParser):
         self.set('main', 'remote-debug-complete-key', 'tab')
         self.set('main', 'svn-hook-enabled-prefix', 'evn')
         self.set('main', 'svn-hook-remote-debug-suffix', 'remote-debug')
+        self.set('main', 'svnadmin-create-flags', ''),
 
         self.set(
             'main',
@@ -343,5 +344,9 @@ class Config(RawConfigParser):
                 perms = (perms | p)
 
         return perms
+
+    @property
+    def svnadmin_create_flags(self):
+        return self.get('main', 'svnadmin-create-flags')
 
 # vim:set ts=8 sw=4 sts=4 tw=78 et:

@@ -5,6 +5,7 @@ import os
 import sys
 import pprint
 import traceback
+import subprocess
 
 import svn
 import svn.fs
@@ -273,8 +274,18 @@ class CreateRepoCommand(SubversionCommand):
     @requires_context
     def run(self):
         assert self.path
-        r = svn.repos.create(self.path, None, None, None, None, self.pool)
-        assert r
+        passthrough = self.options.passthrough
+        if not passthrough:
+            r = svn.repos.create(self.path, None, None, None, None, self.pool)
+            assert r
+        else:
+            cmd = [
+                'svnadmin',
+                'create',
+            ] + passthrough.split(' ') + [
+                self.path,
+            ]
+            subprocess.check_call(cmd)
 
         with Command.prime(self, EnableCommand) as command:
             command.path = self.path

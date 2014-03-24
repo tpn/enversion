@@ -193,6 +193,25 @@ class CreateCommandLine(AdminCommandLine):
     _repo_      = True
     _command_   = evn.admin.commands.CreateRepoCommand
 
+    def _add_parser_options(self):
+        self.parser.add_option(
+            '-p', '--passthrough',
+            dest='passthrough',
+            metavar='SVNADMIN_CREATE_FLAGS',
+            type='string',
+            default=self.conf.svnadmin_create_flags,
+            help=(
+                'call `svnadmin create` with these flags when creating '
+                'the underlying subversion repository -- note that all '
+                'flags will need to be quoted as a single string, e.g. '
+                '`evnadmin create --passthrough "--compatible-version 1.7 '
+                '--config-dir /some/other/dir" <repo_name>` [default: '
+                '"%default" (note: the default can be altered by the '
+                '\'svnadmin-create-flags\' configuration variable in '
+                'the [main] section)]'
+            )
+        )
+
 class RunHookCommandLine(AdminCommandLine):
     _conf_ = True
     _repo_ = True
