@@ -17,16 +17,18 @@ The easiest (and recommended) way to install Enversion is via ``conda``, the
 cross-platform (Windows, Linux and OS X) binary package manager from [Continuum
 Analytics](http://continuum.io).
 
-Already have ``conda`` installed?  Enversion installation is simple:
-```
-% conda config --add channels enversion
-% conda install enversion
-```
+> Already have ``conda`` installed?  Enversion installation is simple:
+> ```
+> % conda config --add channels enversion
+> % conda install enversion
+> ```
 
 You can get ``conda`` in one of two ways:
-    - Install [Anaconda](https://store.continuum.io/cshop/anaconda/) (245MB
+
+  -   Install [Anaconda](https://store.continuum.io/cshop/anaconda/) (245MB
       to 483MB depending on platform).
-    - Install [Miniconda](http://conda.pydata.org/miniconda.html#miniconda)
+
+  -   Install [Miniconda](http://conda.pydata.org/miniconda.html#miniconda)
       (18MB to 30MB depending on platform).
 
 [Anaconda](https://store.continuum.io/cshop/anaconda/) is a fully-fledged,
@@ -39,10 +41,10 @@ data analysis](http://docs.continuum.io/anaconda/pkgs.html).
 version of Anaconda that only includes the small subset of Python packages
 required by ``conda``.
 
-Pro-tip: installed Miniconda, but want to try out Anaconda?  Simply run:
-```
-% conda install anaconda
-```
+> Pro-tip: installed Miniconda, but want to try out Anaconda?  Simply run:
+> ```
+> % conda install anaconda
+> ```
 
 #### Miniconda Installation (Linux)
 
