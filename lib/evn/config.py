@@ -17,6 +17,7 @@ from ConfigParser import (
     RawConfigParser,
 )
 
+from evn.util import try_int
 from evn.path import join_path
 
 #=============================================================================
@@ -136,6 +137,7 @@ class Config(RawConfigParser):
         self.set('main', 'svn-hook-enabled-prefix', 'evn')
         self.set('main', 'svn-hook-remote-debug-suffix', 'remote-debug')
         self.set('main', 'svnadmin-create-flags', ''),
+        self.set('main', 'max-file-size-in-mb', '25'),
 
         self.set(
             'main',
@@ -348,5 +350,12 @@ class Config(RawConfigParser):
     @property
     def svnadmin_create_flags(self):
         return self.get('main', 'svnadmin-create-flags')
+
+    @property
+    def max_file_size_in_mb(self):
+        i = try_int(self.get('main', 'max-file-size-in-mb')) or 0
+        if i < 0:
+            i = 0
+        return i
 
 # vim:set ts=8 sw=4 sts=4 tw=78 et:

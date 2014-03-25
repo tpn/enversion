@@ -29,6 +29,10 @@ from svn.core import (
     SVN_PROP_REVISION_AUTHOR,
 )
 
+from collections import (
+    defaultdict,
+)
+
 from evn.path import (
     format_dir,
     format_file,
@@ -53,6 +57,8 @@ from evn.constants import (
 )
 
 from evn.util import (
+    try_int,
+    memoize,
     Pool,
     Dict,
     Options,
@@ -1474,6 +1480,11 @@ class FileChange(NodeChange):
         self.__has_text_changed = False
 
     @property
+    @memoize
+    def filesize(self):
+        return svn.fs.file_length(self.root, self.path, self.pool)
+
+    @property
     def is_root(self):
         return False
 
@@ -1644,6 +1655,15 @@ class ChangeSet(AbstractChangeSet):
         self.__destroyed = None
 
         self.__possible_merge_sources = set()
+
+        self.files_by_size = defaultdict(list)
+        self.track_file_sizes = options.track_file_sizes
+        if self.track_file_sizes:
+            self.max_file_size = try_int(options.max_file_size)
+            if not self.max_file_size or self.max_file_size <= 0:
+                self.track_file_sizes = False
+
+        self.files_over_max_size = []
 
     @property
     def possible_merge_sources(self):
@@ -2144,6 +2164,11 @@ class ChangeSet(AbstractChangeSet):
 
         if not new.is_remove:
             self._all_changes[new.path] = new
+
+        if self.is_create and self.track_file_sizes:
+            size = new.filesize
+            if size >= self.max_file_size:
+                self.files_over_max_size.append(new)
 
         new.registered = True
         return new

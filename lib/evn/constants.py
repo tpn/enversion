@@ -128,6 +128,7 @@ class _Errors(Constant):
     StaleTxnProbablyDueToHighLoad = "please re-try your commit -- the repository is under load and your transaction became out-of-date while it was being queued for processing (base revision for this transaction: %d, repository last synchronised at revision: %d, current repository revision: %d)"
     AbsoluteRootOfRepositoryCopied = "absolute root of repository copied"
     PropertyChangedButOldAndNewValuesAreSame = "the property '%s' is recorded as having changed, but the old value and new value are identical ('%s')"
+    FileExceedsMaxSize = "file size (%0.2fMB) exceeds limit (%dMB)"
 
 e = _Errors()
 

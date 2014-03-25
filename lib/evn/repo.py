@@ -663,6 +663,13 @@ class RepositoryRevOrTxn(ImplicitContextSensitiveObject):
             with open(name_override, 'r') as f:
                 self.name = strip_linesep_if_present(f.read())
 
+        self.max_file_size_in_mb = self.conf.max_file_size_in_mb
+        self.track_file_sizes = bool(self.max_file_size_in_mb)
+        if self.track_file_sizes:
+            self.max_file_size = self.max_file_size_in_mb * 1024 * 1024
+            self.options.track_file_sizes = True
+            self.options.max_file_size = self.max_file_size
+
     def __enter__(self):
         assert self.entered is False
         self.entered = True
@@ -1530,6 +1537,13 @@ class RepositoryRevOrTxn(ImplicitContextSensitiveObject):
         if not cs.is_change and cs.is_empty:
             cs.error(e.EmptyChangeSet)
             return
+
+        if self.track_file_sizes:
+            limit_mb = self.max_file_size_in_mb
+            msg = e.FileExceedsMaxSize
+            for c in cs.files_over_max_size:
+                size_mb = float(c.filesize) / 1024.0 / 1024.0
+                c.error(msg % (size_mb, limit_mb))
 
         self.__process_mergeinfo(cs)
         self.__process_roots(cs)
