@@ -53,6 +53,16 @@ def bytes_to_kb(b):
 def iterable(i):
     return (i,) if not hasattr(i, '__iter__') else i
 
+def try_int(i):
+    if not i:
+        return
+    try:
+        i = int(i)
+    except ValueError:
+        return
+    else:
+        return i
+
 def requires_context(f):
     @wraps(f)
     def wrapper(*args, **kwds):
