@@ -3,7 +3,8 @@
 
 Enversion is a server-side tool that sits in front of your Subversion
 repositories and validates incoming commits.  It can detect a wide variety
-of problematic commits (over 80) and will block them at the pre-commit stage.
+of problematic commits ([over 80](/lib/evn/constants.py#L34)) and will block
+them at the pre-commit stage.
 
 Enversion was designed specifically for enterprise Subversion deployments,
 which have vastly different usage patterns than typical open source Subversion
@@ -13,7 +14,7 @@ See the [wiki](/../../wiki/) for more information:
  -  [Tutorial 1 - Creating a new, Enversion-enabled Subversion Repository](/../../wiki/Tutorial-1-New-Repository)
  -  [Tutorial 2 - Enabling Enversion against an existing Subversion Repository](/../../wiki/Tutorial-2-Existing-Repository)
 
-### Installation & Quick Start - TL;DR Version
+### Installation & Quick Start: Cheatsheet
 Pre-requisites:
 ```
 % wget http://repo.continuum.io/miniconda/Miniconda-3.3.0-Linux-x86_64.sh
@@ -85,7 +86,7 @@ Tutorials:
  -  [Tutorial 1 - Creating a new, Enversion-enabled Subversion Repository](/../../wiki/Tutorial-1-New-Repository)
  -  [Tutorial 2 - Enabling Enversion against an existing Subversion Repository](/../../wiki/Tutorial-2-Existing-Repository)
 
-### Installation Guide
+### Installation Guide - Detailed
 
 The easiest (and recommended) way to install Enversion is via ``conda``, the
 cross-platform (Windows, Linux and OS X) binary package manager from [Continuum
