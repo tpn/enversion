@@ -9,9 +9,83 @@ Enversion was designed specifically for enterprise Subversion deployments,
 which have vastly different usage patterns than typical open source Subversion
 repositories.
 
-See the [wiki](/../../wiki/) for more information.
+See the [wiki](/../../wiki/) for more information:
+ -  [Tutorial 1 - Creating a new, Enversion-enabled Subversion Repository](/../../wiki/Tutorial-1-New-Repository)
+ -  [Tutorial 2 - Enabling Enversion against an existing Subversion Repository](/../../wiki/Tutorial-2-Existing-Repository)
 
-### Installation
+### Installation & Quick Start - TL;DR Version
+Pre-requisites:
+```
+% wget http://repo.continuum.io/miniconda/Miniconda-3.3.0-Linux-x86_64.sh
+% bash Miniconda-3.3.0-Linux-x86_64.sh
+% source ~/.bashrc
+% conda config --add channels enversion
+```
+
+To install:
+```
+% conda install enversion
+```
+
+To update to the latest version:
+```
+% conda update enversion
+```
+
+To create isolated environments with different versions:
+```
+% conda create -n evn-0.2.5 enversion=0.2.5
+% source activate evn-0.2.5
+```
+
+```
+% conda create -n evn-0.2.6 enversion=0.2.6
+% source activate evn-0.2.6
+```
+
+To create a new Subversion repository automatically protected by Enversion:
+```
+% evnadmin create foo
+```
+
+To verify Enversion is installed and working:
+```
+% evnadmin show-repo-hook-status test
++-------------------------------------------------------------------------+
+|                    Repository Hook Status for 'test'                    |
+|                           (/home/evnadm/test)                           |
++-------------------------------------------------------------------------+
+|         Name        | Exists? | Valid? | Exe? | Cnfgrd? | Enbld? | Rdb? |
++---------------------|---------|--------|------|---------|--------|------+
+|  post-revprop-change|    Y    |   -    |  Y   |    Y    |   Y    |  N   |
+|         start-commit|    Y    |   -    |  Y   |    Y    |   Y    |  N   |
+|            post-lock|    Y    |   -    |  Y   |    Y    |   Y    |  N   |
+|             pre-lock|    Y    |   -    |  Y   |    Y    |   Y    |  N   |
+|          post-unlock|    Y    |   -    |  Y   |    Y    |   Y    |  N   |
+|           pre-unlock|    Y    |   -    |  Y   |    Y    |   Y    |  N   |
+|           pre-commit|    Y    |   -    |  Y   |    Y    |   Y    |  N   |
+|          post-commit|    Y    |   -    |  Y   |    Y    |   Y    |  N   |
+|   pre-revprop-change|    Y    |   -    |  Y   |    Y    |   Y    |  N   |
+|=====================|=========|========|======|=========|========|======|
+|               evn.sh|    Y    |   Y    |  Y   |   9/9   |  9/9   |  -   |
++-------------------------------------------------------------------------+
+```
+
+To enable Enversion against an existing repository, first, analyze it:
+```
+% evnadmin analyze myrepo
+```
+
+Then enable:
+```
+% evnadmin enable myrepo
+```
+
+Tutorials:
+ -  [Tutorial 1 - Creating a new, Enversion-enabled Subversion Repository](/../../wiki/Tutorial-1-New-Repository)
+ -  [Tutorial 2 - Enabling Enversion against an existing Subversion Repository](/../../wiki/Tutorial-2-Existing-Repository)
+
+### Installation Guide
 
 The easiest (and recommended) way to install Enversion is via ``conda``, the
 cross-platform (Windows, Linux and OS X) binary package manager from [Continuum
