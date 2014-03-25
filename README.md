@@ -11,9 +11,231 @@ repositories.
 
 See the [wiki](/../../wiki/) for more information.
 
-### Quick Start
+### Installation
 
-Once [installed](/../wiki/Installation-Guide/):
+The easiest (and recommended) way to install Enversion is via ``conda``, the
+cross-platform (Windows, Linux and OS X) binary package manager from [Continuum
+Analytics](http://continuum.io).
+
+Already have ``conda`` installed?  Enversion installation is simple:
+```
+% conda config --add channels enversion
+% conda install enversion
+```
+
+You can get ``conda`` in one of two ways:
+    - Install [Anaconda](https://store.continuum.io/cshop/anaconda/) (245MB
+      to 483MB depending on platform).
+    - Install [Miniconda](http://conda.pydata.org/miniconda.html#miniconda)
+      (18MB to 30MB depending on platform).
+
+[Anaconda](https://store.continuum.io/cshop/anaconda/) is a fully-fledged,
+completely free, enterprise-ready Python distribution for large-scale data
+processing, predictive analytics, and scientific computing.  [It ships with
+over 125 of the most popular Python packages for science, math, engineering and
+data analysis](http://docs.continuum.io/anaconda/pkgs.html).
+
+[Miniconda](http://conda.pydata.org/miniconda.html#miniconda) is a bare-bones
+version of Anaconda that only includes the small subset of Python packages
+required by ``conda``.
+
+Pro-tip: installed Miniconda, but want to try out Anaconda?  Simply run:
+```
+% conda install anaconda
+```
+
+#### Miniconda Installation (Linux)
+
+Miniconda installation is trivial:
+
+```
+[evnadm@centos5x64 ~]$ wget http://repo.continuum.io/miniconda/Miniconda-3.3.0-Linux-x86_64.sh
+--2014-03-25 08:12:37--  http://repo.continuum.io/miniconda/Miniconda-3.3.0-Linux-x86_64.sh
+Resolving repo.continuum.io... 72.21.195.181
+Connecting to repo.continuum.io|72.21.195.181|:80... connected.
+HTTP request sent, awaiting response... 200 OK
+Length: 19998995 (19M) [application/x-sh]
+Saving to: `Miniconda-3.3.0-Linux-x86_64.sh'
+
+100%[=========================================>] 19,998,995  1.81M/s   in 9.2s
+
+2014-03-25 08:12:50 (2.07 MB/s) - `Miniconda-3.3.0-Linux-x86_64.sh' saved [19998995/19998995]
+
+[evnadm@centos5x64 ~]$
+```
+
+Once downloaded, simply execute the file via bash to install:
+
+```
+[evnadm@centos5x64 ~]$ bash Miniconda-3.3.0-Linux-x86_64.sh
+
+Welcome to Miniconda 3.3.0 (by Continuum Analytics, Inc.)
+
+In order to continue the installation process, please review the license
+agreement.
+Please, press ENTER to continue
+>>>
+===================================
+Anaconda END USER LICENSE AGREEMENT
+===================================
+<snip>
+
+1. You include a copy of this EULA in all copies of the derived software.
+2. In advertising and labeling material for products built with Anaconda
+
+Do you approve the license terms? [yes|no]
+[no] >>> yes
+
+Miniconda will now be installed into this location:
+/home/evnadm/miniconda
+
+  - Press ENTER to confirm the location
+  - Press CTRL-C to abort the installation
+  - Or specify an different location below
+
+[/home/evnadm/miniconda] >>>
+PREFIX=/home/evnadm/miniconda
+installing: python-2.7.6-1 ...
+installing: openssl-1.0.1c-0 ...
+installing: pycosat-0.6.0-py27_0 ...
+installing: pyyaml-3.10-py27_0 ...
+installing: readline-6.2-2 ...
+installing: sqlite-3.8.4.1-0 ...
+installing: system-5.8-1 ...
+installing: tk-8.5.13-0 ...
+installing: yaml-0.1.4-0 ...
+installing: zlib-1.2.7-0 ...
+installing: conda-3.3.0-py27_0 ...
+Python 2.7.6 :: Continuum Analytics, Inc.
+creating default environment...
+installation finished.
+Do you wish the installer to prepend the Miniconda install location
+to PATH in your /home/evnadm/.bashrc ? [yes|no]
+[no] >>> yes
+
+Prepending PATH=/home/evnadm/miniconda/bin to PATH in /home/evnadm/.bashrc
+A backup will be made to: /home/evnadm/.bashrc-miniconda.bak
+
+
+For this change to become active, you have to open a new terminal.
+
+Thank you for installing Miniconda!
+```
+
+Then simply source .bashrc again (or open a new terminal) and you should have
+access to conda:
+
+```
+[evnadm@centos5x64 ~]$ source .bashrc
+[evnadm@centos5x64 ~]$ which conda
+~/miniconda/bin/conda
+```
+
+Then simply run the following to install Enversion:
+```
+[evnadm@centos5x64 ~]$ conda config --add channels enversion
+[evnadm@centos5x64 ~]$ conda install enversion
+Fetching package metadata: ...
+Solving package specifications: .
+Package plan for installation in environment /home/evnadm/miniconda:
+
+The following packages will be downloaded:
+
+    package                    |            build
+    ---------------------------|-----------------
+    enversion-0.2.5            |           py27_1         151 KB
+    expat-2.1.0                |                0         307 KB
+    httpd-2.2.26               |                0         4.3 MB
+    pcre-8.31                  |                0         535 KB
+    serf-1.2.1                 |                0         307 KB
+    sqlite-3.7.13              |                0         1.9 MB
+    subversion-1.8.8           |           py27_0        11.8 MB
+    swig-2.0.12                |           py27_0         1.8 MB
+    ------------------------------------------------------------
+                                           Total:        21.0 MB
+
+The following packages will be UN-linked:
+
+    package                    |            build
+    ---------------------------|-----------------
+    conda-3.3.0                |           py27_0
+    sqlite-3.8.4.1             |                0
+
+The following packages will be linked:
+
+    package                    |            build
+    ---------------------------|-----------------
+    apr-1.5.0                  |                0   hard-link
+    apr-iconv-1.2.1            |                0   hard-link
+    apr-util-1.5.3             |                0   hard-link
+    conda-3.3.2                |           py27_0   hard-link
+    enversion-0.2.5            |           py27_1   hard-link
+    expat-2.1.0                |                0   hard-link
+    httpd-2.2.26               |                0   hard-link
+    pcre-8.31                  |                0   hard-link
+    serf-1.2.1                 |                0   hard-link
+    sqlite-3.7.13              |                0   hard-link
+    subversion-1.8.8           |           py27_0   hard-link
+    swig-2.0.12                |           py27_0   hard-link
+
+Proceed ([y]/n)? y
+
+Fetching packages ...
+enversion-0.2.5-py27_1.tar.bz2 100% |################| Time: 0:00:00   1.48 MB/s
+expat-2.1.0-0.tar.bz2 100% |#########################| Time: 0:00:00   1.51 MB/s
+httpd-2.2.26-0.tar.bz2 100% |########################| Time: 0:00:02   2.12 MB/s
+pcre-8.31-0.tar.bz2 100% |###########################| Time: 0:00:00   1.86 MB/s
+serf-1.2.1-0.tar.bz2 100% |##########################| Time: 0:00:00   1.39 MB/s
+sqlite-3.7.13-0.tar.bz2 100% |#######################| Time: 0:00:01   1.89 MB/s
+subversion-1.8.8-py27_0.tar.bz2 100% |###############| Time: 0:00:06   2.06 MB/s
+swig-2.0.12-py27_0.tar.bz2 100% |####################| Time: 0:00:00   1.97 MB/s
+Extracting packages ...
+[      COMPLETE      ] |##################################################| 100%
+Unlinking packages ...
+[      COMPLETE      ] |##################################################| 100%
+Linking packages ...
+[      COMPLETE      ] |##################################################| 100%
+[evnadm@centos5x64 ~]$
+```
+
+This will install Enversion, which is administered via the command line program
+``evnadmin``, and all required dependencies.  Note that the entire installation
+is contained within the Miniconda installation, ensuring that there aren't any
+conflicts with other versions of Subversion/HTTPD that may be installed on your
+system.
+
+Additionally, because the Enversion conda package manages all dependencies, no
+root access is required, nor are there any base-system RPM dependencies.  This
+is one of the reasons conda is the recommended installation technique.
+
+```
+[evnadm@centos5x64 ~]$ which svn
+~/miniconda/bin/svn
+[evnadm@centos5x64 ~]$ which evnadmin
+~/miniconda/bin/evnadmin
+[evnadm@centos5x64 ~]$ evnadmin create test
+[evnadm@centos5x64 ~]$ evnadmin show-repo-hook-status test
++-------------------------------------------------------------------------+
+|                    Repository Hook Status for 'test'                    |
+|                           (/home/evnadm/test)                           |
++-------------------------------------------------------------------------+
+|         Name        | Exists? | Valid? | Exe? | Cnfgrd? | Enbld? | Rdb? |
++---------------------|---------|--------|------|---------|--------|------+
+|  post-revprop-change|    Y    |   -    |  Y   |    Y    |   Y    |  N   |
+|         start-commit|    Y    |   -    |  Y   |    Y    |   Y    |  N   |
+|            post-lock|    Y    |   -    |  Y   |    Y    |   Y    |  N   |
+|             pre-lock|    Y    |   -    |  Y   |    Y    |   Y    |  N   |
+|          post-unlock|    Y    |   -    |  Y   |    Y    |   Y    |  N   |
+|           pre-unlock|    Y    |   -    |  Y   |    Y    |   Y    |  N   |
+|           pre-commit|    Y    |   -    |  Y   |    Y    |   Y    |  N   |
+|          post-commit|    Y    |   -    |  Y   |    Y    |   Y    |  N   |
+|   pre-revprop-change|    Y    |   -    |  Y   |    Y    |   Y    |  N   |
+|=====================|=========|========|======|=========|========|======|
+|               evn.sh|    Y    |   Y    |  Y   |   9/9   |  9/9   |  -   |
++-------------------------------------------------------------------------+
+```
+
+### Quick Start
 
 ```
 evnadmin create foo
