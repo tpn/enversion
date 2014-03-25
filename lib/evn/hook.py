@@ -418,7 +418,7 @@ class RepoHookFile(HookFile):
         assert not self.is_remote_debug_enabled
 
     def create(self):
-        assert not self.exists
+        assert not self.exists or self.is_empty
         self._touch(self.path)
         assert self.exists
         self.configure_to_call_evn_hook()
@@ -429,9 +429,20 @@ class RepoHookFile(HookFile):
         if not self.exists or self.is_empty:
             return False
 
+        lines = self.lines
+        if os.name != 'nt':
+            has_shebang = False
+            try:
+                if lines[0].startswith('#!'):
+                    has_shebang = True
+            except:
+                pass
+            if not has_shebang:
+                return False
+
         found = False
         expected = self.conf.svn_hook_syntax_for_invoking_evn_hook
-        for line in self.lines:
+        for line in lines:
             if line.startswith(self.comment_character):
                 continue
 
@@ -462,33 +473,50 @@ class RepoHookFile(HookFile):
         else:
             lines = self.conf.svn_hook_code_empty.split(os.linesep)
 
+        if os.name != 'nt':
+            insert_shebang = True
+            try:
+                if lines[0].startswith('#!'):
+                    insert_shebang = False
+            except:
+                pass
+            if insert_shebang:
+                output.append('#!/bin/sh')
+
         first = True
         inserted = False
         for line in lines:
-            if first and os.name != 'nt':
-                assert line == '#!/bin/sh'
 
             if inserted:
-                output.append(line)
+                if line != code:
+                    output.append(line)
             else:
-                if line.startswith(self.comment_character):
+                if line == code:
+                    inserted = True
+                    output.append(line)
+                elif line.startswith(self.comment_character):
                     output.append(line)
                 elif not line:
                     # Skip blank lines.
                     output.append(line)
                 else:
                     if first and line.lower().startswith('@echo'):
+                        # Special-case for `@echo off` first line on Windows.
                         output.append(line)
-                        output += [ '', code, '' ]
-                        inserted = True
+                        output.append(code)
                     else:
-                        output += [ '', code, '' ]
+                        output.append(code)
                         output.append(line)
+                    inserted = True
+
             if first:
                 first = False
 
-        if not inserted:
-            output += [ '', code, '' ]
+        assert inserted
+
+        # Remove trailing empty lines.
+        while not output[-1]:
+            output.pop()
 
         if existing:
             suffix = datetime.datetime.now().strftime('%Y%m%d%H%M%S-%f')
