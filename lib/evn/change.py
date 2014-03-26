@@ -1482,7 +1482,7 @@ class FileChange(NodeChange):
     @property
     @memoize
     def filesize(self):
-        return svn.fs.file_length(self.root, self.path, self.pool)
+        return svn.fs.file_length(self.root, self.path, self.changeset.pool)
 
     @property
     def is_root(self):
@@ -1659,8 +1659,14 @@ class ChangeSet(AbstractChangeSet):
         self.files_by_size = defaultdict(list)
         self.track_file_sizes = options.track_file_sizes
         if self.track_file_sizes:
-            self.max_file_size = try_int(options.max_file_size)
-            if not self.max_file_size or self.max_file_size <= 0:
+            self.max_file_size_in_bytes = (
+                try_int(options.max_file_size_in_bytes)
+            )
+            invalid = (
+                not self.max_file_size_in_bytes or
+                self.max_file_size_in_bytes <= 0
+            )
+            if invalid:
                 self.track_file_sizes = False
 
         self.files_over_max_size = []
@@ -2165,9 +2171,9 @@ class ChangeSet(AbstractChangeSet):
         if not new.is_remove:
             self._all_changes[new.path] = new
 
-        if self.is_create and self.track_file_sizes:
+        if new.is_create and new.is_file and self.track_file_sizes:
             size = new.filesize
-            if size >= self.max_file_size:
+            if size >= self.max_file_size_in_bytes:
                 self.files_over_max_size.append(new)
 
         new.registered = True

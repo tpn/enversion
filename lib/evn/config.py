@@ -64,6 +64,9 @@ class Config(RawConfigParser):
 
         self.__files = [
             f for f in (
+                os.path.expanduser('~/.evnrc'),
+                join_path(sys.exec_prefix, 'etc', 'evn.conf'),
+                join_path(sys.exec_prefix, 'evn.conf'),
                 '/etc/evn.conf',
                 '/usr/local/etc/evn.conf',
                 '/opt/etc/evn.conf',
@@ -137,7 +140,7 @@ class Config(RawConfigParser):
         self.set('main', 'svn-hook-enabled-prefix', 'evn')
         self.set('main', 'svn-hook-remote-debug-suffix', 'remote-debug')
         self.set('main', 'svnadmin-create-flags', ''),
-        self.set('main', 'max-file-size-in-mb', '25'),
+        self.set('main', 'max-file-size-in-bytes', '26214400'), # 25MB
 
         self.set(
             'main',
@@ -352,8 +355,8 @@ class Config(RawConfigParser):
         return self.get('main', 'svnadmin-create-flags')
 
     @property
-    def max_file_size_in_mb(self):
-        i = try_int(self.get('main', 'max-file-size-in-mb')) or 0
+    def max_file_size_in_bytes(self):
+        i = try_int(self.get('main', 'max-file-size-in-bytes')) or 0
         if i < 0:
             i = 0
         return i

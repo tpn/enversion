@@ -663,12 +663,14 @@ class RepositoryRevOrTxn(ImplicitContextSensitiveObject):
             with open(name_override, 'r') as f:
                 self.name = strip_linesep_if_present(f.read())
 
-        self.max_file_size_in_mb = self.conf.max_file_size_in_mb
-        self.track_file_sizes = bool(self.max_file_size_in_mb)
+        self.max_file_size_in_bytes = self.conf.max_file_size_in_bytes
+        self.track_file_sizes = bool(self.max_file_size_in_bytes)
         if self.track_file_sizes:
-            self.max_file_size = self.max_file_size_in_mb * 1024 * 1024
+            self.max_file_size_in_mb = (
+                float(self.max_file_size_in_bytes) / 1024.0 / 1024.0
+            )
             self.options.track_file_sizes = True
-            self.options.max_file_size = self.max_file_size
+            self.options.max_file_size_in_bytes = self.max_file_size_in_bytes
 
     def __enter__(self):
         assert self.entered is False
