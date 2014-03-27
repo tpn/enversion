@@ -42,7 +42,7 @@ class CLI(object):
     __unknown_subcommand__ = "Unknown subcommand '%s'"
     __usage__ = "Type '%prog help' for usage."
     __help__ = """\
-        Type '%prog <subcommand> help' for help on a specific subcommand.
+        Type '%prog help <subcommand>' for help on a specific subcommand.
 
         Available subcommands:"""
 
