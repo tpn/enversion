@@ -188,6 +188,10 @@ class EnableCommandLine(AdminCommandLine):
     _conf_      = True
     _repo_      = True
 
+class DisableCommandLine(AdminCommandLine):
+    _conf_      = True
+    _repo_      = True
+
 class CreateCommandLine(AdminCommandLine):
     _conf_      = True
     _repo_      = True

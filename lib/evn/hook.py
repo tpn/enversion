@@ -398,6 +398,11 @@ class RepoHookFile(HookFile):
         self._touch(self.__enabler_path)
         assert self.is_enabled
 
+    def disable(self):
+        if not self.is_enabled:
+            return
+        os.unlink(self.__enabler_path)
+
     def enable_remote_debug(self, host, port):
         assert not self.is_remote_debug_enabled
         (h, p) = (str(host), int(port))

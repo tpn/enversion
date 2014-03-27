@@ -269,6 +269,14 @@ class EnableCommand(FixHooksCommand):
             if not h.is_enabled:
                 h.enable()
 
+class DisableCommand(RepositoryCommand):
+    @requires_context
+    def run(self):
+        RepositoryCommand.run(self)
+
+        for h in self.hook_files:
+            h.disable()
+
 class CreateRepoCommand(SubversionCommand):
     path = None
     @requires_context
