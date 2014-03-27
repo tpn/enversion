@@ -18,7 +18,7 @@ from ConfigParser import (
 )
 
 from evn.util import try_int
-from evn.path import join_path
+from evn.path import join_path, format_dir
 
 #=============================================================================
 # Classes
@@ -141,6 +141,8 @@ class Config(RawConfigParser):
         self.set('main', 'svn-hook-remote-debug-suffix', 'remote-debug')
         self.set('main', 'svnadmin-create-flags', ''),
         self.set('main', 'max-file-size-in-bytes', '26214400'), # 25MB
+        self.set('main', 'standard-layout', 'branches,tags,trunk')
+        self.set('main', 'no-svnmucc-after-evnadmin-create', '')
 
         self.set(
             'main',
@@ -355,10 +357,19 @@ class Config(RawConfigParser):
         return self.get('main', 'svnadmin-create-flags')
 
     @property
+    def no_svnmucc_after_evnadmin_create(self):
+        return bool(self.get('main', 'no-svnmucc-after-evnadmin-create'))
+
+    @property
     def max_file_size_in_bytes(self):
         i = try_int(self.get('main', 'max-file-size-in-bytes')) or 0
         if i < 0:
             i = 0
         return i
+
+    @property
+    def standard_layout(self):
+        dirs = self.get('main', 'standard-layout').split(',')
+        return frozenset(format_dir(d) for d in dirs)
 
 # vim:set ts=8 sw=4 sts=4 tw=78 et:

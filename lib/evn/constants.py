@@ -129,6 +129,9 @@ class _Errors(Constant):
     AbsoluteRootOfRepositoryCopied = "absolute root of repository copied"
     PropertyChangedButOldAndNewValuesAreSame = "the property '%s' is recorded as having changed, but the old value and new value are identical ('%s')"
     FileExceedsMaxSize = "file size (%0.2fMB) exceeds limit (%dMB)"
+    InvalidTopLevelRepoDirectoryCreated = "invalid top-level repository directory (valid top-level directories: %s)"
+    TopLevelRepoDirectoryRemoved = "top-level repository directories cannot be removed"
+    TopLevelRepoDirectoryReplaced = "top-level repository directories cannot be replaced"
 
 e = _Errors()
 

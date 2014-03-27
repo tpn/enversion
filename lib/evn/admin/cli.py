@@ -213,8 +213,23 @@ class CreateCommandLine(AdminCommandLine):
                 '`evnadmin create --passthrough "--compatible-version 1.7 '
                 '--config-dir /some/other/dir" <repo_name>` [default: '
                 '"%default" (note: the default can be altered by the '
-                '\'svnadmin-create-flags\' configuration variable in '
-                'the [main] section)]'
+                '\'svnadmin-create-flags\' configuration variable)]'
+            )
+        )
+
+        self.parser.add_option(
+            '-n', '--no-svnmucc',
+            dest='empty',
+            action='store_true',
+            help=(
+                'don\'t attempt to automatically create the standard '
+                'layout directories via `svnmucc` after creating the '
+                'repository (note: the standard layout directories are '
+                'controlled by the config variable \'standard-layout\', '
+                'which defaults to "branches,tags,trunk"; additionally, '
+                'the config variable \'no-svnmucc-after-evnadmin-create\' '
+                'can be set to a non-null value to always disable this '
+                'functionality)'
             )
         )
 

@@ -263,11 +263,21 @@ class FixHooksCommand(RepositoryCommand):
 class EnableCommand(FixHooksCommand):
     @requires_context
     def run(self):
+        self.options.quiet = True
+
+        with Command.prime(self, AnalyzeCommand) as command:
+            command.path = self.path
+            command.run(from_enable=True)
+            if not command.options.quiet:
+                self.options.quiet = False
+
         FixHooksCommand.run(self)
 
         for h in self.hook_files:
             if not h.is_enabled:
                 h.enable()
+
+        self._out("Enabled Enversion for repository '%s'." % self.name)
 
 class DisableCommand(RepositoryCommand):
     @requires_context
@@ -284,7 +294,7 @@ class CreateRepoCommand(SubversionCommand):
         assert self.path
         passthrough = self.options.passthrough
         if not passthrough:
-            passthrough = self.conf.get('main', 'svnadmin-create-flags')
+            passthrough = self.conf.svnadmin_create_flags
 
         if not passthrough:
             r = svn.repos.create(self.path, None, None, None, None, self.pool)
@@ -299,12 +309,26 @@ class CreateRepoCommand(SubversionCommand):
             self._verbose(' '.join(cmd))
             subprocess.check_call(cmd)
 
-        with Command.prime(self, EnableCommand) as command:
-            command.path = self.path
-            command.options.quiet = True
-            command.run()
+        no_svnmucc = self.options.no_svnmucc
+        if not no_svnmucc:
+            no_svnmucc = self.conf.no_svnmucc_after_evnadmin_create
 
-        with Command.prime(self, AnalyzeCommand) as command:
+        standard_layout = self.conf.standard_layout
+        if not no_svnmucc and standard_layout:
+            cmd = [
+                'svnmucc',
+                '-m',
+                '"Initializing repository."',
+                '--root-url',
+                'file://%s' % os.path.abspath(self.path),
+            ]
+            for d in standard_layout:
+                cmd += [ 'mkdir', d ]
+
+            self._verbose(' '.join(cmd))
+            suppress_stdout = subprocess.check_output(cmd)
+
+        with Command.prime(self, EnableCommand) as command:
             command.path = self.path
             command.options.quiet = True
             command.run()
@@ -414,7 +438,7 @@ class RunHookCommand(RepoHookCommand):
 
 class AnalyzeCommand(RepositoryCommand):
     @requires_context
-    def run(self):
+    def run(self, from_enable=False):
         RepositoryCommand.run(self)
 
         rc0 = self.r0_revprop_conf
@@ -423,15 +447,22 @@ class AnalyzeCommand(RepositoryCommand):
         start_rev = last_rev if last_rev is not None else 0
         end_rev = svn.fs.youngest_rev(self.fs)
 
+        if end_rev == 0 or from_enable:
+            self.options.quiet = True
+
         if last_rev is not None:
             if start_rev == end_rev:
                 m = "Repository '%s' is up to date (r%d)."
                 self._out(m % (self.name, end_rev))
                 return
             elif start_rev == 0:
+                if from_enable:
+                    self.options.quiet = False
                 m = "Analyzing repository '%s'..." % self.name
                 self._out(m)
             else:
+                if from_enable:
+                    self.options.quiet = False
                 self._out(
                     "Resuming analysis for repository '%s' "
                     "from revision %d..." % (self.name, start_rev)

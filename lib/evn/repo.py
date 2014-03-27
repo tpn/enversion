@@ -1427,14 +1427,16 @@ class RepositoryRevOrTxn(ImplicitContextSensitiveObject):
                 c.note(n.Merge)
 
     def __process_roots(self, cs):
-        if cs.has_dirs:
-            subdirs = [ d for d in cs.dirs ]
-            rm = self.rootmatcher
-            for sd in subdirs:
-                sd.root_details = rm.get_root_details(sd.path)
+        if not cs.has_dirs:
+            return
 
-            if len(subdirs) > 1:
-                self.__process_multiple_roots(cs)
+        subdirs = [ d for d in cs.dirs ]
+        rm = self.rootmatcher
+        for sd in subdirs:
+            sd.root_details = rm.get_root_details(sd.path)
+
+        if len(subdirs) > 1:
+            self.__process_multiple_roots(cs)
 
     def __process_multiple_roots(self, c):
         dirs = [ d for d in c.dirs ]
@@ -1548,6 +1550,7 @@ class RepositoryRevOrTxn(ImplicitContextSensitiveObject):
                 c.error(msg % (size_mb, limit_mb))
 
         self.__process_mergeinfo(cs)
+        self.__process_toplevel_dirs(cs)
         self.__process_roots(cs)
 
         if self.__valid_subdirs(cs):
@@ -2061,6 +2064,42 @@ class RepositoryRevOrTxn(ImplicitContextSensitiveObject):
             return False
         else:
             return True
+
+    def __process_toplevel_dirs(self, cs):
+        # Ensure top-level directories in changeset align with standard root
+        # layout directories when applicable.
+        if cs.is_rev:
+            return
+
+        standard = self.conf.standard_layout
+        if not standard:
+            return
+
+        standard_str = ', '.join("'%s'" % r for r in standard)
+        mkdir_msg = e.InvalidTopLevelRepoDirectoryCreated % standard_str
+
+        for d in cs.dirs:
+            c = cs[d.path]
+            top = format_dir(d.path.split('/')[1])
+
+            if c.path != top:
+                # If the directory already exists, let it through.
+                continue
+
+            elif c.is_create and top not in standard:
+                c.error(mkdir_msg)
+
+            elif top not in standard:
+                # If the action isn't create, we don't care if the directory
+                # isn't in the standard layout (i.e. could be trying to remove
+                # an erroneous directory).
+                continue
+
+            elif c.is_remove:
+                c.error(e.TopLevelRepoDirectoryRemoved)
+
+            elif c.is_replace:
+                c.error(e.TopLevelRepoDirectoryReplaced)
 
     def __process_change_invariants_and_general_correctness(self, c):
         # Test some fundamental invariants that should always hold true, but
