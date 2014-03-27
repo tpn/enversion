@@ -276,6 +276,9 @@ class CreateRepoCommand(SubversionCommand):
         assert self.path
         passthrough = self.options.passthrough
         if not passthrough:
+            passthrough = self.conf.get('main', 'svnadmin-create-flags')
+
+        if not passthrough:
             r = svn.repos.create(self.path, None, None, None, None, self.pool)
             assert r
         else:
@@ -285,6 +288,7 @@ class CreateRepoCommand(SubversionCommand):
             ] + passthrough.split(' ') + [
                 self.path,
             ]
+            self._verbose(' '.join(cmd))
             subprocess.check_call(cmd)
 
         with Command.prime(self, EnableCommand) as command:

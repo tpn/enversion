@@ -192,6 +192,7 @@ class CreateCommandLine(AdminCommandLine):
     _conf_      = True
     _repo_      = True
     _command_   = evn.admin.commands.CreateRepoCommand
+    _verbose_   = True
 
     def _add_parser_options(self):
         self.parser.add_option(
