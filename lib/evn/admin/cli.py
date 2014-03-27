@@ -61,6 +61,7 @@ class DumpHookCodeCommandLine(AdminCommandLine):
 class ShowRepoHookStatusCommandLine(AdminCommandLine):
     _conf_ = True
     _repo_ = True
+    _aliases_ = ('status',)
 
     def _post_run(self):
         r = self.command.result
