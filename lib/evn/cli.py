@@ -93,6 +93,12 @@ class CLI(object):
                 self.__commandlines_by_shortname[cl.shortname] = cl
                 helpstr += ' (%s)' % cl.shortname
 
+            if cl.aliases:
+                for alias in cl.aliases:
+                    assert alias not in self.__commandlines_by_name
+                    self.__commandlines_by_name[alias] = cl
+                    self.__help += self.__helpstr(alias)
+
             self.__help += helpstr
             self.__commandlines_by_name[cl.name] = cl
 
@@ -195,6 +201,7 @@ class CommandLine:
     _quiet_ = None
     _verbose_ = None
     _command_ = None
+    _aliases_ = None
     _rev_range_ = None
     _shortname_ = None
     _description_ = None
@@ -227,6 +234,10 @@ class CommandLine:
             self.shortname = self._shortname_
         elif len(tokens) > 1:
             self.shortname = ''.join(t[0] for t in tokens)
+
+        self.aliases = None
+        if self._aliases_:
+            self.aliases = self._aliases_
 
         self.conf = Config()
         self.repo_path = None
