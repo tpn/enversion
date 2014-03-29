@@ -330,8 +330,9 @@ class CreateRepoCommand(SubversionCommand):
             # check_output() (2.7 onward) allows us to suppress the svnmucc
             # stdout easily; 2.6 doesn't have it, though, so revert to
             # check_call().
-            check_output = subprocess.check_output
-            if sys.version_info[1] < 7:
+            try:
+                check_output = subprocess.check_output
+            except AttributeError:
                 check_output = subprocess.check_call
             suppress_stdout = check_output(cmd)
 
