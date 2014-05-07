@@ -1,0 +1,30 @@
+package:
+  name: enversion
+  version: 0.2.8
+
+build:
+  number: {{environ.get('BINSTAR_BUILD', 0)}}
+  entry_points:
+    - evnadmin = evn.admin.cli:main
+
+requirements:
+  build:
+    - python
+    - subversion
+
+  run:
+    - python
+    - subversion
+
+test:
+  commands:
+    - evnadmin version
+  imports:
+    - evn
+
+about:
+  home: http://github.com/tpn/enversion
+  license: Apache v2
+  summary: 'Enterprise Subversion'
+
+# vim:set ts=8 sw=2 sts=2 tw=88 et:
