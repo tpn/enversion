@@ -369,7 +369,10 @@ class Config(RawConfigParser):
 
     @property
     def standard_layout(self):
-        dirs = self.get('main', 'standard-layout').split(',')
+        layout = self.get('main', 'standard-layout')
+        if not layout:
+            return
+        dirs = layout.split(',')
         return frozenset(format_dir(d) for d in dirs)
 
 # vim:set ts=8 sw=4 sts=4 tw=78 et:
