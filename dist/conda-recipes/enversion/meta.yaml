@@ -1,6 +1,6 @@
 package:
   name: enversion
-  version: 0.2.8
+  version: 0.2.11
 
 build:
   number: {{environ.get('BINSTAR_BUILD', 0)}}
@@ -19,11 +19,12 @@ requirements:
 test:
   commands:
     - evnadmin version
+    - evnadmin selftest
   imports:
     - evn
 
 about:
-  home: http://github.com/tpn/enversion
+  home: http://github.com/enversion/enversion
   license: Apache v2
   summary: 'Enterprise Subversion'
 
