@@ -27,11 +27,11 @@ class ConfigError(Exception):
     pass
 
 class Config(RawConfigParser):
-    def __init__(self, repo_name=None):
+    def __init__(self):
         RawConfigParser.__init__(self)
-        if repo_name is not None:
-            assert isinstance(repo_name, str)
-        self.__repo_name = repo_name
+        self.__repo_files = []
+        self.__repo_path = None
+        self._repo_name = None
 
         d = dirname(abspath(__file__))
         f = join_path(d, 'admin', 'cli.py')
@@ -52,12 +52,11 @@ class Config(RawConfigParser):
 
     @property
     def repo_name(self):
-        return self.__repo_name
+        return self._repo_name
 
-    @repo_name.setter
-    def repo_name(self, value):
-        assert isinstance(value, str)
-        self.__repo_name = value
+    @property
+    def repo_path(self):
+        return self.__repo_path
 
     def load(self, filename=None):
         self.__filename = filename
@@ -84,6 +83,26 @@ class Config(RawConfigParser):
     @property
     def files(self):
         return self.__files
+
+    @property
+    def repo_files(self):
+        return self.__repo_files
+
+    def load_repo(self, repo_path):
+        self.__repo_path = repo_path
+        self.__repo_name = os.path.basename(repo_path)
+
+        assert self.repo_path
+        assert self.repo_name
+
+        self.__repo_files = [ join_path(self.repo_path, 'conf/evn.conf') ]
+        self.__repo_files += [
+            f.replace('evn.conf', '%s.conf' % self.repo_name)
+                for f in self.files if f.endswith('evn.conf')
+        ]
+
+        self.read(self.repo_files)
+        self.__validate()
 
     def get_multiline_to_single_line(self, section, name):
         return (

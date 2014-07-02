@@ -188,7 +188,7 @@ class RepositoryCommand(SubversionCommand):
 
         self.uri = 'file://%s' % self.path.replace('\\', '/')
         self.name = os.path.basename(self.path)
-        self.conf.repo_name = self.name
+        self.conf.load_repo(self.path)
         self.hook_names = self.conf.hook_names
 
         self.repo       = svn.repos.open(self.path, self.pool)
