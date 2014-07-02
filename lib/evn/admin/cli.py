@@ -51,8 +51,16 @@ class DumpDefaultConfigCommandLine(AdminCommandLine):
 class DumpConfigCommandLine(AdminCommandLine):
     _conf_ = True
 
+class DumpRepoConfigCommandLine(AdminCommandLine):
+    _conf_ = True
+    _repo_ = True
+
 class ShowConfigFileLoadOrderCommandLine(AdminCommandLine):
     _conf_ = True
+
+class ShowRepoConfigFileLoadOrderCommandLine(AdminCommandLine):
+    _conf_ = True
+    _repo_ = True
 
 class DumpHookCodeCommandLine(AdminCommandLine):
     _conf_ = True

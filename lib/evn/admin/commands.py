@@ -102,11 +102,25 @@ class DumpConfigCommand(Command):
     def run(self):
         self.conf.write(self.ostream)
 
+class DumpRepoConfigCommand(RepositoryCommand):
+    @requires_context
+    def run(self):
+        RepositoryCommand.run(self)
+        self.conf.write(self.ostream)
+
 class ShowConfigFileLoadOrderCommand(Command):
     def run(self):
         if not self.conf.files:
             raise CommandError('no configuration files are being loaded')
         self._out(os.linesep.join(self.conf.files))
+
+class ShowRepoConfigFileLoadOrderCommand(RepositoryCommand):
+    @requires_context
+    def run(self):
+        RepositoryCommand.run(self)
+        if not self.conf.repo_files:
+            raise CommandError('no repo configuration files are being loaded')
+        self._out(os.linesep.join(self.conf.repo_files))
 
 class DumpHookCodeCommand(RepositoryCommand):
     @requires_context
