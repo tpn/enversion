@@ -90,7 +90,7 @@ class Config(RawConfigParser):
 
     def load_repo(self, repo_path):
         self.__repo_path = repo_path
-        self.__repo_name = os.path.basename(repo_path)
+        self._repo_name = os.path.basename(repo_path)
 
         assert self.repo_path
         assert self.repo_name
