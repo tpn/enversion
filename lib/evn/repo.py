@@ -65,6 +65,7 @@ from evn.change import (
 from evn.util import (
     one,
     none,
+    pid_exists,
     literal_eval,
     implicit_context,
     strip_linesep_if_present,
