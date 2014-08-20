@@ -257,9 +257,8 @@ class RunHookCommandLine(AdminCommandLine):
 class _SetRepoHookRemoteDebugCommandLine(AdminCommandLine):
     _conf_ = True
     _repo_ = True
-    _argc_ = 3
     _hook_ = True
-    _usage_ = '%prog [ options ] HOOK_NAME REPO_PATH'
+    _usage_ = '%prog [ options ] REPO_PATH'
     _command_ = evn.admin.commands.SetRepoHookRemoteDebugCommand
 
     def _add_parser_options(self):
