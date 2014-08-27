@@ -184,6 +184,16 @@ class _ArgumentType(Constant):
     Mandatory = 2
 ArgumentType = _ArgumentType()
 
+class CommandHelpFormatter(optparse.IndentedHelpFormatter):
+    def _default(self, txt):
+        return txt + "\n" if txt else ""
+
+    def format_description(self, description):
+        return self._default(description)
+
+    def format_epilog(self, epilog):
+        return self._default(epilog)
+
 class CommandLine:
     """
     The `CommandLine` class exposes `Command` classes via the `CLI` class.
@@ -199,6 +209,7 @@ class CommandLine:
     _vargc_ = None
     _usage_ = None
     _quiet_ = None
+    _epilog_ = None
     _verbose_ = None
     _command_ = None
     _aliases_ = None
@@ -277,7 +288,10 @@ class CommandLine:
             k.usage = '%prog [ options ] REPO_PATH'
         if self._description_:
             k.description = self._description_
+        if self._epilog_:
+            k.epilog = self._epilog_
 
+        k.formatter = CommandHelpFormatter()
         self.parser = optparse.OptionParser(**k)
 
         if self._verbose_:
