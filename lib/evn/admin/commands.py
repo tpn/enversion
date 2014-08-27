@@ -303,6 +303,7 @@ class DisableCommand(RepositoryCommand):
 
 class CreateRepoCommand(SubversionCommand):
     path = None
+    component_depth = None
     @requires_context
     def run(self):
         assert self.path
@@ -323,37 +324,52 @@ class CreateRepoCommand(SubversionCommand):
             self._verbose(' '.join(cmd))
             subprocess.check_call(cmd)
 
-        no_svnmucc = self.options.no_svnmucc
-        if not no_svnmucc:
-            no_svnmucc = self.conf.no_svnmucc_after_evnadmin_create
+        root_url = 'file://%s' % os.path.abspath(self.path)
 
-        standard_layout = self.conf.standard_layout
-        if not no_svnmucc and standard_layout:
-            cmd = [
-                'svnmucc',
-                '-m',
-                '"Initializing repository."',
-                '--root-url',
-                'file://%s' % os.path.abspath(self.path),
-            ]
-            for d in standard_layout:
-                cmd += [ 'mkdir', d ]
+        if self.options.verbose:
+            stdout = subprocess.PIPE
+        else:
+            stdout = open('/dev/null', 'w')
 
-            self._verbose(' '.join(cmd))
+        if not self.component_depth:
+            no_svnmucc = self.options.no_svnmucc
+            if not no_svnmucc:
+                no_svnmucc = self.conf.no_svnmucc_after_evnadmin_create
 
-            # check_output() (2.7 onward) allows us to suppress the svnmucc
-            # stdout easily; 2.6 doesn't have it, though, so revert to
-            # check_call().
-            try:
-                check_output = subprocess.check_output
-            except AttributeError:
-                check_output = subprocess.check_call
-            suppress_stdout = check_output(cmd)
+            standard_layout = self.conf.standard_layout
+            if not no_svnmucc and standard_layout:
+                cmd = [
+                    'svnmucc',
+                    '-m',
+                    '"Initializing repository."',
+                    '--root-url',
+                    root_url,
+                ]
+                for d in standard_layout:
+                    cmd += [ 'mkdir', d ]
+
+                self._verbose(' '.join(cmd))
+
+                suppress_stdout = subprocess.check_call(cmd, stdout=stdout)
 
         with Command.prime(self, EnableCommand) as command:
             command.path = self.path
             command.options.quiet = True
             command.run()
+
+        if self.component_depth in (0, 1):
+            cmd = [
+                'svn',
+                'propset',
+                '-q' if not self.options.verbose else '',
+                '-r0',
+                '--revprop',
+                'evn:component_depth',
+                str(self.component_depth),
+                root_url,
+            ]
+            self._verbose(' '.join(cmd))
+            suppress_output = subprocess.check_call(cmd, stdout=stdout)
 
 
 class SetRepoHookRemoteDebugCommand(RepoHookCommand):

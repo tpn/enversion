@@ -16,6 +16,10 @@ from evn.util import (
     Dict,
 )
 
+from evn.command import (
+    CommandError,
+)
+
 from evn.cli import (
     CLI,
     CommandLine,
@@ -207,6 +211,78 @@ class CreateCommandLine(AdminCommandLine):
     _command_   = evn.admin.commands.CreateRepoCommand
     _verbose_   = True
 
+    _description_ = (
+"""
+Create a new Enversion-enabled Subversion repository.
+
+Enversion can enforce two styles of repository layouts: single-component and
+multi-component.
+
+Single-component repository layout (default):
+    /trunk
+    /tags
+    /branches
+
+Multi-component repository:
+    /foo/trunk
+    /foo/tags
+    /foo/branches
+    /bar/trunk
+    /bar/tags
+    /bar/branches
+
+Single-component Repositories
+=============================
+By default, repositories are created in single-component mode.  This implies a
+component-depth of 0.  These commands are equivalent:
+
+    evnadmin create team1
+    evnadmin create -s team1
+    evnadmin create --single team1
+    evnadmin create -d 0 team1
+    evnadmin create --component-depth=0 team1
+
+And will create the following directory structure:
+    /trunk
+    /tags
+    /branches
+
+If you would like to disable the automatic directory creation, specify the
+-n/--no-svnmucc option, e.g.:
+
+    evnadmin create --no-svnmucc team1
+
+Multi-component Repositories
+============================
+A repository can be created in multi-component mode via the following commands:
+    evnadmin create -m team2
+    evnadmin create --multi team2
+    evnadmin create --component-depth=1 team2
+
+Enversion will then ensure top-level directories conform to the multi-component
+layout; that is, the first directory name in the path can be anything other
+than trunk, tags or branches, but the second directory name *must* be one of
+these.
+
+These are all valid paths in a multi-component repository:
+    /foo/trunk
+    /foo/branches
+    /bar/trunk
+    /bar/branches
+    /bar/tags
+
+However, Enversion would block you from creating the following directories:
+    /trunk
+    /tags
+    /branches
+    /foo/xyz
+    /cat/dog
+
+A single-component repository can be converted to a multi-component repository
+via the `evnadmin convert-to-multi-component-layout (ctmcl)` command.
+"""
+    )
+
     def _add_parser_options(self):
         self.parser.add_option(
             '-p', '--passthrough',
@@ -226,6 +302,37 @@ class CreateCommandLine(AdminCommandLine):
         )
 
         self.parser.add_option(
+            '-d', '--component-depth',
+            dest='component_depth',
+            type='int',
+            metavar='COMPONENT_DEPTH',
+            help=(
+                'specify a value of either 0 or 1 to enforce single or '
+                'multi-component repository layout [default: 0]'
+            )
+        )
+
+        self.parser.add_option(
+            '-s', '--single',
+            dest='single',
+            action='store_true',
+            help=(
+                'create a single-component repository (shortcut for '
+                '--component-depth=0)'
+            )
+        )
+
+        self.parser.add_option(
+            '-m', '--multi',
+            dest='multi',
+            action='store_true',
+            help=(
+                'create a multi-component repository (shortcut for '
+                '--component-depth=1)'
+            )
+        )
+
+        self.parser.add_option(
             '-n', '--no-svnmucc',
             dest='empty',
             action='store_true',
@@ -237,9 +344,24 @@ class CreateCommandLine(AdminCommandLine):
                 'which defaults to "branches,tags,trunk"; additionally, '
                 'the config variable \'no-svnmucc-after-evnadmin-create\' '
                 'can be set to a non-null value to always disable this '
-                'functionality)'
+                'functionality); ignored when --component-depth=1 specified'
             )
         )
+
+    def _process_parser_results(self):
+        opts = self.options
+
+        cd = opts.component_depth
+
+        if opts.single:
+            cd = 0
+        elif opts.multi:
+            cd = 1
+
+        if cd not in (0, 1):
+            raise CommandError("invalid component depth: %r" % cd)
+
+        self.command.component_depth = cd
 
 class RunHookCommandLine(AdminCommandLine):
     _conf_ = True
