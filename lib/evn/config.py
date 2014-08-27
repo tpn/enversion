@@ -7,7 +7,12 @@ import re
 import sys
 import stat
 
-from os.path import abspath, dirname
+from os.path import (
+    isdir,
+    abspath,
+    dirname,
+    expanduser,
+)
 
 from textwrap import dedent
 
@@ -17,8 +22,16 @@ from ConfigParser import (
     RawConfigParser,
 )
 
-from evn.util import try_int
-from evn.path import join_path, format_dir
+from evn.util import (
+    chdir,
+    try_int,
+    memoize,
+)
+
+from evn.path import (
+    join_path,
+    format_dir,
+)
 
 #===============================================================================
 # Classes
@@ -162,6 +175,7 @@ class Config(RawConfigParser):
         self.set('main', 'max-file-size-in-bytes', '26214400'), # 25MB
         self.set('main', 'standard-layout', 'branches,tags,trunk')
         self.set('main', 'no-svnmucc-after-evnadmin-create', '')
+        self.set('main', 'selftest-base-dir', '~/tmp/evn-test')
 
         self.set(
             'main',
@@ -393,5 +407,18 @@ class Config(RawConfigParser):
             return
         dirs = layout.split(',')
         return frozenset(format_dir(d) for d in dirs)
+
+    @property
+    @memoize
+    def selftest_base_dir(self):
+        """
+        The base temp directory used when running unit tests via the `evnadmin
+        selftest` command.  Defaults to ~/tmp/evn-test.  If the directory does
+        not exist, it is created.
+        """
+        d = expanduser(self.get('main', 'selftest-base-dir'))
+        if not isdir(d):
+            os.makedirs(d)
+        return d
 
 # vim:set ts=8 sw=4 sts=4 tw=78 et:
