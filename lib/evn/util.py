@@ -380,6 +380,18 @@ def pid_exists(pid):
         else:
             return True
 
+class chdir(object):
+    def __init__(self, path):
+        self.old_path = os.getcwd()
+        self.path = path
+
+    def __enter__(self):
+        os.chdir(self.path)
+        return self
+
+    def __exit__(self, *exc_info):
+        os.chdir(self.old_path)
+
 #===============================================================================
 # Memoize Helpers (lovingly stolen from conda.utils)
 #===============================================================================
