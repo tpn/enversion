@@ -65,6 +65,7 @@ from evn.change import (
 from evn.util import (
     one,
     none,
+    memoize,
     pid_exists,
     literal_eval,
     implicit_context,
@@ -1104,6 +1105,20 @@ class RepositoryRevOrTxn(ImplicitContextSensitiveObject):
     def last_rev(self):
         return self.__last_rev
 
+    @memoize
+    @property
+    def component_depth(self):
+        rc0 = self.r0_revprop_conf
+        v = rc0.get('component_depth')
+        if v is None or v == '' or not v.isdigit():
+            return -1
+
+        d = int(v)
+        if d < 0:
+            return -1
+
+        return d
+
     @property
     def base_rev_roots(self):
         return self.__base_rev_roots
@@ -1715,6 +1730,8 @@ class RepositoryRevOrTxn(ImplicitContextSensitiveObject):
                 self.__processed_replace(c)
             return
 
+        self._check_component_depth(c)
+
         pm = self.pathmatcher
         rm = self.rootmatcher
 
@@ -1832,6 +1849,37 @@ class RepositoryRevOrTxn(ImplicitContextSensitiveObject):
                 self.__processed_replace(c)
 
         return
+
+    def _check_component_depth(self, c):
+        standard = self.conf.standard_layout
+        if not standard:
+            return
+
+        # Ignore files and non-create changes for now (i.e. only process
+        # mkdirs)
+        if c.is_file or not c.is_create:
+            return
+
+        # For now, let's just support an explicit component depth of 0 and 1.
+        # We only need to handle 1 here -- 0 implies a single-component layout
+        # (i.e. just /trunk, /tags and /branches at the root of the repo), and
+        # that is enforced in __process_toplevel_dirs().
+        component_depth = self.component_depth
+        if component_depth != 1:
+            return
+
+        # '/foo/trunk/' -> ['foo', 'trunk']
+        parts = c.path.split('/')[1:]
+        parts_len = len(parts)
+
+        if parts_len != 2:
+            return
+
+        err = e.InvalidTopLevelRepoComponentDirectoryCreated % parts[0]
+        msg = err % ', '.join("'%s'" % r for r in standard)
+
+        if parts[-1] not in standard:
+            c.error(msg)
 
     def __has_mismatched_previous_details(self, c):
         assert c.is_modify
@@ -2070,6 +2118,11 @@ class RepositoryRevOrTxn(ImplicitContextSensitiveObject):
         # Ensure top-level directories in changeset align with standard root
         # layout directories when applicable.
         if cs.is_rev:
+            return
+
+        # A non-zero component_depth indicates multi-component repository, in
+        # which case, this method doesn't need to run.
+        if self.component_depth >= 1:
             return
 
         standard = self.conf.standard_layout
