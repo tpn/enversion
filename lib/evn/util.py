@@ -3,6 +3,7 @@
 #===============================================================================
 import os
 import sys
+import shutil
 import inspect
 import datetime
 import itertools
@@ -363,6 +364,13 @@ def try_remove_file(path):
 def try_remove_file_atexit(path):
     import atexit
     atexit.register(try_remove_file, path)
+
+def try_remove_dir(path):
+    shutil.rmtree(path, ignore_errors=True)
+
+def try_remove_dir_atexit(path):
+    import atexit
+    atexit.register(try_remove_dir, path)
 
 def pid_exists(pid):
     if os.name == 'nt':
