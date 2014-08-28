@@ -17,7 +17,11 @@ from collections import defaultdict
 
 from abc import ABCMeta
 
-from evn.path import format_dir
+from evn.path import (
+    join_path,
+    format_dir,
+    build_tree,
+)
 
 from evn.util import (
     try_remove_dir,
@@ -72,6 +76,10 @@ class TestRepo(object):
         self.svn.checkout(self.uri, self.wc)
         self.dot()
         try_remove_dir_atexit(self.wc)
+
+    def build(self, tree, prefix=''):
+        build_tree(tree, prefix=''.join((self.wc, prefix)))
+
 
 class EnversionTest(object):
     __metaclass__ = ABCMeta
