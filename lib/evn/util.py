@@ -966,6 +966,7 @@ class ProcessWrapper(object):
         self.wait     = True
         self.error    = str()
         self.output   = str()
+        self.shell    = kwds.get('shell', False)
         self.ostream  = kwds.get('ostream', sys.stdout)
         self.estream  = kwds.get('estream', sys.stderr)
         self.verbose  = kwds.get('verbose', False)
@@ -1010,8 +1011,15 @@ class ProcessWrapper(object):
             cmd = ' '.join(self.safe_cmd or self.cmd)
             self.ostream.write('%s>%s\n' % (cwd, cmd))
 
-        self.p = Popen(self.cmd, executable=self.exe, cwd=self.cwd,
-                       stdin=PIPE, stdout=PIPE, stderr=PIPE)
+        self.p = Popen(
+            self.cmd,
+            cwd=self.cwd,
+            stdin=PIPE,
+            stdout=PIPE,
+            stderr=PIPE,
+            shell=self.shell,
+        )
+
         if not self.wait:
             return
 
