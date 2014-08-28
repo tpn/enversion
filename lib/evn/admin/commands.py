@@ -52,6 +52,7 @@ from evn.change import (
 )
 
 from evn.util import (
+    chdir,
     requires_context,
     Pool,
     Dict,
@@ -65,11 +66,8 @@ from evn.util import (
 
 class DoctestCommand(Command):
     def run(self):
-        DoctestCommand.run_standalone(quiet=self.options.quiet)
-
-    @classmethod
-    def run_standalone(cls, quiet=None):
-        assert quiet in (True, False)
+        self._out("running doctests...")
+        quiet = self.options.quiet
         import doctest
         import evn.path
         import evn.root
@@ -81,17 +79,24 @@ class DoctestCommand(Command):
         doctest.testmod(evn.util, verbose=verbose)
         doctest.testmod(evn.logic, verbose=verbose)
 
+class UnittestCommand(Command):
+    def run(self):
+        self._out("running unit tests...")
+        with chdir(self.conf.selftest_base_dir):
+            import evn.test
+            evn.test.main(quiet=self.options.quiet)
 
 class SelftestCommand(Command):
+    tests = (
+        DoctestCommand,
+        UnittestCommand,
+    )
+
     def run(self):
         quiet = self.options.quiet
-        self._out("running doctests")
-        DoctestCommand.run_standalone(quiet=quiet)
-
-        self._out("running unit tests")
-        import evn.test
-        evn.test.main(quiet=quiet)
-
+        for test in self.tests:
+            with Command.prime(self, test) as command:
+                command.run()
 
 class DumpDefaultConfigCommand(Command):
     def run(self):

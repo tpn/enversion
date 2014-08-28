@@ -46,6 +46,9 @@ class AdminCLI(CLI):
 class DoctestCommandLine(AdminCommandLine):
     _quiet_ = True
 
+class UnittestCommandLine(AdminCommandLine):
+    _quiet_ = True
+
 class SelftestCommandLine(AdminCommandLine):
     _quiet_ = True
 
