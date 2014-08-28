@@ -22,28 +22,30 @@ class SubversionClient(ProcessWrapper):
 
     def build_command_line(self, exe, action, *args, **kwds):
         #import wingdbstub
-        assert self.username and self.password
         args = list(args)
         kwds = dict(kwds)
-        kwds['username'] = self.username
-        kwds['password'] = self.password
-        kwds['no_auth_cache']   = True
-        kwds['non_interactive'] = True
 
-        if action == 'ci' and 'm' not in kwds:
-            kwds['m'] = '""'
+        if action == 'ci':
+            assert self.username and self.password
+            kwds['username'] = self.username
+            kwds['password'] = self.password
+            kwds['no_auth_cache']   = True
+            kwds['non_interactive'] = True
 
-        if 'm' in kwds:
-            m = kwds['m'] or '""'
-            if not m.startswith('"'):
-                m = '"' + m
-            if not m.endswith('"'):
-                m = m + '"'
-            kwds['m'] = m
+            if 'm' not in kwds:
+                kwds['m'] = '""'
 
-        if 'u' in kwds:
-            kwds['username'] = kwds['u']
-            del kwds['u']
+            if 'm' in kwds:
+                m = kwds['m'] or '""'
+                if not m.startswith('"'):
+                    m = '"' + m
+                if not m.endswith('"'):
+                    m = m + '"'
+                kwds['m'] = m
+
+            if 'u' in kwds:
+                kwds['username'] = kwds['u']
+                del kwds['u']
 
         return ProcessWrapper.build_command_line(self, exe, action,
                                                  *args, **kwds)
