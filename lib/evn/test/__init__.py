@@ -145,12 +145,16 @@ def main(quiet=None):
     verbosity = int(not quiet)
     runner = unittest.TextTestRunner(
         stream=stream,
-        failfast=True,
         verbosity=verbosity,
     )
+    failed = 0
     for suite in suites(stream):
         result = runner.run(suite)
         if not result.wasSuccessful():
-            sys.exit(1)
+            failed += 1
+
+    if failed:
+        sys.stderr.write('\n*** FAILURES: %d ***\n' % failed)
+        sys.exit(1)
 
 # vim:set ts=8 sw=4 sts=4 tw=78 et:
