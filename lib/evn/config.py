@@ -34,6 +34,41 @@ from evn.path import (
 )
 
 #===============================================================================
+# Globals
+#===============================================================================
+CONFIG = None
+
+#===============================================================================
+# Exceptions
+#===============================================================================
+class ConfigError(BaseException):
+    pass
+
+class NoConfigObjectCreated(BaseException):
+    pass
+
+#===============================================================================
+# Helpers
+#===============================================================================
+def get_config():
+    global CONFIG
+    if not CONFIG:
+        raise NoConfigObjectCreated()
+    return CONFIG
+
+def get_or_create_config():
+    global CONFIG
+    if not CONFIG:
+        CONFIG = Config()
+        CONFIG.load()
+    return CONFIG
+
+def clear_config_if_already_created():
+    global CONFIG
+    if CONFIG:
+        CONFIG = None
+
+#===============================================================================
 # Classes
 #===============================================================================
 class ConfigError(Exception):
