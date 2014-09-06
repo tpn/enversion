@@ -28,6 +28,10 @@ from evn.util import (
     try_remove_dir_atexit,
 )
 
+from evn.exe import (
+    SubversionClientException,
+)
+
 #===============================================================================
 # Classes
 #===============================================================================
@@ -138,6 +142,23 @@ def crude_error_message_test(actual, expected):
         return False
 
     return expected[:ix] in actual
+
+class ensure_blocked(object):
+    def __init__(self, obj, expected):
+        self.obj = obj
+        self.expected = expected
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc_info):
+        (exc_type, exc_val, exc_tb) = exc_info
+        obj = self.obj
+        obj.assertEqual(exc_type, SubversionClientException)
+        actual = exc_val.args[1]
+        obj.assertTrue(crude_error_message_test(actual, self.expected))
+        return True
+
 
 #===============================================================================
 # Main
