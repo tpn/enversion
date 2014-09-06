@@ -159,7 +159,12 @@ class ensure_blocked(object):
         obj = self.obj
         obj.assertEqual(exc_type, SubversionClientException)
         actual = exc_val.args[1]
-        obj.assertTrue(crude_error_message_test(actual, self.expected))
+        if not crude_error_message_test(actual, self.expected):
+            # Ugh, this is hacky; use self.assertEqual() here just so we can
+            # have the two different values printed out for us (which won't
+            # happen if we pass the result of the method call above to
+            # assertTrue()).
+            obj.assertEqual(actual, self.expected)
         return True
 
 
