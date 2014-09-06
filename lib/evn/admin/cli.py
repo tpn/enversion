@@ -338,7 +338,7 @@ via the `evnadmin convert-to-multi-component-layout (ctmcl)` command.
 
         self.parser.add_option(
             '-n', '--no-svnmucc',
-            dest='empty',
+            dest='no_svnmucc',
             action='store_true',
             help=(
                 'don\'t attempt to automatically create the standard '
