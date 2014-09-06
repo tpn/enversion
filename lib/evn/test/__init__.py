@@ -126,11 +126,14 @@ def all_tests():
 def announce(stream, module_name, test_class):
     stream.write('%s: %s\n' % (module_name, test_class))
 
-def suites(stream):
+def suites(stream, single=None):
     loader = unittest.defaultTestLoader
     for (module_name, classes) in all_tests().items():
         for test_class in classes:
-            announce(stream, module_name, test_class.__name__)
+            classname = test_class.__name__
+            if single and not classname.endswith(single):
+                continue
+            announce(stream, module_name, classname)
             yield loader.loadTestsFromTestCase(test_class)
 
 def crude_error_message_test(actual, expected):
@@ -178,7 +181,12 @@ def main(quiet=None):
         verbosity=verbosity,
     )
     failed = 0
-    for suite in suites(stream):
+
+    single = None
+    if len(sys.argv) == 3:
+        single = sys.argv[-1]
+
+    for suite in suites(stream, single):
         result = runner.run(suite)
         if not result.wasSuccessful():
             failed += 1
