@@ -4,6 +4,8 @@
 import unittest
 
 from evn.test import (
+    ensure_blocked,
+
     TestRepo,
     EnversionTest,
 )
@@ -24,6 +26,10 @@ from evn.config import (
 from evn.test.dot import (
     dot,
 )
+
+from evn.constants import (
+    e, # Errors
+)
 #===============================================================================
 # Globals
 #===============================================================================
@@ -39,29 +45,20 @@ def suite():
         TestNoComponentDepthRepo,
     )
 
-class ensure_success(object):
-    success = True
-    def __init__(self, obj):
-        self.obj = obj
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, *exc_info):
-        null_exc = (None, None, None)
-        fn = self.obj.assertEqual
-        if not self.success:
-            fn = self.obj.assertNotEqual
-        fn(null_exc, exc_info)
-
-class ensure_failure(ensure_success):
-    success = False
 
 #===============================================================================
 # Test Classes
 #===============================================================================
 class TestSingleComponentRepo(EnversionTest, unittest.TestCase):
     def test_01_basic(self):
+        """
+        Given:
+            /trunk/
+            /tags/
+            /branches/
+        Make sure we can't create:
+            /bar/
+        """
         repo = self.create_repo()
         svn = repo.svn
 
@@ -71,13 +68,21 @@ class TestSingleComponentRepo(EnversionTest, unittest.TestCase):
         self.assertEqual(expected, actual)
         dot()
 
-        with ensure_failure(self):
-            with chdir(repo.wc):
-                svn.mkdir('bar')
+        expected = e.InvalidTopLevelRepoDirectoryCreated
+        with chdir(repo.wc):
+            svn.mkdir('bar')
+            with ensure_blocked(self, expected):
                 svn.ci()
                 dot()
 
     def test_02_no_svnmucc__commit_individually(self):
+        """
+        Create an empty repo via `evnadmin create --no-svnmucc`, then issue
+        three individual mkdirs then commits for:
+            /trunk/
+            /tags/
+            /branches/
+        """
         repo = self.create_repo(no_svnmucc=True)
         svn = repo.svn
 
@@ -86,22 +91,29 @@ class TestSingleComponentRepo(EnversionTest, unittest.TestCase):
         dot()
 
         for d in conf.standard_layout:
-            with ensure_success(self):
-                with chdir(repo.wc):
-                    # Lop-off the leading '/'.
-                    svn.mkdir(d[1:])
-                    svn.ci()
+            with chdir(repo.wc):
+                # Lop-off the leading '/'.
+                svn.mkdir(d[1:])
+                svn.ci()
+                dot()
 
     def test_03_no_svnmucc__commit_together(self):
+        """
+        Create an empty repo via `evnadmin create --no-svnmucc`, then issue
+        three mkdirs followed by a single commit for:
+            /trunk/
+            /tags/
+            /branches/
+        """
         repo = self.create_repo(no_svnmucc=True)
         svn = repo.svn
 
-        with ensure_success(self):
-            with chdir(repo.wc):
-                for d in conf.standard_layout:
-                    # Lop-off the leading '/'.
-                    svn.mkdir(d[1:])
-                svn.ci()
+        with chdir(repo.wc):
+            for d in conf.standard_layout:
+                # Lop-off the leading '/'.
+                svn.mkdir(d[1:])
+            svn.ci()
+            dot()
 
 
 class TestMultiComponentRepo(EnversionTest, unittest.TestCase):
