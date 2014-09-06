@@ -65,6 +65,8 @@ def try_int(i):
         return i
 
 def is_int(i):
+    if i is None:
+        return False
     try:
         int(i)
     except ValueError:
