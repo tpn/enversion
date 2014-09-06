@@ -132,7 +132,7 @@ class _Errors(Constant):
     InvalidTopLevelRepoDirectoryCreated = "invalid top-level repository directory (valid top-level directories: %s)"
     TopLevelRepoDirectoryRemoved = "top-level repository directories cannot be removed"
     TopLevelRepoDirectoryReplaced = "top-level repository directories cannot be replaced"
-    InvalidTopLevelRepoComponentDirectoryCreated = "invalid top-level repositorydirectory created for component '%s' (valid top-level directories: %s)"
+    InvalidTopLevelRepoComponentDirectoryCreated = "invalid top-level repository directory created for component '%s' (valid top-level directories: %s)"
     TopLevelRepoComponentDirectoryRemoved = "top-level repository directories cannot be removed for component '%s'"
     TopLevelRepoComponentDirectoryReplaced = "top-level repository directories cannot be replaced for component '%s'"
 
