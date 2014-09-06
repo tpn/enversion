@@ -314,7 +314,8 @@ via the `evnadmin convert-to-multi-component-layout (ctmcl)` command.
             metavar='COMPONENT_DEPTH',
             help=(
                 'specify a value of either 0 or 1 to enforce single or '
-                'multi-component repository layout [default: %default]'
+                'multi-component repository layout, or -1 to disable '
+                'all component-depth functionality [default: %default]'
             )
         )
 
@@ -366,7 +367,7 @@ via the `evnadmin convert-to-multi-component-layout (ctmcl)` command.
         else:
             cd = opts.component_depth
 
-        if cd not in (0, 1):
+        if cd not in (-1, 0, 1):
             raise CommandError("invalid component depth: %r" % cd)
 
         self.command.component_depth = cd
