@@ -17,6 +17,10 @@ from collections import defaultdict
 
 from abc import ABCMeta
 
+from functools import (
+    partial,
+)
+
 from evn.path import (
     join_path,
     format_dir,
@@ -178,6 +182,49 @@ class ensure_blocked(object):
             obj.assertEqual(actual, self.expected)
         return True
 
+#===============================================================================
+# Decorators
+#===============================================================================
+class expected_roots(object):
+    """
+    Helper decorator for automatically testing evn:roots values after a test
+    has run, based on the roots dict passed in as the first argument to the
+    decorator, e.g.:
+
+        class TestSimpleRoots(EnversionTest, unittest.TestCase):
+            @expected_roots({
+                '/trunk/': {
+                    'copies': {},
+                    'created': 1,
+                    'creation_method': 'created',
+                }
+            })
+            def test_01_basic(self):
+                repo = self.create_repo()
+
+
+    The roots can be accessed via class.func.roots, i.e. for the example
+    above, the dict would be accessible from TestSimpleRoots.test_basic.roots.
+    """
+    def __init__(self, roots):
+        self.func = None
+        self.roots = roots
+
+    def __get__(self, obj, objtype=None):
+        if obj is None:
+            return self.func
+        return partial(self, obj)
+
+    def __call__(self, *args, **kwds):
+        if not self.func:
+            self.func = args[0]
+            return self
+
+        self.func(*args, **kwds)
+
+        obj = args[0]
+        obj.repo.dot()
+        obj.assertEqual(self.roots, obj.repo.roots)
 
 #===============================================================================
 # Main
