@@ -129,6 +129,15 @@ def suites(stream):
             announce(stream, module_name, test_class.__name__)
             yield loader.loadTestsFromTestCase(test_class)
 
+def crude_error_message_test(actual, expected):
+    ix = x.find('%')
+    if ix == -1:
+        return expected in actual
+
+    if len(actual) < len(expected):
+        return False
+
+    return expected[:ix] in actual
 
 #===============================================================================
 # Main
