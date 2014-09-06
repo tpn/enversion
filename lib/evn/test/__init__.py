@@ -96,6 +96,8 @@ class TestRepo(object):
 class EnversionTest(object):
     __metaclass__ = ABCMeta
 
+    repo = None
+
     def create_repo(self, checkout=True, **kwds):
         test_name = inspect.currentframe().f_back.f_code.co_name
         repo_name = '_'.join((self.__class__.__name__, test_name))
@@ -103,6 +105,7 @@ class EnversionTest(object):
         repo.create(**kwds)
         if checkout:
             repo.checkout()
+        self.repo = repo
         return repo
 
 #===============================================================================
