@@ -132,12 +132,13 @@ class TestSingleComponentRepo(EnversionTest, unittest.TestCase):
         self.assertEqual(expected, actual)
         dot()
 
-        expected = e.TopLevelRepoDirectoryRemoved
+        error = e.TopLevelRepoDirectoryRemoved
+        paths = [ p.replace('/', '') for p in conf.standard_layout ]
         with chdir(repo.wc):
-            paths = [ p.replace('/', '') for p in actual ]
             for path in paths:
+                dot()
                 svn.rm(path)
-                with ensure_blocked(self, expected):
+                with ensure_blocked(self, error):
                     svn.ci(path)
 
 class TestMultiComponentRepo(EnversionTest, unittest.TestCase):
