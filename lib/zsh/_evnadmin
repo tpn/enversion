@@ -1,0 +1,62 @@
+#compdef evnadmin
+
+_evnadmin() {
+    local context state line expl
+    local -a subcmds
+
+    subcmds=(
+        analyze
+        create
+        disable
+        disable-remote-debug
+        doctest
+        dump-config
+        dump-default-config
+        dump-hook-code
+        dump-repo-config
+        enable
+        enable-remote-debug
+        find-merges
+        fix-hooks
+        purge-evn-props
+        root-info
+        run-hook
+        selftest
+        show-config-file-load-order
+        show-repo-config-file-load-order
+        status
+        show-repo-hook-status
+        show-repo-remote-debug-sessions
+        show-roots
+        toggle-remote-debug
+        version
+    )
+
+    if [[ $service == "evnadmin" ]]; then
+        _arguments -C -A "-*" \
+            '-\?[help]' \
+            '*::command:->subcmd' && return 0
+
+        if ((CURRENT == 1)); then
+            _wanted commands expl "evnadmin subcommand" \
+                compadd -a subcmds
+            return
+        fi
+
+        service="$words[1]"
+        curcontext="${curcontext%:*}=$service:"
+    fi
+
+    case $service in
+    (create)
+        _arguments -A '-*' \
+            '(- *)--help[Help]' \
+            '--verbose' \
+            '--conf[use alternate configuration file]'
+        ;;
+
+}
+
+_evnadmin "$@"
+
+# vim:set ts=8 sw=4 sts=4 tw=78 et:
