@@ -64,6 +64,14 @@ def try_int(i):
     else:
         return i
 
+def is_int(i):
+    try:
+        int(i)
+    except ValueError:
+        return False
+    else:
+        return True
+
 def requires_context(f):
     @wraps(f)
     def wrapper(*args, **kwds):
