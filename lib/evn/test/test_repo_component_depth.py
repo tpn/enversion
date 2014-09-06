@@ -272,6 +272,16 @@ class TestMultiComponentRepo(EnversionTest, unittest.TestCase):
                 svn.ci('fulcrum')
 
 class TestNoComponentDepthRepo(EnversionTest, unittest.TestCase):
+    @expected_roots({
+        '/trunk/': {'created': 3},
+        '/branches/foo-1.x/': { 'created': 6 },
+        '/foo/trunk/': { 'created': 5 },
+        '/fulcrum/flanker/foxbat/trunk/': {
+            'copies': {},
+            'created': 8,
+            'creation_method': 'created',
+        },
+    })
     def test_01_creation(self):
         """
         Create a repository with component-depth support disabled, then create
