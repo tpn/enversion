@@ -141,7 +141,17 @@ class TestSingleComponentRepo(EnversionTest, unittest.TestCase):
                     svn.ci(path)
 
 class TestMultiComponentRepo(EnversionTest, unittest.TestCase):
-    pass
+    def test_01_creation(self):
+        """
+        Create a multi-component repo via `evnadmin create --multi`.  The
+        resulting repository should be empty.
+        """
+        repo = self.create_repo(multi=True)
+        svn = repo.svn
+
+        actual = svn.ls(repo.uri)
+        self.assertEqual('', actual)
+
 
 class TestNoComponentDepthRepo(EnversionTest, unittest.TestCase):
     pass
