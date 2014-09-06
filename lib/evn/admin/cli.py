@@ -355,12 +355,14 @@ via the `evnadmin convert-to-multi-component-layout (ctmcl)` command.
     def _process_parser_results(self):
         opts = self.options
 
-        if opts.component_depth:
-            cd = opts.component_depth
-        elif opts.multi:
+        cd = None
+
+        if opts.multi:
             cd = 1
-        else:
+        elif opts.single:
             cd = 0
+        else:
+            cd = opts.component_depth
 
         if cd not in (0, 1):
             raise CommandError("invalid component depth: %r" % cd)
