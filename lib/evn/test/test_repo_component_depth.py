@@ -153,9 +153,151 @@ class TestMultiComponentRepo(EnversionTest, unittest.TestCase):
         actual = svn.ls(repo.uri)
         self.assertEqual('', actual)
 
+    def test_02_standard_layout_blocked(self):
+        """
+        Ensure top-level standard layout directories can't be created.
+        """
+        repo = self.create_repo(multi=True)
+        svn = repo.svn
+
+        actual = svn.ls(repo.uri)
+        self.assertEqual('', actual)
+
+        error = e.StandardLayoutTopLevelDirectoryCreatedInMultiComponentRepo
+        paths = [ p.replace('/', '') for p in conf.standard_layout ]
+        with chdir(repo.wc):
+            for path in paths:
+                dot()
+                svn.mkdir(path)
+                with ensure_blocked(self, error):
+                    svn.ci(path)
+
+    def test_03_component_standard_layout_allowed(self):
+        """
+        Ensure top-level standard layout directories can be created if they're
+        housed under a component.
+        """
+        repo = self.create_repo(multi=True)
+        svn = repo.svn
+
+        paths = [ p.replace('/', '') for p in conf.standard_layout ]
+        with chdir(repo.wc):
+            for component in ('foo', 'bar'):
+                svn.mkdir(component)
+                for path in paths:
+                    dot()
+                    target = '/'.join((component, path))
+                    svn.mkdir(target)
+                svn.ci(component)
+
+    def test_04_block_two_deep_non_standard_dirs(self):
+        """
+        Prevent any two-level deep directories from being created if they're
+        not a standard directory.
+        """
+        repo = self.create_repo(multi=True)
+        svn = repo.svn
+
+        error = e.InvalidTopLevelRepoComponentDirectoryCreated
+        paths = [ p.replace('/', '') for p in conf.standard_layout ]
+        with chdir(repo.wc):
+            dot()
+            svn.mkdir('foo')
+            svn.ci()
+
+            dot()
+            svn.mkdir('foo/bar')
+            with ensure_blocked(self, error):
+                svn.ci()
+
+    def test_05_block_n_deep_non_standard_dirs(self):
+        """
+        Prevent any > two-level deep directories from being created if they're
+        not a standard directory.
+        """
+        repo = self.create_repo(multi=True)
+        svn = repo.svn
+
+        error = e.InvalidTopLevelRepoComponentDirectoryCreated
+        paths = [ p.replace('/', '') for p in conf.standard_layout ]
+        with chdir(repo.wc):
+            dot()
+            svn.mkdir('foo')
+            svn.ci()
+
+            dot()
+            svn.mkdir('foo/bar')
+            svn.mkdir('foo/bar/tmp')
+            with ensure_blocked(self, error):
+                svn.ci()
+
+            dot()
+            svn.mkdir('viper')
+            svn.mkdir('viper/eagle')
+            svn.mkdir('viper/eagle/tomcat')
+            with ensure_blocked(self, error):
+                svn.ci('viper')
+
+            dot()
+            svn.mkdir('fulcrum')
+            svn.mkdir('fulcrum/flanker')
+            svn.mkdir('fulcrum/flanker/foxbat')
+            svn.mkdir('fulcrum/flanker/foxbat/tags')
+            svn.mkdir('fulcrum/flanker/foxbat/trunk')
+            svn.mkdir('fulcrum/flanker/foxbat/branches')
+            with ensure_blocked(self, error):
+                svn.ci('fulcrum')
 
 class TestNoComponentDepthRepo(EnversionTest, unittest.TestCase):
-    pass
+    def test_01_creation(self):
+        """
+        Create a repository with component-depth support disabled, then create
+        various levels of directories that would be blocked by simple/multi
+        component layouts.
+        """
+        repo = self.create_repo(component_depth='-1')
+        svn = repo.svn
+
+        actual = svn.ls(repo.uri)
+        self.assertEqual('', actual)
+        dot()
+
+        paths = [ p.replace('/', '') for p in conf.standard_layout ]
+        with chdir(repo.wc):
+            for path in paths:
+                dot()
+                svn.mkdir(path)
+                svn.ci(path)
+
+            dot()
+            svn.mkdir('foo')
+            svn.mkdir('foo/bar')
+            svn.ci('foo')
+
+            dot()
+            svn.mkdir('foo/trunk')
+            svn.ci('foo/trunk')
+
+            dot()
+            svn.up()
+            svn.cp('foo/trunk', 'branches/foo-1.x')
+            svn.ci(m='Branching 1.x')
+            svn.ci()
+
+            dot()
+            svn.mkdir('viper')
+            svn.mkdir('viper/eagle')
+            svn.mkdir('viper/eagle/tomcat')
+            svn.ci('viper')
+
+            dot()
+            svn.mkdir('fulcrum')
+            svn.mkdir('fulcrum/flanker')
+            svn.mkdir('fulcrum/flanker/foxbat')
+            svn.mkdir('fulcrum/flanker/foxbat/tags')
+            svn.mkdir('fulcrum/flanker/foxbat/trunk')
+            svn.mkdir('fulcrum/flanker/foxbat/branches')
+            svn.ci('fulcrum')
 
 def main():
     runner = unittest.TextTestRunner()
