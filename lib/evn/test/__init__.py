@@ -36,6 +36,8 @@ from evn.exe import (
 # Classes
 #===============================================================================
 class TestRepo(object):
+    keep = False
+
     def __init__(self, name):
         self.name = name
         self.path = abspath(name)
@@ -72,14 +74,16 @@ class TestRepo(object):
             try_remove_dir(self.name)
         self.evnadmin.create(self.name, **kwds)
         self.dot()
-        try_remove_dir_atexit(self.path)
+        if not self.keep:
+            try_remove_dir_atexit(self.path)
 
     def checkout(self):
         if isdir(self.wc):
             try_remove_dir(self.wc)
         self.svn.checkout(self.uri, self.wc)
         self.dot()
-        try_remove_dir_atexit(self.wc)
+        if not self.keep:
+            try_remove_dir_atexit(self.wc)
 
     def build(self, tree, prefix=''):
         build_tree(tree, prefix=''.join((self.wc, prefix)))
@@ -190,6 +194,7 @@ def main(quiet=None):
     single = None
     if len(sys.argv) == 3:
         single = sys.argv[-1]
+        TestRepo.keep = True
 
     for suite in suites(stream, single):
         result = runner.run(suite)
