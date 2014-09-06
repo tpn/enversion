@@ -980,6 +980,9 @@ class ProcessWrapper(object):
         self.ostream  = kwds.get('ostream', sys.stdout)
         self.estream  = kwds.get('estream', sys.stderr)
         self.verbose  = kwds.get('verbose', False)
+        self.convert_command_name_underscores_to_dashes = (
+            kwds.get('convert_command_name_underscores_to_dashes', True)
+        )
         self.safe_cmd = None
         self.exception_class = RuntimeError
         self.raise_exception_on_error = True
@@ -994,6 +997,9 @@ class ProcessWrapper(object):
         return self.execute(*args, **kwds)
 
     def build_command_line(self, exe, action, *args, **kwds):
+        if self.convert_command_name_underscores_to_dashes:
+            action = action.replace('_', '-')
+
         cmd  = [ exe, action ]
         for (k, v) in kwds.items():
             cmd.append(
