@@ -65,6 +65,7 @@ from evn.change import (
 from evn.util import (
     one,
     none,
+    is_int,
     memoize,
     pid_exists,
     literal_eval,
@@ -1105,12 +1106,12 @@ class RepositoryRevOrTxn(ImplicitContextSensitiveObject):
     def last_rev(self):
         return self.__last_rev
 
-    @memoize
     @property
+    @memoize
     def component_depth(self):
         rc0 = self.r0_revprop_conf
         v = rc0.get('component_depth')
-        if v is None or v == '' or not v.isdigit():
+        if not is_int(v):
             return -1
 
         d = int(v)
