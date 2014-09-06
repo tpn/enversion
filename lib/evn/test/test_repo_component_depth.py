@@ -115,6 +115,30 @@ class TestSingleComponentRepo(EnversionTest, unittest.TestCase):
             svn.ci()
             dot()
 
+    def test_04_rm_standard_layout(self):
+        """
+        Given:
+            /trunk/
+            /tags/
+            /branches/
+        Make sure we can't rmdir any of the paths.
+        """
+        repo = self.create_repo()
+        svn = repo.svn
+
+        expected = conf.standard_layout
+        raw = svn.ls(repo.uri)
+        actual = frozenset(format_dir(l) for l in raw.splitlines())
+        self.assertEqual(expected, actual)
+        dot()
+
+        expected = e.TopLevelRepoDirectoryRemoved
+        with chdir(repo.wc):
+            paths = [ p.replace('/', '') for p in actual ]
+            for path in paths:
+                svn.rm(path)
+                with ensure_blocked(self, expected):
+                    svn.ci(path)
 
 class TestMultiComponentRepo(EnversionTest, unittest.TestCase):
     pass
