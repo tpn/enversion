@@ -24,6 +24,7 @@ from evn.path import (
 )
 
 from evn.util import (
+    literal_eval,
     try_remove_dir,
     try_remove_dir_atexit,
 )
@@ -88,6 +89,9 @@ class TestRepo(object):
     def build(self, tree, prefix=''):
         build_tree(tree, prefix=''.join((self.wc, prefix)))
 
+    @property
+    def roots(self):
+        return literal_eval(self.evnadmin.show_roots(self.name, quiet=True))
 
 class EnversionTest(object):
     __metaclass__ = ABCMeta
