@@ -1870,16 +1870,17 @@ class RepositoryRevOrTxn(ImplicitContextSensitiveObject):
             return
 
         # '/foo/trunk/' -> ['foo', 'trunk']
-        parts = c.path.split('/')[1:]
+        parts = c.path.split('/')[1:-1]
         parts_len = len(parts)
 
         if parts_len != 2:
             return
 
-        err = e.InvalidTopLevelRepoComponentDirectoryCreated % parts[0]
+        err = e.InvalidTopLevelRepoComponentDirectoryCreated % (parts[0], '%s')
         msg = err % ', '.join("'%s'" % r for r in standard)
 
-        if parts[-1] not in standard:
+        path = '/%s/' % parts[-1]
+        if path not in standard:
             c.error(msg)
 
     def __has_mismatched_previous_details(self, c):
@@ -2123,15 +2124,17 @@ class RepositoryRevOrTxn(ImplicitContextSensitiveObject):
 
         # A non-zero component_depth indicates multi-component repository, in
         # which case, this method doesn't need to run.
-        if self.component_depth >= 1:
-            return
+        is_multi = bool(self.component_depth == 1)
+        is_single = bool(self.component_depth == 0)
+        is_neither = bool(self.component_depth == -1)
 
         standard = self.conf.standard_layout
         if not standard:
             return
 
         standard_str = ', '.join("'%s'" % r for r in standard)
-        mkdir_msg = e.InvalidTopLevelRepoDirectoryCreated % standard_str
+        single_msg = e.InvalidTopLevelRepoDirectoryCreated % standard_str
+        multi_msg = e.StandardLayoutTopLevelDirectoryCreatedInMultiComponentRepo
 
         for d in cs.dirs:
             c = cs[d.path]
@@ -2141,8 +2144,26 @@ class RepositoryRevOrTxn(ImplicitContextSensitiveObject):
                 # If the directory already exists, let it through.
                 continue
 
-            elif c.is_create and top not in standard:
-                c.error(mkdir_msg)
+            elif c.is_create:
+                if is_multi:
+                    if top in standard:
+                        # Prevent top-level tags/trunk/branches from being
+                        # created if we're a multi-component repository.
+                        c.error(multi_msg)
+
+                    else:
+                        # Let non-standard top-level directories go through.
+                        continue
+                elif is_single:
+                    if top not in standard:
+                        # Prevent non-standard top-level directories from
+                        # being created when we're a single-component repo.
+                        c.error(single_msg)
+                    else:
+                        continue
+                else:
+                    # No component-depth, create whatever you want.
+                    continue
 
             elif top not in standard:
                 # If the action isn't create, we don't care if the directory
@@ -2150,10 +2171,10 @@ class RepositoryRevOrTxn(ImplicitContextSensitiveObject):
                 # an erroneous directory).
                 continue
 
-            elif c.is_remove:
+            elif c.is_remove and is_single:
                 c.error(e.TopLevelRepoDirectoryRemoved)
 
-            elif c.is_replace:
+            elif c.is_replace and is_single:
                 c.error(e.TopLevelRepoDirectoryReplaced)
 
     def __process_change_invariants_and_general_correctness(self, c):
