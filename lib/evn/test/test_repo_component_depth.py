@@ -332,6 +332,95 @@ class TestNoComponentDepthRepo(EnversionTest, unittest.TestCase):
             svn.mkdir('fulcrum/flanker/foxbat/branches')
             svn.ci('fulcrum')
 
+
+class TestSingleToMultiRepoConversionSimple(EnversionTest, unittest.TestCase):
+    def test_01(self):
+        """
+        Create a single-component repo, then convert to multi-component.
+        """
+        repo = self.create_repo()
+
+        svn = repo.svn
+        name = repo.name
+        evnadmin = repo.evnadmin
+
+        expected = conf.standard_layout
+        raw = svn.ls(repo.uri)
+        actual = frozenset(format_dir(l) for l in raw.splitlines())
+        self.assertEqual(expected, actual)
+
+        dot()
+        roots = {
+            '/trunk/': {
+                'copies': {},
+                'created': 1,
+                'creation_method': 'created',
+            }
+        }
+        self.assertEqual(roots, repo.roots)
+
+        dot()
+        with chdir(repo.wc):
+            svn.cp('trunk', 'branches/1.x')
+            svn.ci(m='Branching 1.x.')
+
+        dot()
+        with chdir(repo.wc):
+            svn.cp('branches/1.x', 'tags/1.1')
+            svn.ci(m='Tagging 1.1.')
+
+        dot()
+        error = 'root ancestor path renamed to unknown path'
+        with chdir(repo.wc):
+            svn.up()
+            svn.mkdir('foo')
+            svn.mv('tags', 'foo')
+            svn.mv('trunk', 'foo')
+            svn.mv('branches', 'foo')
+            with ensure_blocked(self, error):
+                svn.ci()
+
+        dot()
+        evnadmin.disable(name)
+        with chdir(repo.wc):
+            svn.ci()
+        evnadmin.enable(name)
+
+        roots = {
+            '/foo/branches/1.x/': {
+                'copies': {},
+                'created': 4,
+                'creation_method': 'renamed_indirectly',
+                'errors': ['root ancestor path renamed to unknown path'],
+                'renamed_from': ('/branches/1.x/', 3),
+                'renamed_indirectly_from': (
+                    '/branches/',
+                    '/foo/branches/',
+                ),
+            },
+            '/foo/tags/1.1/': {
+                'copies': {},
+                'created': 4,
+                'creation_method': 'renamed_indirectly',
+                'errors': ['root ancestor path renamed to unknown path'],
+                'renamed_from': ('/tags/1.1/', 3),
+                'renamed_indirectly_from': (
+                    '/tags/',
+                    '/foo/tags/',
+                ),
+            },
+            '/foo/trunk/': {
+                'copies': {},
+                 'created': 4,
+                 'creation_method': 'renamed',
+                 'errors': [],
+                 'renamed_from': ('/trunk/', 3)
+            }
+        }
+
+        self.assertEqual(roots, repo.roots)
+
+
 def main():
     runner = unittest.TextTestRunner()
     runner.run(suite())
