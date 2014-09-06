@@ -130,7 +130,7 @@ def suites(stream):
             yield loader.loadTestsFromTestCase(test_class)
 
 def crude_error_message_test(actual, expected):
-    ix = x.find('%')
+    ix = expected.find('%')
     if ix == -1:
         return expected in actual
 
