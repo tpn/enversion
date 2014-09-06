@@ -5,6 +5,7 @@ import unittest
 
 from evn.test import (
     ensure_blocked,
+    expected_roots,
 
     TestRepo,
     EnversionTest,
@@ -40,6 +41,7 @@ conf = get_or_create_config()
 #===============================================================================
 def suite():
     return unittest.defaultTestLoader.loadTestsFromTestCase(
+        TestSimpleRoots,
         TestSingleComponentRepo,
         TestMultiComponentRepo,
         TestNoComponentDepthRepo,
@@ -49,6 +51,20 @@ def suite():
 #===============================================================================
 # Test Classes
 #===============================================================================
+class TestSimpleRoots(EnversionTest, unittest.TestCase):
+    @expected_roots({
+        '/trunk/': {
+            'copies': {},
+            'created': 1,
+            'creation_method': 'created',
+        }
+    })
+    def test_01_basic(self):
+        """
+        Simple test to ensure the @expected_roots() logic works.
+        """
+        repo = self.create_repo()
+
 class TestSingleComponentRepo(EnversionTest, unittest.TestCase):
     def test_01_basic(self):
         """
