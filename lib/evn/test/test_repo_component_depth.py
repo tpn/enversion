@@ -66,6 +66,13 @@ class TestSimpleRoots(EnversionTest, unittest.TestCase):
         repo = self.create_repo()
 
 class TestSingleComponentRepo(EnversionTest, unittest.TestCase):
+    @expected_roots({
+        '/trunk/': {
+            'copies': {},
+            'created': 1,
+            'creation_method': 'created',
+        }
+    })
     def test_01_basic(self):
         """
         Given:
