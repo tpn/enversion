@@ -5,6 +5,7 @@ import os
 import sys
 import time
 import inspect
+import getpass
 import logging
 import datetime
 import itertools
@@ -1205,7 +1206,12 @@ class RepositoryRevOrTxn(ImplicitContextSensitiveObject):
         return self.__admins
 
     def is_admin(self, user=None):
-        return (user.lower() if user else self.user) in self.admins
+        username = (user if user else self.user).lower()
+        os_username = getpass.getuser().lower()
+        if username == os_username:
+            return True
+        else:
+            return username in self.admins
 
     @property
     def revprop_conf(self):
