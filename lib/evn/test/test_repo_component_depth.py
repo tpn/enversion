@@ -315,7 +315,6 @@ class TestNoComponentDepthRepo(EnversionTest, unittest.TestCase):
             svn.up()
             svn.cp('foo/trunk', 'branches/foo-1.x')
             svn.ci(m='Branching 1.x')
-            svn.ci()
 
             dot()
             svn.mkdir('viper')
