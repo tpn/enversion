@@ -97,6 +97,14 @@ class TestRepo(object):
     def roots(self):
         return literal_eval(self.evnadmin.show_roots(self.name, quiet=True))
 
+    @property
+    def component_depth_full(self):
+        return self.evnadmin.get_repo_component_depth(self.name)
+
+    @property
+    def component_depth(self):
+        return int(self.component_depth_full.split(' ')[0])
+
 class EnversionTest(object):
     __metaclass__ = ABCMeta
 
