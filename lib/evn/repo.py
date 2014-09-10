@@ -277,6 +277,10 @@ class CopyOrRename(ChangeAttribute):
         self._note = False
         if self is CopyOrRename.KnownRootToValidRoot:
             if is_multi:
+                if orig_path.count('/') < 3:
+                    # Single->multi rename.
+                    self._note = True
+                    return
                 src_component = extract_component_name(orig_path)
                 dst_component = extract_component_name(path)
                 if src_component == dst_component:
