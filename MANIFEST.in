@@ -1,2 +1,4 @@
 include LICENSE AUTHORS COPYRIGHT
 recursive-include doc *.rst *.py Makefile make.bat
+include versioneer.py
+include lib/evn/_version.py

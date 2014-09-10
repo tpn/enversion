@@ -2,6 +2,12 @@ import re
 import os
 import sys
 
+import versioneer
+versioneer.VCS = 'git'
+versioneer.versionfile_source = 'lib/evn/_version.py'
+versioneer.tag_prefix = 'v'
+versioneer.parentdir_prefix = 'enversion-'
+
 vi = sys.version_info
 (major, minor) = (vi[0], vi[1])
 if major != 2 or minor not in (6, 7):
@@ -46,7 +52,7 @@ def find_packages(base):
                 packages.append(fragment.replace(os.sep, '.'))
     return packages
 
-def version():
+def version_pre_versioneer():
     return (
         re.compile(r"^__version__ = '(.*?)'$", re.S)
           .match(read('lib', 'evn', '__init__.py'))
@@ -56,7 +62,8 @@ def version():
 def run_setup():
     setup(
         name='enversion',
-        version=version(),
+        version=versioneer.get_version(),
+        cmdclass=versioneer.get_cmdclass(),
         license='Apache',
         description='Enterprise Subversion Framework',
         author='Trent Nelson',
