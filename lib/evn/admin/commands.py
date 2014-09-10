@@ -362,20 +362,57 @@ class CreateRepoCommand(SubversionCommand):
             command.options.quiet = True
             command.run()
 
-        if self.component_depth in (0, 1):
-            cmd = [
-                'svn',
-                'propset',
-                '-q' if not self.options.verbose else '',
-                '-r0',
-                '--revprop',
-                'evn:component_depth',
-                str(self.component_depth),
-                root_url,
-            ]
-            self._verbose(' '.join(cmd))
-            suppress_output = subprocess.check_call(cmd, stdout=stdout)
+        if self.component_depth not in (0, 1):
+            return
 
+        with Command.prime(self, SetRepoComponentDepthCommand) as command:
+            command.path = self.path
+            command.options.quiet = True
+            command.component_depth = self.component_depth
+            command.run()
+
+class SetRepoComponentDepthCommand(RepositoryCommand):
+    component_depth = None
+
+    @requires_context
+    def run(self):
+        RepositoryCommand.run(self)
+
+        assert self.component_depth in (-1, 0, 1)
+
+        out = self._out
+        err = self._err
+
+        rc0 = self.r0_revprop_conf
+
+        cur_depth = rc0.get('component_depth', -1)
+        if self.component_depth == -1:
+            if cur_depth in (0, 1):
+                out("Removing component depth from %s." % self.name)
+                del rc0.component_depth
+        else:
+            args = (self.name, self.component_depth)
+            if self.component_depth != cur_depth:
+                out("Setting component depth for %s to %d." % args)
+                rc0.component_depth = self.component_depth
+            else:
+                err("Component depth for %s is already %d." % args)
+
+class GetRepoComponentDepthCommand(RepositoryCommand):
+    @requires_context
+    def run(self):
+        RepositoryCommand.run(self)
+        rc0 = self.r0_revprop_conf
+        out = self._out
+        err = self._err
+        if 'component_depth' not in rc0:
+            out('-1 (none)')
+        else:
+            depth = rc0.component_depth
+            if depth in (0, 1):
+                out('%d (%s)' % (depth, { 0: 'single', 1: 'multi' }[depth]))
+            else:
+                err('Invalid depth: %s' % str(depth))
 
 class SetRepoHookRemoteDebugCommand(RepoHookCommand):
     action = None

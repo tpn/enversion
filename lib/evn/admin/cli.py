@@ -283,8 +283,34 @@ However, Enversion would block you from creating the following directories:
     /foo/xyz
     /cat/dog
 
-A single-component repository can be converted to a multi-component repository
-via the `evnadmin convert-to-multi-component-layout (ctmcl)` command.
+Single to Multi Conversion
+==========================
+Disable the Enversion hooks:
+    % evnadmin disable <reponame>
+
+Move /trunk, /tags and /branches into the desired new directory.  Make sure to
+use `svn mkdir` and `svn mv` instead of normal file system operations,
+otherwise Enversion won't be able to track the changed paths when it is
+re-enabled.
+    % cd <repo.workingcopy>
+    % svn mkdir foo
+    % svn mv tags foo
+    % svn mv trunk foo
+    % svn mv branches foo
+    % svn ci -m "Converting repository from single to multi."
+
+Mark the repository as multi-component:
+    % evnadmin set-repo-component-depth --multi <reponame>
+(This sets the r0 revprop evn:component_depth to 1.)
+
+Re-enable Enversion:
+    % evnadmin enable <reponame>
+
+Verify the roots were updated:
+    % evnadmin show-roots <reponame>
+
+Verify component depth (should return '1 (multi)'):
+    % evnadmin get-repo-component-depth <reponame>
 """
     )
 
@@ -371,6 +397,54 @@ via the `evnadmin convert-to-multi-component-layout (ctmcl)` command.
             raise CommandError("invalid component depth: %r" % cd)
 
         self.command.component_depth = cd
+
+class SetRepoComponentDepthCommandLine(AdminCommandLine):
+    _conf_ = True
+    _repo_ = True
+
+    def _add_parser_options(self):
+        self.parser.add_option(
+            '-d', '--component-depth',
+            dest='component_depth',
+            type='int',
+            metavar='COMPONENT_DEPTH',
+            help='0 = single, 1 = multi, -1 disable',
+        )
+
+        self.parser.add_option(
+            '-s', '--single',
+            dest='single',
+            action='store_true',
+            help='single-component (shortcut for --component-depth=0)'
+        )
+
+        self.parser.add_option(
+            '-m', '--multi',
+            dest='multi',
+            action='store_true',
+            help='multi-component (shortcut for --component-depth=1)'
+        )
+
+    def _process_parser_results(self):
+        opts = self.options
+
+        cd = None
+
+        if opts.multi:
+            cd = 1
+        elif opts.single:
+            cd = 0
+        else:
+            cd = opts.component_depth
+
+        if cd not in (-1, 0, 1):
+            raise CommandError("invalid component depth: %r" % cd)
+
+        self.command.component_depth = cd
+
+class GetRepoComponentDepthCommandLine(AdminCommandLine):
+    _conf_ = True
+    _repo_ = True
 
 class RunHookCommandLine(AdminCommandLine):
     _conf_ = True
