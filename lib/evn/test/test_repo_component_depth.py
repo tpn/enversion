@@ -346,6 +346,7 @@ class TestNoComponentDepthRepo(EnversionTest, unittest.TestCase):
 
 
 class TestSingleToMultiRepoConversionSimple(EnversionTest, unittest.TestCase):
+    @expected_component_depth(1)
     def test_01(self):
         """
         Create a single-component repo, then convert to multi-component.
@@ -360,6 +361,9 @@ class TestSingleToMultiRepoConversionSimple(EnversionTest, unittest.TestCase):
         raw = svn.ls(repo.uri)
         actual = frozenset(format_dir(l) for l in raw.splitlines())
         self.assertEqual(expected, actual)
+
+        dot()
+        self.assertEqual(0, repo.component_depth)
 
         dot()
         roots = {
@@ -396,6 +400,7 @@ class TestSingleToMultiRepoConversionSimple(EnversionTest, unittest.TestCase):
         evnadmin.disable(name)
         with chdir(repo.wc):
             svn.ci()
+        evnadmin.set_repo_component_depth(repo.name, multi=True)
         evnadmin.enable(name)
 
         roots = {
