@@ -6,6 +6,7 @@ import unittest
 from evn.test import (
     ensure_blocked,
     expected_roots,
+    expected_component_depth,
 
     TestRepo,
     EnversionTest,
@@ -59,9 +60,11 @@ class TestSimpleRoots(EnversionTest, unittest.TestCase):
             'creation_method': 'created',
         }
     })
+    @expected_component_depth(0)
     def test_01_basic(self):
         """
-        Simple test to ensure the @expected_roots() logic works.
+        Simple test to ensure the @expected_roots() and
+        @expected_component_depth logic works.
         """
         repo = self.create_repo()
 
@@ -73,6 +76,7 @@ class TestSingleComponentRepo(EnversionTest, unittest.TestCase):
             'creation_method': 'created',
         }
     })
+    @expected_component_depth(0)
     def test_01_basic(self):
         """
         Given:
@@ -98,6 +102,7 @@ class TestSingleComponentRepo(EnversionTest, unittest.TestCase):
                 svn.ci()
                 dot()
 
+    @expected_component_depth(0)
     def test_02_no_svnmucc__commit_individually(self):
         """
         Create an empty repo via `evnadmin create --no-svnmucc`, then issue
@@ -120,6 +125,7 @@ class TestSingleComponentRepo(EnversionTest, unittest.TestCase):
                 svn.ci()
                 dot()
 
+    @expected_component_depth(0)
     def test_03_no_svnmucc__commit_together(self):
         """
         Create an empty repo via `evnadmin create --no-svnmucc`, then issue
@@ -138,6 +144,7 @@ class TestSingleComponentRepo(EnversionTest, unittest.TestCase):
             svn.ci()
             dot()
 
+    @expected_component_depth(0)
     def test_04_rm_standard_layout(self):
         """
         Given:
@@ -165,6 +172,7 @@ class TestSingleComponentRepo(EnversionTest, unittest.TestCase):
                     svn.ci(path)
 
 class TestMultiComponentRepo(EnversionTest, unittest.TestCase):
+    @expected_component_depth(1)
     def test_01_creation(self):
         """
         Create a multi-component repo via `evnadmin create --multi`.  The
@@ -176,6 +184,7 @@ class TestMultiComponentRepo(EnversionTest, unittest.TestCase):
         actual = svn.ls(repo.uri)
         self.assertEqual('', actual)
 
+    @expected_component_depth(1)
     def test_02_standard_layout_blocked(self):
         """
         Ensure top-level standard layout directories can't be created.
@@ -195,6 +204,7 @@ class TestMultiComponentRepo(EnversionTest, unittest.TestCase):
                 with ensure_blocked(self, error):
                     svn.ci(path)
 
+    @expected_component_depth(1)
     def test_03_component_standard_layout_allowed(self):
         """
         Ensure top-level standard layout directories can be created if they're
@@ -213,6 +223,7 @@ class TestMultiComponentRepo(EnversionTest, unittest.TestCase):
                     svn.mkdir(target)
                 svn.ci(component)
 
+    @expected_component_depth(1)
     def test_04_block_two_deep_non_standard_dirs(self):
         """
         Prevent any two-level deep directories from being created if they're
@@ -233,6 +244,7 @@ class TestMultiComponentRepo(EnversionTest, unittest.TestCase):
             with ensure_blocked(self, error):
                 svn.ci()
 
+    @expected_component_depth(1)
     def test_05_block_n_deep_non_standard_dirs(self):
         """
         Prevent any > two-level deep directories from being created if they're
@@ -282,6 +294,7 @@ class TestNoComponentDepthRepo(EnversionTest, unittest.TestCase):
             'creation_method': 'created',
         },
     })
+    @expected_component_depth(-1)
     def test_01_creation(self):
         """
         Create a repository with component-depth support disabled, then create

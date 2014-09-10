@@ -234,6 +234,44 @@ class expected_roots(object):
         obj.repo.dot()
         obj.assertEqual(self.roots, obj.repo.roots)
 
+class expected_component_depth(object):
+    """
+    Helper decorator for automatically testing evn:component_depth after a test
+    has run, e.g.:
+
+        class TestSimple(EnversionTest, unittest.TestCase):
+            @expected_component_depth(0)
+            def test_01_single(self):
+                repo = self.create_repo(single=True)
+
+            @expected_component_depth(1)
+            def test_02_multi(self):
+                repo = self.create_repo(multi=True)
+
+            @expected_component_depth(-1)
+            def test_03_none(self):
+                repo = self.create_repo(component_depth=-1)
+    """
+    def __init__(self, component_depth):
+        self.func = None
+        self.component_depth = component_depth
+
+    def __get__(self, obj, objtype=None):
+        if obj is None:
+            return self.func
+        return partial(self, obj)
+
+    def __call__(self, *args, **kwds):
+        if not self.func:
+            self.func = args[0]
+            return self
+
+        self.func(*args, **kwds)
+
+        obj = args[0]
+        obj.repo.dot()
+        obj.assertEqual(self.component_depth, obj.repo.component_depth)
+
 #===============================================================================
 # Main
 #===============================================================================
