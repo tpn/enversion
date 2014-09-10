@@ -282,6 +282,61 @@ def build_tree(tree, prefix=''):
             with open(f, 'w') as fp:
                 fp.write(d)
 
+def extract_component_name(path):
+    """
+    >>> extract_component_name('/foo/trunk/bar.txt')
+    'foo'
+    >>> extract_component_name('/foo/trunk/')
+    'foo'
+    >>> extract_component_name('/foo/branches/1.x/abcd.txt')
+    'foo'
+
+    >>> extract_component_name('/foo')
+    Traceback (most recent call last):
+        ...
+    AssertionError
+
+    >>> extract_component_name('/foo/')
+    Traceback (most recent call last):
+        ...
+    AssertionError
+
+    >>> extract_component_name('foo/')
+    Traceback (most recent call last):
+        ...
+    AssertionError
+
+    >>> extract_component_name('/foo')
+    Traceback (most recent call last):
+        ...
+    AssertionError
+
+    >>> extract_component_name('/foo/trunk')
+    Traceback (most recent call last):
+        ...
+    AssertionError
+
+    >>> extract_component_name(None)
+    Traceback (most recent call last):
+        ...
+    AssertionError
+
+    >>> extract_component_name('')
+    Traceback (most recent call last):
+        ...
+    AssertionError
+
+    >>> extract_component_name(5)
+    Traceback (most recent call last):
+        ...
+    IndexError
+
+    """
+    assert path and path[0] == '/', path
+    assert path.count('/') >= 3
+    return path[1:path.find('/', 2)]
+
+
 #===============================================================================
 # Path Matching
 #===============================================================================
