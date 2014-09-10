@@ -266,6 +266,22 @@ def get_root_path(paths):
     return format_dir('/'.join(common))
 
 
+def build_tree(tree, prefix=''):
+    jp = lambda k: join_path(prefix, k)
+    for (f, d) in ((jp(k), v) for (k, v) in tree.items()):
+        if not d:
+            try:
+                os.makedirs(f)
+            except OSError:
+                pass
+        else:
+            try:
+                os.makedirs(dirname(f))
+            except OSError:
+                pass
+            with open(f, 'w') as fp:
+                fp.write(d)
+
 #===============================================================================
 # Path Matching
 #===============================================================================

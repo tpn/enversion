@@ -5,6 +5,7 @@ import os
 import sys
 import time
 import inspect
+import getpass
 import logging
 import datetime
 import itertools
@@ -65,6 +66,8 @@ from evn.change import (
 from evn.util import (
     one,
     none,
+    is_int,
+    memoize,
     pid_exists,
     literal_eval,
     implicit_context,
@@ -1105,6 +1108,20 @@ class RepositoryRevOrTxn(ImplicitContextSensitiveObject):
         return self.__last_rev
 
     @property
+    @memoize
+    def component_depth(self):
+        rc0 = self.r0_revprop_conf
+        v = rc0.get('component_depth')
+        if not is_int(v):
+            return -1
+
+        d = int(v)
+        if d < 0:
+            return -1
+
+        return d
+
+    @property
     def base_rev_roots(self):
         return self.__base_rev_roots
 
@@ -1189,7 +1206,12 @@ class RepositoryRevOrTxn(ImplicitContextSensitiveObject):
         return self.__admins
 
     def is_admin(self, user=None):
-        return (user.lower() if user else self.user) in self.admins
+        username = (user if user else self.user).lower()
+        os_username = getpass.getuser().lower()
+        if username == os_username:
+            return True
+        else:
+            return username in self.admins
 
     @property
     def revprop_conf(self):
@@ -1715,6 +1737,8 @@ class RepositoryRevOrTxn(ImplicitContextSensitiveObject):
                 self.__processed_replace(c)
             return
 
+        self._check_component_depth(c)
+
         pm = self.pathmatcher
         rm = self.rootmatcher
 
@@ -1832,6 +1856,38 @@ class RepositoryRevOrTxn(ImplicitContextSensitiveObject):
                 self.__processed_replace(c)
 
         return
+
+    def _check_component_depth(self, c):
+        standard = self.conf.standard_layout
+        if not standard:
+            return
+
+        # Ignore files and non-create changes for now (i.e. only process
+        # mkdirs)
+        if c.is_file or not c.is_create:
+            return
+
+        # For now, let's just support an explicit component depth of 0 and 1.
+        # We only need to handle 1 here -- 0 implies a single-component layout
+        # (i.e. just /trunk, /tags and /branches at the root of the repo), and
+        # that is enforced in __process_toplevel_dirs().
+        component_depth = self.component_depth
+        if component_depth != 1:
+            return
+
+        # '/foo/trunk/' -> ['foo', 'trunk']
+        parts = c.path.split('/')[1:-1]
+        parts_len = len(parts)
+
+        if parts_len != 2:
+            return
+
+        err = e.InvalidTopLevelRepoComponentDirectoryCreated % (parts[0], '%s')
+        msg = err % ', '.join("'%s'" % r for r in standard)
+
+        path = '/%s/' % parts[-1]
+        if path not in standard:
+            c.error(msg)
 
     def __has_mismatched_previous_details(self, c):
         assert c.is_modify
@@ -2072,12 +2128,19 @@ class RepositoryRevOrTxn(ImplicitContextSensitiveObject):
         if cs.is_rev:
             return
 
+        # A non-zero component_depth indicates multi-component repository, in
+        # which case, this method doesn't need to run.
+        is_multi = bool(self.component_depth == 1)
+        is_single = bool(self.component_depth == 0)
+        is_neither = bool(self.component_depth == -1)
+
         standard = self.conf.standard_layout
         if not standard:
             return
 
         standard_str = ', '.join("'%s'" % r for r in standard)
-        mkdir_msg = e.InvalidTopLevelRepoDirectoryCreated % standard_str
+        single_msg = e.InvalidTopLevelRepoDirectoryCreated % standard_str
+        multi_msg = e.StandardLayoutTopLevelDirectoryCreatedInMultiComponentRepo
 
         for d in cs.dirs:
             c = cs[d.path]
@@ -2087,8 +2150,26 @@ class RepositoryRevOrTxn(ImplicitContextSensitiveObject):
                 # If the directory already exists, let it through.
                 continue
 
-            elif c.is_create and top not in standard:
-                c.error(mkdir_msg)
+            elif c.is_create:
+                if is_multi:
+                    if top in standard:
+                        # Prevent top-level tags/trunk/branches from being
+                        # created if we're a multi-component repository.
+                        c.error(multi_msg)
+
+                    else:
+                        # Let non-standard top-level directories go through.
+                        continue
+                elif is_single:
+                    if top not in standard:
+                        # Prevent non-standard top-level directories from
+                        # being created when we're a single-component repo.
+                        c.error(single_msg)
+                    else:
+                        continue
+                else:
+                    # No component-depth, create whatever you want.
+                    continue
 
             elif top not in standard:
                 # If the action isn't create, we don't care if the directory
@@ -2096,10 +2177,10 @@ class RepositoryRevOrTxn(ImplicitContextSensitiveObject):
                 # an erroneous directory).
                 continue
 
-            elif c.is_remove:
+            elif c.is_remove and is_single:
                 c.error(e.TopLevelRepoDirectoryRemoved)
 
-            elif c.is_replace:
+            elif c.is_replace and is_single:
                 c.error(e.TopLevelRepoDirectoryReplaced)
 
     def __process_change_invariants_and_general_correctness(self, c):

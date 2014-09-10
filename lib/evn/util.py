@@ -3,6 +3,7 @@
 #===============================================================================
 import os
 import sys
+import shutil
 import inspect
 import datetime
 import itertools
@@ -62,6 +63,16 @@ def try_int(i):
         return
     else:
         return i
+
+def is_int(i):
+    if i is None:
+        return False
+    try:
+        int(i)
+    except ValueError:
+        return False
+    else:
+        return True
 
 def requires_context(f):
     @wraps(f)
@@ -364,6 +375,13 @@ def try_remove_file_atexit(path):
     import atexit
     atexit.register(try_remove_file, path)
 
+def try_remove_dir(path):
+    shutil.rmtree(path, ignore_errors=True)
+
+def try_remove_dir_atexit(path):
+    import atexit
+    atexit.register(try_remove_dir, path)
+
 def pid_exists(pid):
     if os.name == 'nt':
         import psutil
@@ -379,6 +397,18 @@ def pid_exists(pid):
                 raise
         else:
             return True
+
+class chdir(object):
+    def __init__(self, path):
+        self.old_path = os.getcwd()
+        self.path = path
+
+    def __enter__(self):
+        os.chdir(self.path)
+        return self
+
+    def __exit__(self, *exc_info):
+        os.chdir(self.old_path)
 
 #===============================================================================
 # Memoize Helpers (lovingly stolen from conda.utils)
@@ -946,9 +976,13 @@ class ProcessWrapper(object):
         self.wait     = True
         self.error    = str()
         self.output   = str()
+        self.shell    = kwds.get('shell', False)
         self.ostream  = kwds.get('ostream', sys.stdout)
         self.estream  = kwds.get('estream', sys.stderr)
         self.verbose  = kwds.get('verbose', False)
+        self.convert_command_name_underscores_to_dashes = (
+            kwds.get('convert_command_name_underscores_to_dashes', True)
+        )
         self.safe_cmd = None
         self.exception_class = RuntimeError
         self.raise_exception_on_error = True
@@ -963,6 +997,9 @@ class ProcessWrapper(object):
         return self.execute(*args, **kwds)
 
     def build_command_line(self, exe, action, *args, **kwds):
+        if self.convert_command_name_underscores_to_dashes:
+            action = action.replace('_', '-')
+
         cmd  = [ exe, action ]
         for (k, v) in kwds.items():
             cmd.append(
@@ -990,8 +1027,15 @@ class ProcessWrapper(object):
             cmd = ' '.join(self.safe_cmd or self.cmd)
             self.ostream.write('%s>%s\n' % (cwd, cmd))
 
-        self.p = Popen(self.cmd, executable=self.exe, cwd=self.cwd,
-                       stdin=PIPE, stdout=PIPE, stderr=PIPE)
+        self.p = Popen(
+            self.cmd,
+            cwd=self.cwd,
+            stdin=PIPE,
+            stdout=PIPE,
+            stderr=PIPE,
+            shell=self.shell,
+        )
+
         if not self.wait:
             return
 

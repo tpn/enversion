@@ -52,6 +52,7 @@ from evn.change import (
 )
 
 from evn.util import (
+    chdir,
     requires_context,
     Pool,
     Dict,
@@ -65,11 +66,8 @@ from evn.util import (
 
 class DoctestCommand(Command):
     def run(self):
-        DoctestCommand.run_standalone(quiet=self.options.quiet)
-
-    @classmethod
-    def run_standalone(cls, quiet=None):
-        assert quiet in (True, False)
+        self._out("running doctests...")
+        quiet = self.options.quiet
         import doctest
         import evn.path
         import evn.root
@@ -81,17 +79,24 @@ class DoctestCommand(Command):
         doctest.testmod(evn.util, verbose=verbose)
         doctest.testmod(evn.logic, verbose=verbose)
 
+class UnittestCommand(Command):
+    def run(self):
+        self._out("running unit tests...")
+        with chdir(self.conf.selftest_base_dir):
+            import evn.test
+            evn.test.main(quiet=self.options.quiet)
 
 class SelftestCommand(Command):
+    tests = (
+        DoctestCommand,
+        UnittestCommand,
+    )
+
     def run(self):
         quiet = self.options.quiet
-        self._out("running doctests")
-        DoctestCommand.run_standalone(quiet=quiet)
-
-        self._out("running unit tests")
-        import evn.test
-        evn.test.main(quiet=quiet)
-
+        for test in self.tests:
+            with Command.prime(self, test) as command:
+                command.run()
 
 class DumpDefaultConfigCommand(Command):
     def run(self):
@@ -303,6 +308,7 @@ class DisableCommand(RepositoryCommand):
 
 class CreateRepoCommand(SubversionCommand):
     path = None
+    component_depth = None
     @requires_context
     def run(self):
         assert self.path
@@ -323,38 +329,90 @@ class CreateRepoCommand(SubversionCommand):
             self._verbose(' '.join(cmd))
             subprocess.check_call(cmd)
 
-        no_svnmucc = self.options.no_svnmucc
-        if not no_svnmucc:
-            no_svnmucc = self.conf.no_svnmucc_after_evnadmin_create
+        root_url = 'file://%s' % os.path.abspath(self.path)
 
-        standard_layout = self.conf.standard_layout
-        if not no_svnmucc and standard_layout:
-            cmd = [
-                'svnmucc',
-                '-m',
-                '"Initializing repository."',
-                '--root-url',
-                'file://%s' % os.path.abspath(self.path),
-            ]
-            for d in standard_layout:
-                cmd += [ 'mkdir', d ]
+        if self.options.verbose:
+            stdout = subprocess.PIPE
+        else:
+            stdout = open('/dev/null', 'w')
 
-            self._verbose(' '.join(cmd))
+        if not self.component_depth:
+            no_svnmucc = self.options.no_svnmucc
+            if not no_svnmucc:
+                no_svnmucc = self.conf.no_svnmucc_after_evnadmin_create
 
-            # check_output() (2.7 onward) allows us to suppress the svnmucc
-            # stdout easily; 2.6 doesn't have it, though, so revert to
-            # check_call().
-            try:
-                check_output = subprocess.check_output
-            except AttributeError:
-                check_output = subprocess.check_call
-            suppress_stdout = check_output(cmd)
+            standard_layout = self.conf.standard_layout
+            if not no_svnmucc and standard_layout:
+                cmd = [
+                    'svnmucc',
+                    '-m',
+                    '"Initializing repository."',
+                    '--root-url',
+                    root_url,
+                ]
+                for d in standard_layout:
+                    cmd += [ 'mkdir', d ]
+
+                self._verbose(' '.join(cmd))
+
+                suppress_stdout = subprocess.check_call(cmd, stdout=stdout)
 
         with Command.prime(self, EnableCommand) as command:
             command.path = self.path
             command.options.quiet = True
             command.run()
 
+        if self.component_depth not in (0, 1):
+            return
+
+        with Command.prime(self, SetRepoComponentDepthCommand) as command:
+            command.path = self.path
+            command.options.quiet = True
+            command.component_depth = self.component_depth
+            command.run()
+
+class SetRepoComponentDepthCommand(RepositoryCommand):
+    component_depth = None
+
+    @requires_context
+    def run(self):
+        RepositoryCommand.run(self)
+
+        assert self.component_depth in (-1, 0, 1)
+
+        out = self._out
+        err = self._err
+
+        rc0 = self.r0_revprop_conf
+
+        cur_depth = rc0.get('component_depth', -1)
+        if self.component_depth == -1:
+            if cur_depth in (0, 1):
+                out("Removing component depth from %s." % self.name)
+                del rc0.component_depth
+        else:
+            args = (self.name, self.component_depth)
+            if self.component_depth != cur_depth:
+                out("Setting component depth for %s to %d." % args)
+                rc0.component_depth = self.component_depth
+            else:
+                err("Component depth for %s is already %d." % args)
+
+class GetRepoComponentDepthCommand(RepositoryCommand):
+    @requires_context
+    def run(self):
+        RepositoryCommand.run(self)
+        rc0 = self.r0_revprop_conf
+        out = self._out
+        err = self._err
+        if 'component_depth' not in rc0:
+            out('-1 (none)')
+        else:
+            depth = rc0.component_depth
+            if depth in (0, 1):
+                out('%d (%s)' % (depth, { 0: 'single', 1: 'multi' }[depth]))
+            else:
+                err('Invalid depth: %s' % str(depth))
 
 class SetRepoHookRemoteDebugCommand(RepoHookCommand):
     action = None

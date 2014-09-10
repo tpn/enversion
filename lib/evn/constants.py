@@ -132,6 +132,10 @@ class _Errors(Constant):
     InvalidTopLevelRepoDirectoryCreated = "invalid top-level repository directory (valid top-level directories: %s)"
     TopLevelRepoDirectoryRemoved = "top-level repository directories cannot be removed"
     TopLevelRepoDirectoryReplaced = "top-level repository directories cannot be replaced"
+    InvalidTopLevelRepoComponentDirectoryCreated = "invalid top-level repository directory created for component '%s' (valid top-level directories: %s)"
+    TopLevelRepoComponentDirectoryRemoved = "top-level repository directories cannot be removed for component '%s'"
+    TopLevelRepoComponentDirectoryReplaced = "top-level repository directories cannot be replaced for component '%s'"
+    StandardLayoutTopLevelDirectoryCreatedInMultiComponentRepo = "standard layout top-level directories must be created within a component as this is a multi-component repository (i.e. try mkdir /foo/trunk instead of mkdir /trunk)"
 
 e = _Errors()
 
@@ -168,4 +172,4 @@ EVN_ERROR_CONFIRMATION_BLURB = (
     " commit message: %s)"
 )
 
-# vim:set ts=8 sw=4 sts=4 tw=78 et:
+# vim:set ts=8 sw=4 sts=4 tw=0 et:

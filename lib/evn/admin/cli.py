@@ -16,6 +16,10 @@ from evn.util import (
     Dict,
 )
 
+from evn.command import (
+    CommandError,
+)
+
 from evn.cli import (
     CLI,
     CommandLine,
@@ -42,8 +46,13 @@ class AdminCLI(CLI):
 class DoctestCommandLine(AdminCommandLine):
     _quiet_ = True
 
+class UnittestCommandLine(AdminCommandLine):
+    _quiet_ = True
+    _usage_ = '%prog [options] [unit-test-classname]'
+
 class SelftestCommandLine(AdminCommandLine):
     _quiet_ = True
+    _usage_ = UnittestCommandLine._usage_
 
 class DumpDefaultConfigCommandLine(AdminCommandLine):
     pass
@@ -207,6 +216,104 @@ class CreateCommandLine(AdminCommandLine):
     _command_   = evn.admin.commands.CreateRepoCommand
     _verbose_   = True
 
+    _description_ = (
+"""
+Create a new Enversion-enabled Subversion repository.
+
+Enversion can enforce two styles of repository layouts: single-component and
+multi-component.
+
+Single-component repository layout (default):
+    /trunk
+    /tags
+    /branches
+
+Multi-component repository:
+    /foo/trunk
+    /foo/tags
+    /foo/branches
+    /bar/trunk
+    /bar/tags
+    /bar/branches
+
+Single-component Repositories
+=============================
+By default, repositories are created in single-component mode.  This implies a
+component-depth of 0.  These commands are equivalent:
+
+    evnadmin create team1
+    evnadmin create -s team1
+    evnadmin create --single team1
+    evnadmin create -d 0 team1
+    evnadmin create --component-depth=0 team1
+
+And will create the following directory structure:
+    /trunk
+    /tags
+    /branches
+
+If you would like to disable the automatic directory creation, specify the
+-n/--no-svnmucc option, e.g.:
+
+    evnadmin create --no-svnmucc team1
+
+Multi-component Repositories
+============================
+A repository can be created in multi-component mode via the following commands:
+    evnadmin create -m team2
+    evnadmin create --multi team2
+    evnadmin create --component-depth=1 team2
+
+Enversion will then ensure top-level directories conform to the multi-component
+layout; that is, the first directory name in the path can be anything other
+than trunk, tags or branches, but the second directory name *must* be one of
+these.
+
+These are all valid paths in a multi-component repository:
+    /foo/trunk
+    /foo/branches
+    /bar/trunk
+    /bar/branches
+    /bar/tags
+
+However, Enversion would block you from creating the following directories:
+    /trunk
+    /tags
+    /branches
+    /foo/xyz
+    /cat/dog
+
+Single to Multi Conversion
+==========================
+Disable the Enversion hooks:
+    % evnadmin disable <reponame>
+
+Move /trunk, /tags and /branches into the desired new directory.  Make sure to
+use `svn mkdir` and `svn mv` instead of normal file system operations,
+otherwise Enversion won't be able to track the changed paths when it is
+re-enabled.
+    % cd <repo.workingcopy>
+    % svn mkdir foo
+    % svn mv tags foo
+    % svn mv trunk foo
+    % svn mv branches foo
+    % svn ci -m "Converting repository from single to multi."
+
+Mark the repository as multi-component:
+    % evnadmin set-repo-component-depth --multi <reponame>
+(This sets the r0 revprop evn:component_depth to 1.)
+
+Re-enable Enversion:
+    % evnadmin enable <reponame>
+
+Verify the roots were updated:
+    % evnadmin show-roots <reponame>
+
+Verify component depth (should return '1 (multi)'):
+    % evnadmin get-repo-component-depth <reponame>
+"""
+    )
+
     def _add_parser_options(self):
         self.parser.add_option(
             '-p', '--passthrough',
@@ -226,8 +333,41 @@ class CreateCommandLine(AdminCommandLine):
         )
 
         self.parser.add_option(
+            '-d', '--component-depth',
+            dest='component_depth',
+            type='int',
+            default=0,
+            metavar='COMPONENT_DEPTH',
+            help=(
+                'specify a value of either 0 or 1 to enforce single or '
+                'multi-component repository layout, or -1 to disable '
+                'all component-depth functionality [default: %default]'
+            )
+        )
+
+        self.parser.add_option(
+            '-s', '--single',
+            dest='single',
+            action='store_true',
+            help=(
+                'create a single-component repository (shortcut for '
+                '--component-depth=0)'
+            )
+        )
+
+        self.parser.add_option(
+            '-m', '--multi',
+            dest='multi',
+            action='store_true',
+            help=(
+                'create a multi-component repository (shortcut for '
+                '--component-depth=1)'
+            )
+        )
+
+        self.parser.add_option(
             '-n', '--no-svnmucc',
-            dest='empty',
+            dest='no_svnmucc',
             action='store_true',
             help=(
                 'don\'t attempt to automatically create the standard '
@@ -237,9 +377,74 @@ class CreateCommandLine(AdminCommandLine):
                 'which defaults to "branches,tags,trunk"; additionally, '
                 'the config variable \'no-svnmucc-after-evnadmin-create\' '
                 'can be set to a non-null value to always disable this '
-                'functionality)'
+                'functionality); ignored when --component-depth=1 specified'
             )
         )
+
+    def _process_parser_results(self):
+        opts = self.options
+
+        cd = None
+
+        if opts.multi:
+            cd = 1
+        elif opts.single:
+            cd = 0
+        else:
+            cd = opts.component_depth
+
+        if cd not in (-1, 0, 1):
+            raise CommandError("invalid component depth: %r" % cd)
+
+        self.command.component_depth = cd
+
+class SetRepoComponentDepthCommandLine(AdminCommandLine):
+    _conf_ = True
+    _repo_ = True
+
+    def _add_parser_options(self):
+        self.parser.add_option(
+            '-d', '--component-depth',
+            dest='component_depth',
+            type='int',
+            metavar='COMPONENT_DEPTH',
+            help='0 = single, 1 = multi, -1 disable',
+        )
+
+        self.parser.add_option(
+            '-s', '--single',
+            dest='single',
+            action='store_true',
+            help='single-component (shortcut for --component-depth=0)'
+        )
+
+        self.parser.add_option(
+            '-m', '--multi',
+            dest='multi',
+            action='store_true',
+            help='multi-component (shortcut for --component-depth=1)'
+        )
+
+    def _process_parser_results(self):
+        opts = self.options
+
+        cd = None
+
+        if opts.multi:
+            cd = 1
+        elif opts.single:
+            cd = 0
+        else:
+            cd = opts.component_depth
+
+        if cd not in (-1, 0, 1):
+            raise CommandError("invalid component depth: %r" % cd)
+
+        self.command.component_depth = cd
+
+class GetRepoComponentDepthCommandLine(AdminCommandLine):
+    _conf_ = True
+    _repo_ = True
 
 class RunHookCommandLine(AdminCommandLine):
     _conf_ = True
@@ -257,9 +462,8 @@ class RunHookCommandLine(AdminCommandLine):
 class _SetRepoHookRemoteDebugCommandLine(AdminCommandLine):
     _conf_ = True
     _repo_ = True
-    _argc_ = 3
     _hook_ = True
-    _usage_ = '%prog [ options ] HOOK_NAME REPO_PATH'
+    _usage_ = '%prog [ options ] REPO_PATH'
     _command_ = evn.admin.commands.SetRepoHookRemoteDebugCommand
 
     def _add_parser_options(self):
