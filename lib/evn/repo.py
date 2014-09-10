@@ -282,13 +282,14 @@ class CopyOrRename(ChangeAttribute):
                 if src_component == dst_component:
                     self._note = True
 
-            if not self._note:
-                m = self.msg
-                self._msg = (
-                    self.msg.replace('valid root path', 'unrelated component')
-                            .replace('known root path', 'component root path')
-                )
-
+                if not self._note:
+                    m = self.msg
+                    self._msg = (
+                        m.replace('known root path', 'component root path')
+                         .replace('valid root path', 'unrelated component')
+                    )
+            else:
+                self._note = True
 
 def _load_change_attributes():
     u       = "unknown path"
