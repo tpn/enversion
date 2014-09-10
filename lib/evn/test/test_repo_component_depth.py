@@ -283,6 +283,59 @@ class TestMultiComponentRepo(EnversionTest, unittest.TestCase):
             with ensure_blocked(self, error):
                 svn.ci('fulcrum')
 
+class TestMultiComponentRepo2(EnversionTest, unittest.TestCase):
+    @expected_component_depth(1)
+    def test_01_block_unrelated_component_interaction(self):
+        """
+        If foo/trunk or foo/branches/* is being copied, make sure the dest is
+        also rooted in either foo/branches or foo/tags.
+        """
+        repo = self.create_repo(multi=True)
+        svn = repo.svn
+
+        error = 'component root path copied to unrelated component'
+        paths = [ p.replace('/', '') for p in conf.standard_layout ]
+        with chdir(repo.wc):
+            for component in ('foo', 'bar'):
+                svn.mkdir(component)
+                for path in paths:
+                    dot()
+                    target = '/'.join((component, path))
+                    svn.mkdir(target)
+                svn.ci(component)
+
+            dot()
+            svn.cp('foo/trunk', 'foo/branches/1.x')
+            svn.ci()
+
+            dot()
+            svn.cp('foo/branches/1.x', 'foo/tags/1.0')
+            svn.ci()
+
+            dot()
+            svn.up()
+
+            dot()
+            svn.cp('foo/trunk', 'bar/branches/1.x')
+            with ensure_blocked(self, error):
+                svn.ci('bar')
+
+            dot()
+            svn.cp('foo/branches/1.x', 'bar/branches/1.x')
+            with ensure_blocked(self, error):
+                svn.ci('bar')
+
+            dot()
+            svn.cp('foo/tags/1.0', 'bar/branches/1.x')
+            with ensure_blocked(self, error):
+                svn.ci('bar')
+
+            dot()
+            svn.cp('foo/tags/1.0', 'bar/tags/1.0')
+            with ensure_blocked(self, error):
+                svn.ci('bar')
+
+
 class TestNoComponentDepthRepo(EnversionTest, unittest.TestCase):
     @expected_roots({
         '/trunk/': {'created': 3},
