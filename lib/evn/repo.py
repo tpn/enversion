@@ -45,6 +45,8 @@ from evn import logic
 from evn.path import (
     join_path,
     format_dir,
+    extract_component_name,
+
     PathMatcher,
 )
 
@@ -110,19 +112,19 @@ class ChangeAttribute(object):
     def __init__(self, *args):
         f = inspect.currentframe().f_back.f_back
         c = get_code_for_lineno(f.f_code.co_filename, f.f_lineno)
-        self.__name = c.split('=')[0].strip()
+        self._name = c.split('=')[0].strip()
 
         setattr(self.__class__, self.name, self)
 
-        self.__note = False
-        self.__requires_confirm = False
-        self.__requires_confirm_or_ignore = False
-        self.__msg_initialised = False
-        self.__msg = str()
+        self._note = False
+        self._requires_confirm = False
+        self._requires_confirm_or_ignore = False
+        self._msg_initialised = False
+        self._msg = str()
 
-        self.__change = None
-        self.__changeset = None
-        self.__log_msg = None
+        self._change = None
+        self._changeset = None
+        self._log_msg = None
 
         if isinstance(args[-1], int):
             ix = args[-1]
@@ -132,24 +134,24 @@ class ChangeAttribute(object):
             ix = 1
             self.args = args
 
-        self.__fmt = getattr(self.__class__, '_%d' % ix)
+        self._fmt = getattr(self.__class__, '_%d' % ix)
 
     @property
     def name(self):
-        return self.__name
+        return self._name
 
     @property
     def fmt(self):
-        return self.__fmt
+        return self._fmt
 
     @property
     def msg(self):
-        if not self.__msg_initialised:
-            self.__fmt = self._pre_process_fmt(self.fmt)
-            self.__msg = self.fmt % self.args
-            self.__msg = self._post_process_msg(self.__msg)
-            self.__msg_initialised = True
-        return self.__msg
+        if not self._msg_initialised:
+            self._fmt = self._pre_process_fmt(self.fmt)
+            self._msg = self.fmt % self.args
+            self._msg = self._post_process_msg(self._msg)
+            self._msg_initialised = True
+        return self._msg
 
     def _pre_process_fmt(self, fmt):
         return fmt
@@ -159,48 +161,53 @@ class ChangeAttribute(object):
 
     @property
     def requires_confirm(self):
-        return self.__requires_confirm
+        return self._requires_confirm
 
     @property
     def requires_confirm_or_ignore(self):
-        return self.__requires_confirm_or_ignore
+        return self._requires_confirm_or_ignore
 
     @property
     def rc(self):
         assert not self.is_note
         assert not self.requires_confirm_or_ignore
-        self.__requires_confirm = True
+        self._requires_confirm = True
         return self
 
     @property
     def rcoi(self):
         assert not self.is_note
         assert not self.requires_confirm
-        self.__requires_confirm_or_ignore = True
+        self._requires_confirm_or_ignore = True
         return self
 
     @property
     def note(self):
         assert not self.requires_confirm
         assert not self.requires_confirm_or_ignore
-        self.__note = True
+        self._note = True
         return self
 
     @property
+    def error_if_component_repo_else_note(self):
+        assert not self.is_note
+        assert not self.is_error
+
+    @property
     def is_note(self):
-        return self.__note
+        return self._note
 
     @property
     def change(self):
-        return self.__change
+        return self._change
 
     @property
     def changeset(self):
-        return self.__changeset
+        return self._changeset
 
     @property
     def log_msg(self):
-        return self.__log_msg
+        return self._log_msg
 
     @property
     def is_error(self):
@@ -210,9 +217,9 @@ class ChangeAttribute(object):
         cs = c.changeset
         l = cs.log_msg
 
-        self.__change = c
-        self.__changeset = cs
-        self.__log_msg = l
+        self._change = c
+        self._changeset = cs
+        self._log_msg = l
 
         self._validate_change()
 
@@ -234,10 +241,59 @@ class CopyOrRename(ChangeAttribute):
     def _validate_change(self):
         c = self.change
         assert c.is_copy or c.is_rename
+        self._validate_component_change()
 
     def _pre_process_fmt(self, fmt):
         c = self.change
         return fmt.replace('COR', 'copied' if c.is_copy else 'renamed')
+
+    def _validate_component_change(self):
+        # Well, this certainly feels hacky.
+        repo = RepositoryRevOrTxn.active
+        component_depth = repo.component_depth
+
+        if repo.component_depth == -1:
+            return
+
+        assert component_depth in (0, 1)
+
+        is_multi = bool(component_depth == 1)
+        is_single = bool(component_depth == 0)
+
+        assert (
+            (is_single and not is_multi) or
+            (is_multi  and not is_single)
+        )
+
+        c = self.change
+        path = c.path
+        if c.is_copy:
+            orig_path = c.copied_from_path
+        elif c.is_rename:
+            orig_path = c.renamed_from_path
+
+        assert path and orig_path, (path, orig_path)
+
+        self._note = False
+        if self is CopyOrRename.KnownRootToValidRoot:
+            if is_multi:
+                if orig_path.count('/') < 3:
+                    # Single->multi rename.
+                    self._note = True
+                    return
+                src_component = extract_component_name(orig_path)
+                dst_component = extract_component_name(path)
+                if src_component == dst_component:
+                    self._note = True
+
+                if not self._note:
+                    m = self.msg
+                    self._msg = (
+                        m.replace('known root path', 'component root path')
+                         .replace('valid root path', 'unrelated component')
+                    )
+            else:
+                self._note = True
 
 def _load_change_attributes():
     u       = "unknown path"
@@ -592,6 +648,8 @@ class RepositoryError(Exception):
     pass
 
 class RepositoryRevOrTxn(ImplicitContextSensitiveObject):
+    active = None
+
     def __init__(self, **kwds):
         k = DecayDict(**kwds)
 
@@ -680,6 +738,7 @@ class RepositoryRevOrTxn(ImplicitContextSensitiveObject):
         assert self.entered is False
         self.entered = True
         self.pool = svn.core.Pool()
+        RepositoryRevOrTxn.active = self
         return self
 
     def __exit__(self, *exc_info):
@@ -687,6 +746,7 @@ class RepositoryRevOrTxn(ImplicitContextSensitiveObject):
             self.__changeset.destroy()
             self.__changeset = None
         self.pool.destroy()
+        RepositoryRevOrTxn.active = None
         self.exited = True
 
     @implicit_context
