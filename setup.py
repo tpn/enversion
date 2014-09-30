@@ -5,6 +5,7 @@ import sys
 import versioneer
 versioneer.VCS = 'git'
 versioneer.versionfile_source = 'lib/evn/_version.py'
+versioneer.versionfile_build = 'evn/_version.py'
 versioneer.tag_prefix = 'v'
 versioneer.parentdir_prefix = 'enversion-'
 
