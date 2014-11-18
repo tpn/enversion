@@ -410,6 +410,31 @@ class chdir(object):
     def __exit__(self, *exc_info):
         os.chdir(self.old_path)
 
+def load_class(classname, default_modulename=None):
+    """
+    Uses importlib to load an instance of the class specified by
+    ``classname``.  If ``default_modulename`` is not null, it will be
+    prepended to the classname if no module is already present.
+    If default_module is null and classname is not dotted, then
+    globals()[classname] will be returned.
+    """
+    module = None
+    n = classname
+    if '.' in n:
+        ix = n.rfind('.')
+        classname = n[ix+1:]
+        modulename = n[:ix]
+        module = importlib.import_module(modulename)
+    else:
+        classname = n
+        if default_module:
+            module = importlib.import_module(default_modulename)
+
+    if module:
+        return getattr(module, classname)
+    else:
+        return globals()[classname]
+
 #===============================================================================
 # Memoize Helpers (lovingly stolen from conda.utils)
 #===============================================================================
