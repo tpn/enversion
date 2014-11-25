@@ -63,6 +63,8 @@ class RepositoryHook(RepositoryRevOrTxn):
         self.hook_name  = None
         self.hook_type  = None
 
+        self.custom_hook = self.conf.custom_hook_class()
+
     @property
     def is_repository_hook(self):
         return True
@@ -149,9 +151,11 @@ class RepositoryHook(RepositoryRevOrTxn):
         # post-processes it behind the scenes).
         self.process_rev_or_txn(rev)
         cs = self.changeset
+        self.custom_hook.post_commit(self)
 
     def pre_commit(self, txn, *args):
         self.process_rev_or_txn(txn)
+        self.custom_hook.pre_commit(self)
 
         ignore_errors = False
         ignore_warnings = False

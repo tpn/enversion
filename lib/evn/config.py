@@ -26,6 +26,7 @@ from evn.util import (
     chdir,
     try_int,
     memoize,
+    load_class,
 )
 
 from evn.path import (
@@ -211,6 +212,12 @@ class Config(RawConfigParser):
         self.set('main', 'standard-layout', 'branches,tags,trunk')
         self.set('main', 'no-svnmucc-after-evnadmin-create', '')
         self.set('main', 'selftest-base-dir', '~/tmp/evn-test')
+
+        self.set(
+            'main',
+            'custom-hook-classname',
+            'evn.custom_hook.DummyCustomHook'
+        )
 
         self.set(
             'main',
@@ -455,5 +462,13 @@ class Config(RawConfigParser):
         if not isdir(d):
             os.makedirs(d)
         return d
+
+    @property
+    def custom_hook_classname(self):
+        return self.get('main', 'custom-hook-classname')
+
+    @property
+    def custom_hook_class(self):
+        return load_class(self.custom_hook_classname)
 
 # vim:set ts=8 sw=4 sts=4 tw=78 et:

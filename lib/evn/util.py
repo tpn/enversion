@@ -6,6 +6,7 @@ import sys
 import shutil
 import inspect
 import datetime
+import importlib
 import itertools
 
 import cStringIO as StringIO
