@@ -24,13 +24,13 @@ from evn.test import (
 #===============================================================================
 def suite():
     return unittest.defaultTestLoader.loadTestsFromTestCase(
-        TestConfig,
+        TestRepoOverrideSimple,
     )
 
 #===============================================================================
 # Test Classes
 #===============================================================================
-class TestConfig(EnversionTest, unittest.TestCase):
+class TestRepoOverrideSimple(EnversionTest, unittest.TestCase):
     def create_conf(self, repo_name=None):
         text = dedent(
             """
