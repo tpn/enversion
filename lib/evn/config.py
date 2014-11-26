@@ -1,10 +1,10 @@
-
 #===============================================================================
 # Imports
 #===============================================================================
 import os
 import re
 import sys
+import copy
 import stat
 
 from os.path import (
@@ -13,6 +13,8 @@ from os.path import (
     dirname,
     expanduser,
 )
+
+from itertools import chain
 
 from textwrap import dedent
 
@@ -27,6 +29,8 @@ from evn.util import (
     try_int,
     memoize,
     load_class,
+    file_exists_and_not_empty,
+    first_writable_file_that_preferably_exists,
 )
 
 from evn.path import (
@@ -78,7 +82,7 @@ class ConfigError(Exception):
 class Config(RawConfigParser):
     def __init__(self):
         RawConfigParser.__init__(self)
-        self.__repo_files = []
+        self.__possible_repo_conf_filenames = []
         self.__repo_path = None
         self._repo_name = None
 
@@ -107,10 +111,15 @@ class Config(RawConfigParser):
     def repo_path(self):
         return self.__repo_path
 
-    def load(self, filename=None):
-        self.__filename = filename
+    @property
+    @memoize
+    def default_repo_conf_path(self):
+        return join_path(self.repo_path, 'conf/evn.conf')
 
-        self.__files = [
+    @property
+    @memoize
+    def possible_conf_filenames(self):
+        return [
             f for f in (
                 os.path.expanduser('~/.evnrc'),
                 join_path(sys.exec_prefix, 'etc', 'evn.conf'),
@@ -120,22 +129,73 @@ class Config(RawConfigParser):
                 '/opt/etc/evn.conf',
                 '/opt/local/etc/evn.conf',
                 os.environ.get('EVN_CONF') or None,
-                filename or None,
+                self.__filename or None,
             ) if f
         ]
-        self.read(self.files)
+
+    @property
+    @memoize
+    def possible_repo_conf_filenames(self):
+        files =  [ join_path(self.repo_path, 'conf/evn.conf') ]
+        files += [
+            f.replace('evn.conf', '%s.conf' % self.repo_name)
+                for f in self.possible_conf_filenames
+                    if f.endswith('evn.conf')
+        ]
+        return files
+
+    def _actual_files(self, files):
+        return filter(None, [ file_exists_and_not_empty(f) for f in files ])
+
+    @property
+    @memoize
+    def actual_conf_filenames(self):
+        return self._actual_files(self.possible_conf_filenames)
+
+    @property
+    @memoize
+    def actual_repo_conf_filenames(self):
+        return self._actual_files(self.possible_repo_conf_filenames)
+
+    @property
+    def writable_repo_override_conf_filename(self):
+        """
+        Returns the most suitable path for writing the repo override config
+        file.  Suitable in this instance means the returned path will try and
+        respect the standard configuration file resolution rules -- basically,
+        it should be able to figure out if you're using the '<reponame>.conf'
+        pattern (where that file lives next to wherever evn.conf was found),
+        or the '<repopath>/conf/evn.conf' pattern, which will be the default
+        if no custom evn.conf was found.
+
+        The most relevant path that can be written to will be returned or a
+        runtime error will be raised -- this ensures calling code will be
+        guaranteed to get a writable file name if available.
+
+        This method (and the supporting (possible|actual)_conf_filenames glue)
+        was introduced in order to better support dynamic repo configuration
+        overrides for unit tests -- however, it could also be used for
+        programmatic repo configuration.
+        """
+        assert self.repo_path
+
+        files = chain(
+            self.actual_repo_conf_filenames,
+            self.possible_repo_conf_filenames,
+            (self.default_repo_conf_path,),
+        )
+
+        return first_writable_file_that_preferably_exists(files)
+
+    def load(self, filename=None, repo_path=None):
+        self.__filename = filename
+        self.read(self.actual_conf_filenames)
         self.__validate()
+        if repo_path:
+            self.load_repo(repo_path)
 
     def __validate(self):
         dummy = self.unix_hook_permissions
-
-    @property
-    def files(self):
-        return self.__files
-
-    @property
-    def repo_files(self):
-        return self.__repo_files
 
     def load_repo(self, repo_path):
         self.__repo_path = repo_path
@@ -144,13 +204,7 @@ class Config(RawConfigParser):
         assert self.repo_path
         assert self.repo_name
 
-        self.__repo_files = [ join_path(self.repo_path, 'conf/evn.conf') ]
-        self.__repo_files += [
-            f.replace('evn.conf', '%s.conf' % self.repo_name)
-                for f in self.files if f.endswith('evn.conf')
-        ]
-
-        self.read(self.repo_files)
+        self.read(self.actual_repo_conf_filenames)
         self.__validate()
 
     def get_multiline_to_single_line(self, section, name):
@@ -196,6 +250,8 @@ class Config(RawConfigParser):
     def __load_defaults(self):
         logfmt = "%(asctime)s:%(name)s:%(levelname)s:%(message)s"
 
+        #import ipdb
+        #ipdb.set_trace()
         self.add_section('main')
         self.set('main', 'max-revlock-waits', '3')
         self.set('main', 'verbose', 'off')
