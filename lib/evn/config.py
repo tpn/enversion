@@ -182,7 +182,7 @@ class Config(RawConfigParser):
         files = chain(
             self.actual_repo_conf_filenames,
             self.possible_repo_conf_filenames,
-            (self.default_repo_conf_path,),
+            (self.default_repo_conf_filename,),
         )
 
         return first_writable_file_that_preferably_exists(files)
