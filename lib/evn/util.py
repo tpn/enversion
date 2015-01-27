@@ -366,6 +366,63 @@ def touch_file(path):
 
     assert os.path.exists(path)
 
+def file_exists_and_not_empty(path):
+    """
+    Returns an os.path.abspath()-version of `path` if it exists, is a file,
+    and is not empty (i.e. has a size greater than zero bytes).
+    """
+    if not path:
+        return
+
+    path = os.path.abspath(path)
+
+    if not os.path.isfile(path):
+        return
+
+    try:
+        with open(path, 'r') as f:
+            pass
+
+        if os.stat(path).st_size > 0:
+            return path
+    except:
+        return
+
+def first_writable_file_that_preferably_exists(files):
+    """
+    Returns the first file in files (sequence of path names) that preferably
+    exists and is writable.  "Preferably exists" means that two loops are done
+    over the files -- the first loop returns the first file that exists and is
+    writable.  If no files are found, a second loop is performed and the first
+    file that can be opened for write is returned.  If that doesn't find
+    anything, a RuntimeError is raised.
+
+    Note that the "writability" test is literally conducted by attempting to
+    open the file for writing (versus just checking for write permissions).
+    """
+    # Explicitly coerce into a list as we may need to enumerate over the
+    # contents twice (which we couldn't do if we're passed a generator).
+    files = [ f for f in filter(None, files) ]
+
+    # First pass: look for files that exist and are writable.
+    for f in files:
+        if file_exists_and_not_empty(f):
+            try:
+                with open(f, 'w'):
+                    return f
+            except (IOError, OSError):
+                pass
+
+    # Second pass: just pick the first file we can find that's writable.
+    for f in files:
+        try:
+            with open(f, 'w'):
+                return f
+        except (IOError, OSError):
+            pass
+
+    raise RuntimeError("no writable files found")
+
 def try_remove_file(path):
     try:
         os.unlink(path)
