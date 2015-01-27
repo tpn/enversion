@@ -139,6 +139,12 @@ class ShowActualRepoConfigFileLoadOrderCommand(RepositoryCommand):
             raise CommandError('no repo configuration files are being loaded')
         self._out(os.linesep.join(self.conf.actual_repo_conf_filenames))
 
+class ShowWritableRepoOverrideConfigFilenameCommand(RepositoryCommand):
+    @requires_context
+    def run(self):
+        RepositoryCommand.run(self)
+        self._out(self.conf.writable_repo_override_conf_filename)
+
 class DumpHookCodeCommand(RepositoryCommand):
     @requires_context
     def run(self):

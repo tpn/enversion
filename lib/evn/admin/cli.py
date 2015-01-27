@@ -78,6 +78,10 @@ class ShowActualRepoConfigFileLoadOrderCommandLine(AdminCommandLine):
     _conf_ = True
     _repo_ = True
 
+class ShowWritableRepoOverrideConfigFilenameCommandLine(AdminCommandLine):
+    _conf_ = True
+    _repo_ = True
+
 class DumpHookCodeCommandLine(AdminCommandLine):
     _conf_ = True
     _repo_ = True
