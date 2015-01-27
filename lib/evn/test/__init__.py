@@ -33,6 +33,10 @@ from evn.util import (
     try_remove_dir_atexit,
 )
 
+from evn.config import (
+    Config,
+)
+
 from evn.exe import (
     SubversionClientException,
 )
@@ -72,6 +76,11 @@ class TestRepo(object):
 
         self.dot = dot
         self.dash = dash
+
+        conf = Config()
+        conf.load()
+        conf.load_repo(self.path)
+        self.conf = conf
 
 
     def create(self, **kwds):
