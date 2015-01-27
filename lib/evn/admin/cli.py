@@ -64,10 +64,17 @@ class DumpRepoConfigCommandLine(AdminCommandLine):
     _conf_ = True
     _repo_ = True
 
-class ShowConfigFileLoadOrderCommandLine(AdminCommandLine):
+class ShowPossibleConfigFileLoadOrderCommandLine(AdminCommandLine):
     _conf_ = True
 
-class ShowRepoConfigFileLoadOrderCommandLine(AdminCommandLine):
+class ShowPossibleRepoConfigFileLoadOrderCommandLine(AdminCommandLine):
+    _conf_ = True
+    _repo_ = True
+
+class ShowActualConfigFileLoadOrderCommandLine(AdminCommandLine):
+    _conf_ = True
+
+class ShowActualRepoConfigFileLoadOrderCommandLine(AdminCommandLine):
     _conf_ = True
     _repo_ = True
 

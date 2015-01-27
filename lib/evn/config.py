@@ -82,7 +82,6 @@ class ConfigError(Exception):
 class Config(RawConfigParser):
     def __init__(self):
         RawConfigParser.__init__(self)
-        self.__possible_repo_conf_filenames = []
         self.__repo_path = None
         self._repo_name = None
 
@@ -136,7 +135,7 @@ class Config(RawConfigParser):
     @property
     @memoize
     def possible_repo_conf_filenames(self):
-        files =  [ join_path(self.repo_path, 'conf/evn.conf') ]
+        files =  [ self.default_repo_conf_filename ]
         files += [
             f.replace('evn.conf', '%s.conf' % self.repo_name)
                 for f in self.possible_conf_filenames
@@ -182,7 +181,6 @@ class Config(RawConfigParser):
         files = chain(
             self.actual_repo_conf_filenames,
             self.possible_repo_conf_filenames,
-            (self.default_repo_conf_filename,),
         )
 
         return first_writable_file_that_preferably_exists(files)
