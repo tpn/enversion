@@ -113,7 +113,7 @@ class Config(RawConfigParser):
 
     @property
     @memoize
-    def default_repo_conf_path(self):
+    def default_repo_conf_filename(self):
         return join_path(self.repo_path, 'conf/evn.conf')
 
     @property
