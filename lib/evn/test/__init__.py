@@ -158,7 +158,7 @@ def all_tests():
 def announce(stream, module_name, test_class):
     stream.write('%s: %s\n' % (module_name, test_class))
 
-def suites(stream, single=None):
+def suites(stream, single=None, load=True):
     loader = unittest.defaultTestLoader
     for (module_name, classes) in all_tests().items():
         for test_class in classes:
@@ -166,7 +166,11 @@ def suites(stream, single=None):
             if single and not classname.endswith(single):
                 continue
             announce(stream, module_name, classname)
-            yield loader.loadTestsFromTestCase(test_class)
+            if load:
+                tests = loader.loadTestsFromTestCase(test_class)
+            else:
+                tests = None
+            yield tests
 
 def crude_error_message_test(actual, expected):
     ix = expected.find('%')

@@ -54,6 +54,9 @@ class SelftestCommandLine(AdminCommandLine):
     _quiet_ = True
     _usage_ = UnittestCommandLine._usage_
 
+class ListUnitTestClassnamesCommandLine(AdminCommandLine):
+    pass
+
 class DumpDefaultConfigCommandLine(AdminCommandLine):
     pass
 

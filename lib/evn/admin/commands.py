@@ -98,6 +98,20 @@ class SelftestCommand(Command):
             with Command.prime(self, test) as command:
                 command.run()
 
+class ListUnitTestClassnamesCommand(Command):
+    def run(self):
+        import evn.test
+
+        # Whip up a little helper class to transform the 'module_name: class'
+        # format to 'module_name.class'.
+        class Writer:
+            ostream = self.ostream
+            def write(self, s):
+                self.ostream.write(s.replace(': ', '.'))
+        stream = Writer()
+        for dummy in evn.test.suites(stream=stream, load=False):
+            pass
+
 class DumpDefaultConfigCommand(Command):
     def run(self):
         cf = Config()
