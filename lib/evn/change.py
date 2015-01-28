@@ -64,6 +64,7 @@ from evn.util import (
     Options,
     Constant,
     DecayDict,
+    NullObject,
     UnexpectedCodePath,
 )
 
@@ -1204,6 +1205,21 @@ class AbstractChangeSet(set, AbstractChange):
             mi.append((self, pl[SVN_PROP_MERGEINFO]))
         for child in self:
             child.collect_mergeinfo_forward(mi)
+
+    @property
+    def top(self):
+        """
+        Iff one child change is present, return it.  Otherwise, return an
+        instance of a NullObject.
+        """
+        if self.child_count != 1:
+            return NullObject()
+        else:
+            top = None
+            for child in self:
+                top = child
+                break
+            return top
 
     @property
     def paths(self):
