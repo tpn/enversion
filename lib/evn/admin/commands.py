@@ -460,6 +460,19 @@ class GetRepoComponentDepthCommand(RepositoryCommand):
             else:
                 err('Invalid depth: %s' % str(depth))
 
+class SetRepoCustomHookClassCommand(RepositoryCommand):
+    @requires_context
+    def run(self):
+        RepositoryCommand.run(self)
+        custom_hook_classname = self.options.custom_hook_classname
+        self.conf.set_custom_hook_classname(custom_hook_classname)
+
+class GetRepoCustomHookClassCommand(RepositoryCommand):
+    @requires_context
+    def run(self):
+        RepositoryCommand.run(self)
+        self._out(self.conf.custom_hook_classname)
+
 class SetRepoHookRemoteDebugCommand(RepoHookCommand):
     action = None
 

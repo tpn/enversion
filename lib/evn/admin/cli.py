@@ -464,6 +464,27 @@ class GetRepoComponentDepthCommandLine(AdminCommandLine):
     _conf_ = True
     _repo_ = True
 
+class SetRepoCustomHookClassCommandLine(AdminCommandLine):
+    _conf_ = True
+    _repo_ = True
+
+    def _add_parser_options(self):
+        self.parser.add_option(
+            '-k', '--custom-hook-classname',
+            dest='custom_hook_classname',
+            type='string',
+            help=(
+                'fully qualified classname (i.e. inc. module name) '
+                'of custom hook class to use (the module must be '
+                'importable and the class must derive from '
+                '`evn.custom_hook.CustomHook`)'
+            )
+        )
+
+class GetRepoCustomHookClassCommandLine(AdminCommandLine):
+    _conf_ = True
+    _repo_ = True
+
 class RunHookCommandLine(AdminCommandLine):
     _conf_ = True
     _repo_ = True
