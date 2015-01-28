@@ -261,6 +261,7 @@ class Config(RawConfigParser):
         file is determined by the `writable_repo_override_conf_filename`
         property.)
         """
+        conf = self.create_new_conf_from_modifications()
         filename = self.writable_repo_override_conf_filename
 
         with open(filename, 'w') as f:
