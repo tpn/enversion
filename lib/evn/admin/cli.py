@@ -5,6 +5,7 @@ import os
 import sys
 
 from itertools import (
+    count,
     chain,
     repeat,
 )
@@ -165,16 +166,19 @@ class ShowRepoHookStatusCommandLine(AdminCommandLine):
         k.special = '='
         render_text_table(rows, **k)
 
-class ShowRepoRemoteDebugSessionsCommandLine(AdminCommandLine):
+class _ShowDebugSessionsCommandLine(AdminCommandLine):
     _conf_ = True
     _repo_ = True
     _command_ = evn.admin.commands.ShowRepoHookStatusCommand
 
+    _debug_ = False
+
     def _post_run(self):
         r = self.command.result
 
+        i = count()
         rows = list()
-        found_at_least_one_listening_session = False
+        listening = list()
         for h in r.hook_files:
             sessions = h.remote_debug_sessions
             if not sessions:
@@ -182,11 +186,13 @@ class ShowRepoRemoteDebugSessionsCommandLine(AdminCommandLine):
 
             for s in sessions:
                 state = s.state
+                is_listening = False
                 if state == 'listening':
-                    found_at_least_one_listening_session = True
-                    state = state + '*'
+                    is_listening = True
+                    if not self._debug_:
+                        state = state + '*'
 
-                row = [ s.hook_name, s.pid, s.host, s.port, state ]
+                row = [ i.next(), s.hook_name, s.pid, s.host, s.port, state ]
 
                 if s.state == 'connected':
                     row.append('%s:%d' % (s.dst_host, s.dst_port))
@@ -195,12 +201,15 @@ class ShowRepoRemoteDebugSessionsCommandLine(AdminCommandLine):
 
                 rows.append(row)
 
+                if is_listening:
+                    listening.append(row)
+
         if not rows:
             m = "No remote debug sessions found for repository '%s'.\n"
             sys.stdout.write(m % r.name)
             return
 
-        header = ('Hook', 'PID', 'Host', 'Port', 'State', 'Connected')
+        header = ('ID', 'Hook', 'PID', 'Host', 'Port', 'State', 'Connected')
         rows.insert(0, header)
 
         k = Dict()
@@ -208,13 +217,40 @@ class ShowRepoRemoteDebugSessionsCommandLine(AdminCommandLine):
             "Remote Debug Sessions for Repository '%s'" % r.name,
             "(%s)" % r.path,
         )
-        if found_at_least_one_listening_session:
-            k.footer = "(*) type 'telnet <host> <port>' to connect to session"
+        if not self._debug_:
+            if len(listening) == 1:
+                k.footer = (
+                    "(*) type 'evnadmin debug %s' "
+                    "to debug this session" % self.command.name
+                )
+            elif len(listening) > 1:
+                # Ugh, this is highly unlikely and I can't think of a good way
+                # to handle it at the moment.
+                k.footer = '(*) multiple listeners?!'
 
         k.formats = lambda: chain((str.rjust,), repeat(str.center))
         k.output = sys.stdout
         #k.special = '='
         render_text_table(rows, **k)
+
+        if not self._debug_:
+            return
+
+        if len(listening) != 1:
+            return
+
+        from telnetlib import Telnet
+        listen = listening[0]
+        host = listen[3]
+        port = listen[4]
+        t = Telnet(host, port)
+        t.interact()
+
+class ShowDebugSessionsCommandLine(_ShowDebugSessionsCommandLine):
+    pass
+
+class DebugCommandLine(_ShowDebugSessionsCommandLine):
+    _debug_ = True
 
 class FixHooksCommandLine(AdminCommandLine):
     _conf_      = True
