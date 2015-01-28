@@ -2,6 +2,7 @@
 # Imports
 #===============================================================================
 import unittest
+import os.path
 
 from tempfile import (
     NamedTemporaryFile,
@@ -19,18 +20,27 @@ from evn.test import (
     EnversionTest,
 )
 
+from evn.test.dot import (
+    dot,
+)
+
 #===============================================================================
 # Helper Methods
 #===============================================================================
 def suite():
     return unittest.defaultTestLoader.loadTestsFromTestCase(
-        TestRepoOverrideSimple,
+        TestBasicManualRepoOverrideLogic,
+        TestRepoOverride,
     )
 
 #===============================================================================
 # Test Classes
 #===============================================================================
-class TestRepoOverrideSimple(EnversionTest, unittest.TestCase):
+class TestBasicManualRepoOverrideLogic(EnversionTest, unittest.TestCase):
+    """
+    This was the first test ever implemented and it's definitely showing its
+    age as it's barely useful anymore.
+    """
     def create_conf(self, repo_name=None):
         text = dedent(
             """
@@ -91,6 +101,69 @@ class TestRepoOverrideSimple(EnversionTest, unittest.TestCase):
         c = self.create_conf('bar')
 
         self.assertEqual(c._g('fallback'), '1')
+
+class TestRepoOverride(EnversionTest, unittest.TestCase):
+    def test_01_writable_override(self):
+        repo = self.create_repo(checkout=False)
+        conf = repo.conf
+
+        self.assertEqual(conf.modifications, {})
+
+        expected_mods = {
+            'main': {
+                'custom-hook-classname': 'FoobarCustomHook',
+            }
+        }
+
+        conf.set('main', 'custom-hook-classname', 'FoobarCustomHook')
+        self.assertEqual(conf.modifications, expected_mods)
+        dot()
+
+        conf.save()
+        self.assertEqual(conf.modifications, expected_mods)
+        dot()
+
+        conf = repo.reload_conf()
+        path = conf.actual_repo_conf_filenames[0]
+        with open(path, 'r') as f:
+            actual = f.read()
+        expected = "[main]\ncustom-hook-classname = FoobarCustomHook\n\n"
+        self.assertEqual(actual, expected)
+        dot()
+
+        # Make sure the modifications are still detected/preserved when
+        # written to an explicit override file.
+        self.assertEqual(conf.modifications, expected_mods)
+        dot()
+
+        expected_mods = {
+            'main': {
+                'foo': 'bar',
+                'custom-hook-classname': 'FoobarCustomHook',
+            }
+        }
+
+        conf.set('main', 'foo', 'bar')
+        self.assertEqual(conf.modifications, expected_mods)
+        dot()
+
+        conf.save()
+        self.assertEqual(conf.modifications, expected_mods)
+        dot()
+
+        conf = repo.reload_conf()
+        path = conf.actual_repo_conf_filenames[0]
+        with open(path, 'r') as f:
+            actual = f.read()
+        expected = (
+            "[main]\n"
+            "foo = bar\n"
+            "custom-hook-classname = FoobarCustomHook\n"
+            "\n"
+        )
+        self.assertEqual(actual, expected)
+        dot()
+
 
 def main():
     runner = unittest.TextTestRunner()
