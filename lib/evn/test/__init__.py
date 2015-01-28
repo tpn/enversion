@@ -3,6 +3,7 @@
 #===============================================================================
 import os
 import sys
+import shutil
 import inspect
 import unittest
 
@@ -76,24 +77,27 @@ class TestRepo(object):
 
         self.dot = dot
         self.dash = dash
+        self.conf = None
 
+    def reload_conf(self):
         conf = Config()
         conf.load()
         conf.load_repo(self.path)
         self.conf = conf
-
+        return conf
 
     def create(self, **kwds):
-        if isdir(self.name):
-            try_remove_dir(self.name)
+        if isdir(self.path):
+            shutil.rmtree(self.path)
         self.evnadmin.create(self.name, **kwds)
         self.dot()
         if not self.keep:
             try_remove_dir_atexit(self.path)
+        self.reload_conf()
 
     def checkout(self):
         if isdir(self.wc):
-            try_remove_dir(self.wc)
+            shutil.rmtree(self.wc)
         self.svn.checkout(self.uri, self.wc)
         self.dot()
         if not self.keep:
