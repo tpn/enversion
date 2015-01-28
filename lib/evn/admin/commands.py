@@ -137,7 +137,7 @@ class DumpModifiedRepoConfigCommand(RepositoryCommand):
         except NoModificationsMade:
             raise CommandError(
                 "repository '%s' has no custom configuration "
-                "modifications made" % (self.repo_name)
+                "modifications made" % (self.conf.repo_name)
             )
         conf.write(self.ostream)
 
