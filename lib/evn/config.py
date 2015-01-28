@@ -229,11 +229,11 @@ class Config(RawConfigParser):
 
         return modified
 
-    def write_repo_conf(self):
+    def create_new_conf_from_modifications(self):
         """
-        Write any changes made to the repo's configuration file.  (The actual
-        file is determined by the `writable_repo_override_conf_filename`
-        property.)
+        Return a new RawConfigParser instance that has been created from the
+        non-default modifications returned by the `modifications` property
+        above.
         """
         # This is a bit hacky as the underlying config classes don't really
         # support the notion of "only write out sections/options that have
@@ -252,6 +252,16 @@ class Config(RawConfigParser):
             conf.add_section(section)
             for (option, value) in options.items():
                 conf.set(section, option, value)
+
+        return conf
+
+    def write_repo_conf(self):
+        """
+        Write any changes made to the repo's configuration file.  (The actual
+        file is determined by the `writable_repo_override_conf_filename`
+        property.)
+        """
+        filename = self.writable_repo_override_conf_filename
 
         with open(filename, 'w') as f:
             conf.write(f)

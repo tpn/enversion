@@ -127,6 +127,20 @@ class DumpRepoConfigCommand(RepositoryCommand):
         RepositoryCommand.run(self)
         self.conf.write(self.ostream)
 
+class DumpModifiedRepoConfigCommand(RepositoryCommand):
+    @requires_context
+    def run(self):
+        RepositoryCommand.run(self)
+        from ..config import NoModificationsMade
+        try:
+            conf = self.conf.create_new_conf_from_modifications()
+        except NoModificationsMade:
+            raise CommandError(
+                "repository '%s' has no custom configuration "
+                "modifications made" % (self.repo_name)
+            )
+        conf.write(self.ostream)
+
 class ShowPossibleConfigFileLoadOrderCommand(Command):
     @requires_context
     def run(self):

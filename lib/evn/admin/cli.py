@@ -67,6 +67,10 @@ class DumpRepoConfigCommandLine(AdminCommandLine):
     _conf_ = True
     _repo_ = True
 
+class DumpModifiedRepoConfigCommandLine(AdminCommandLine):
+    _conf_ = True
+    _repo_ = True
+
 class ShowPossibleConfigFileLoadOrderCommandLine(AdminCommandLine):
     _conf_ = True
 
