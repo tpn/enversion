@@ -326,13 +326,8 @@ def extract_component_name(path):
         ...
     AssertionError
 
-    >>> extract_component_name(5)
-    Traceback (most recent call last):
-        ...
-    IndexError
-
     """
-    assert path and path[0] == '/', path
+    assert path and path[0] == '/'
     assert path.count('/') >= 3
     return path[1:path.find('/', 2)]
 
