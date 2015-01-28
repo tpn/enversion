@@ -124,7 +124,7 @@ def strip_linesep_if_present(s):
 
 def prepend_warning_if_missing(s):
     return add_linesep_if_missing(
-        s if s.startsiwth('warning: ') else 'warning: ' + s
+        s if s.startswith('warning: ') else 'warning: ' + s
     )
 
 def prepend_error_if_missing(s):
