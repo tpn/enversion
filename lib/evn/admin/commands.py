@@ -74,10 +74,10 @@ class DoctestCommand(Command):
         import evn.util
         import evn.logic
         verbose = not quiet
-        doctest.testmod(evn.path, verbose=verbose)
-        doctest.testmod(evn.root, verbose=verbose)
-        doctest.testmod(evn.util, verbose=verbose)
-        doctest.testmod(evn.logic, verbose=verbose)
+        doctest.testmod(evn.path, verbose=verbose, raise_on_error=True)
+        doctest.testmod(evn.root, verbose=verbose, raise_on_error=True)
+        doctest.testmod(evn.util, verbose=verbose, raise_on_error=True)
+        doctest.testmod(evn.logic, verbose=verbose, raise_on_error=True)
 
 class UnittestCommand(Command):
     def run(self):
