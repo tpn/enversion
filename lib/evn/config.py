@@ -603,9 +603,27 @@ class Config(RawConfigParser):
             os.makedirs(d)
         return d
 
+    @staticmethod
+    def verify_custom_hook_classname(classname):
+        # Don't wrap the load_class() in a try/except block; just let the
+        # error propagate back to the caller such that they're given the
+        # maximum amount of information to assist in debugging.
+        from .custom_hook import CustomHook
+        cls = load_class(classname)
+        if not isinstance(cls(), CustomHook):
+            raise CommandError(
+                "custom hook class '%s' does not derive from "
+                "evn.custom_hook.CustomHook" % classname
+            )
+
     @property
     def custom_hook_classname(self):
         return self.get('main', 'custom-hook-classname')
+
+    def set_custom_hook_classname(self, classname):
+        Config.verify_custom_hook_classname(classname)
+        self.set('main', 'custom-hook-classname', classname)
+        self.save()
 
     @property
     def custom_hook_class(self):
