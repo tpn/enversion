@@ -123,6 +123,21 @@ class EnversionTest(object):
 
     repo = None
 
+    @property
+    def repo_name(self):
+        # Helper method; can be called from derived classes for a convenient
+        # way to get at the repo name without needing to create the repo.
+        test_name = inspect.currentframe().f_back.f_code.co_name
+        repo_name = '_'.join((self.__class__.__name__, test_name))
+        return repo_name
+
+    @property
+    def repo_path(self):
+        # As above but for the repo path.
+        test_name = inspect.currentframe().f_back.f_code.co_name
+        repo_name = '_'.join((self.__class__.__name__, test_name))
+        return abspath(self.repo_name)
+
     def create_repo(self, checkout=True, **kwds):
         test_name = inspect.currentframe().f_back.f_code.co_name
         repo_name = '_'.join((self.__class__.__name__, test_name))
