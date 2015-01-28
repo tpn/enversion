@@ -52,6 +52,12 @@ class ConfigError(BaseException):
 class NoConfigObjectCreated(BaseException):
     pass
 
+class RepositoryNotSet(BaseException):
+    pass
+
+class NoModificationsMade(BaseException):
+    pass
+
 #===============================================================================
 # Helpers
 #===============================================================================
@@ -91,6 +97,7 @@ class Config(RawConfigParser):
         self.__python_evn_admin_cli_file_fullpath = f
 
         self.__load_defaults()
+        self._default_sections_copy = copy.deepcopy(self._sections)
         self.__multiline_pattern = re.compile(r'([^\s].*?)([\s]+\\)?')
         self.__validate()
 
@@ -113,6 +120,8 @@ class Config(RawConfigParser):
     @property
     @memoize
     def default_repo_conf_filename(self):
+        if not self.repo_path:
+            raise RepositoryNotSet()
         return join_path(self.repo_path, 'conf/evn.conf')
 
     @property
@@ -191,6 +200,72 @@ class Config(RawConfigParser):
         self.__validate()
         if repo_path:
             self.load_repo(repo_path)
+
+    @property
+    def modifications(self):
+        """
+        Return a dict of dicts representing the sections/options that have
+        been modified from their default value.
+        """
+        current = self._sections
+        default = self._default_sections_copy
+        modified = {}
+        for (section, options) in current.items():
+            if section not in default:
+                modified[section] = options
+                continue
+
+            for (option, value) in options.items():
+                include = False
+                if option not in default[section]:
+                    include = True
+                elif value != default[section][option]:
+                    include = True
+
+                if include:
+                    if section not in modified:
+                        modified[section] = {}
+                    modified[section][option] = value
+
+        return modified
+
+    def write_repo_conf(self):
+        """
+        Write any changes made to the repo's configuration file.  (The actual
+        file is determined by the `writable_repo_override_conf_filename`
+        property.)
+        """
+        # This is a bit hacky as the underlying config classes don't really
+        # support the notion of "only write out sections/options that have
+        # changed since we loaded the defaults".
+        if not self.repo_path:
+            raise RepositoryNotSet()
+
+        mods = self.modifications
+        if not mods:
+            raise NoModificationsMade()
+
+        filename = self.writable_repo_override_conf_filename
+        conf = RawConfigParser()
+        conf.read(filename)
+        for (section, options) in mods.items():
+            conf.add_section(section)
+            for (option, value) in options.items():
+                conf.set(section, option, value)
+
+        with open(filename, 'w') as f:
+            conf.write(f)
+
+    def save(self):
+        """
+        Persist any non-default configuration changes that have been made.
+        """
+        if not self.repo_path:
+            # I haven't implemented logic for writing override conf values
+            # when the repo hasn't been set yet (as it hasn't been needed).
+            raise NotImplementedError()
+        else:
+            self.write_repo_conf()
 
     def __validate(self):
         dummy = self.unix_hook_permissions
