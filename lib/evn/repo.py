@@ -52,10 +52,8 @@ from evn.path import (
 
 from evn.root import (
     Roots,
-    RootDetails,
     RootPathMatcher,
     SimpleRootMatcher,
-    AbsoluteRootDetails,
 )
 
 from evn.change import (
