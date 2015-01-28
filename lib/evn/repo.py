@@ -3126,34 +3126,4 @@ class RepositoryRevOrTxn(ImplicitContextSensitiveObject):
     def proplist(self, path=''):
         return svn.fs.node_proplist(self.root, path, self.pool)
 
-    # Some helper properties for easy commit classification.
-    @property
-    def is_tag_create(self):
-        cs = self.changeset
-        rd = cs.root_details
-        return (cs.is_create and rd.is_tag)
-
-    @property
-    def is_branch_create(self):
-        cs = self.changeset
-        rd = cs.root_details
-        return (cs.is_create and rd.is_branch)
-
-    @property
-    def is_modify(self):
-        """
-        Returns True if the commit only contains modifications to an existing
-        known root, and no mergeinfo was detected.  Otherwise, return False.
-        (Note: this is very crude and probably easily fooled.)
-        """
-        cs = self.changeset
-        if cs.is_create or cs.has_merges:
-            return False
-
-        rd = cs.root_details
-        if rd.is_trunk or rd.is_branch and cs.is_modify:
-            return True
-
-        return False
-
 # vim:set ts=8 sw=4 sts=4 tw=78 et:

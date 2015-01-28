@@ -440,6 +440,50 @@ class AbstractChange(object):
         raise NotImplementedError()
 
     @property
+    def is_tag(self):
+        return self.root_details.is_tag
+
+    @property
+    def is_trunk(self):
+        return self.root_details.is_trunk
+
+    @property
+    def is_branch(self):
+        return self.root_details.is_trunk
+
+    @property
+    def is_tag_create(self):
+        return (
+            self.is_root and
+            self.is_copy and
+            self.is_tag
+        )
+
+    @property
+    def is_tag_remove(self):
+        return (
+            self.is_root and
+            self.is_remove and
+            self.is_tag
+        )
+
+    @property
+    def is_branch_create(self):
+        return (
+            self.is_root and
+            self.is_copy and
+            self.is_branch
+        )
+
+    @property
+    def is_branch_remove(self):
+        return (
+            self.is_root and
+            self.is_remove and
+            self.is_branch
+        )
+
+    @property
     def has_checked_modify_invariants(self):
         raise NotImplementedError()
 
@@ -1686,6 +1730,22 @@ class ChangeSet(AbstractChangeSet):
                 self.track_file_sizes = False
 
         self.files_over_max_size = []
+
+    @property
+    def is_tag_create(self):
+        return self.top.is_tag_create
+
+    @property
+    def is_tag_remove(self):
+        return self.top.is_tag_remove
+
+    @property
+    def is_branch_create(self):
+        return self.top.is_branch_create
+
+    @property
+    def is_branch_remove(self):
+        return self.top.is_branch_remove
 
     @property
     def possible_merge_sources(self):
