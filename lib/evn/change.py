@@ -1705,7 +1705,7 @@ class ChangeSet(AbstractChangeSet):
         """
         # XXX TODO: this entire method is just horrid.  Basically, the initial
         # implementation of the ChangeSet class and various Change* subclasses
-        # (AbstractChange, FileChange, DirectoryChange, etc) was rife with
+        # (AbstractChange, FileChange, DirectoryChange, etc) were rife with
         # circular links, because all child objects linked backed to their
         # parents (i.e. via self.parent).  (And by "initial implementation", I
         # mean "initial and still current implementation".)
