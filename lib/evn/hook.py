@@ -322,7 +322,6 @@ class RepoHookFile(HookFile):
                 self.__remote_debug_enabled = True
 
         for f in iglob(self.__remote_debug_session_glob):
-            print "f: ", f
             pid = int(f[f.rfind('.')+1:])
             if not pid_exists(pid):
                 self.__stale_remote_debug_sessions.append(f)
