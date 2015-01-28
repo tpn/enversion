@@ -539,6 +539,7 @@ class SetRepoHookRemoteDebugCommand(RepoHookCommand):
 
 class RunHookCommand(RepoHookCommand):
     hook_args = None
+    rdb = None
 
     @requires_context
     def run(self):
@@ -557,6 +558,7 @@ class RunHookCommand(RepoHookCommand):
             self.rdb.set_trace()
 
         with RepositoryHook(**self.repo_kwds) as r:
+            r.rdb = self.rdb
             try:
                 r.run_hook(self.hook_name, self.hook_args)
             except Exception as exc:

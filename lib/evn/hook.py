@@ -62,6 +62,7 @@ class RepositoryHook(RepositoryRevOrTxn):
         self.hook_args  = None
         self.hook_name  = None
         self.hook_type  = None
+        self.rdb        = None # Remote Debugger
 
         self.custom_hook = self.conf.custom_hook_class()
 
