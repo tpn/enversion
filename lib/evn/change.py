@@ -449,7 +449,28 @@ class AbstractChange(object):
 
     @property
     def is_branch(self):
-        return self.root_details.is_trunk
+        return self.root_details.is_branch
+
+    def was_xxx(self, root_type):
+        rootmatcher = self.root_details.rootmatcher
+        if self.path not in rootmatcher.roots_removed:
+            return False
+
+        pathmatcher = rootmatcher.pathmatcher
+        root_details = pathmatcher.get_root_details(self.path)
+        return getattr(root_details, 'is_%s' % root_type)
+
+    @property
+    def was_tag(self):
+        return self.was_xxx('tag')
+
+    @property
+    def was_trunk(self):
+        return self.was_xxx('trunk')
+
+    @property
+    def was_branch(self):
+        return self.was_xxx('branch')
 
     @property
     def is_tag_create(self):
@@ -464,7 +485,7 @@ class AbstractChange(object):
         return (
             self.is_root and
             self.is_remove and
-            self.is_tag
+            self.was_tag
         )
 
     @property
@@ -480,7 +501,7 @@ class AbstractChange(object):
         return (
             self.is_root and
             self.is_remove and
-            self.is_branch
+            self.was_branch
         )
 
     @property
