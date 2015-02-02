@@ -9,6 +9,7 @@ from ..command import (
 
 from ..custom_hook import (
     CustomHook,
+    DebuggerCustomHook,
 )
 
 #===============================================================================
@@ -16,7 +17,12 @@ from ..custom_hook import (
 #===============================================================================
 class ChangeSetPropertyTesterCustomHook(DebuggerCustomHook):
     def pre_commit(self, commit, *args, **kwds):
+        #self.set_trace(commit)
+
         s = None
+
+        changeset = commit.changeset
+        top = changeset.top
 
         if changeset.is_tag_create:
             s = 'is_tag_create: %s' % top.path
