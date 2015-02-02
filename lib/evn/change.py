@@ -64,6 +64,7 @@ from evn.util import (
     Options,
     Constant,
     DecayDict,
+    NullObject,
     UnexpectedCodePath,
 )
 
@@ -437,6 +438,50 @@ class AbstractChange(object):
 
     def _get_proplist(self, path, rev=None):
         raise NotImplementedError()
+
+    @property
+    def is_tag(self):
+        return self.root_details.is_tag
+
+    @property
+    def is_trunk(self):
+        return self.root_details.is_trunk
+
+    @property
+    def is_branch(self):
+        return self.root_details.is_trunk
+
+    @property
+    def is_tag_create(self):
+        return (
+            self.is_root and
+            self.is_copy and
+            self.is_tag
+        )
+
+    @property
+    def is_tag_remove(self):
+        return (
+            self.is_root and
+            self.is_remove and
+            self.is_tag
+        )
+
+    @property
+    def is_branch_create(self):
+        return (
+            self.is_root and
+            self.is_copy and
+            self.is_branch
+        )
+
+    @property
+    def is_branch_remove(self):
+        return (
+            self.is_root and
+            self.is_remove and
+            self.is_branch
+        )
 
     @property
     def has_checked_modify_invariants(self):
@@ -1206,6 +1251,21 @@ class AbstractChangeSet(set, AbstractChange):
             child.collect_mergeinfo_forward(mi)
 
     @property
+    def top(self):
+        """
+        Iff one child change is present, return it.  Otherwise, return an
+        instance of a NullObject.
+        """
+        if self.child_count != 1:
+            return NullObject()
+        else:
+            top = None
+            for child in self:
+                top = child
+                break
+            return top
+
+    @property
     def paths(self):
         return self.__paths
 
@@ -1672,6 +1732,22 @@ class ChangeSet(AbstractChangeSet):
         self.files_over_max_size = []
 
     @property
+    def is_tag_create(self):
+        return self.top.is_tag_create
+
+    @property
+    def is_tag_remove(self):
+        return self.top.is_tag_remove
+
+    @property
+    def is_branch_create(self):
+        return self.top.is_branch_create
+
+    @property
+    def is_branch_remove(self):
+        return self.top.is_branch_remove
+
+    @property
     def possible_merge_sources(self):
         return self.__possible_merge_sources
 
@@ -1689,7 +1765,7 @@ class ChangeSet(AbstractChangeSet):
         """
         # XXX TODO: this entire method is just horrid.  Basically, the initial
         # implementation of the ChangeSet class and various Change* subclasses
-        # (AbstractChange, FileChange, DirectoryChange, etc) was rife with
+        # (AbstractChange, FileChange, DirectoryChange, etc) were rife with
         # circular links, because all child objects linked backed to their
         # parents (i.e. via self.parent).  (And by "initial implementation", I
         # mean "initial and still current implementation".)

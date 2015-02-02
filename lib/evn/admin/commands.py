@@ -74,10 +74,10 @@ class DoctestCommand(Command):
         import evn.util
         import evn.logic
         verbose = not quiet
-        doctest.testmod(evn.path, verbose=verbose)
-        doctest.testmod(evn.root, verbose=verbose)
-        doctest.testmod(evn.util, verbose=verbose)
-        doctest.testmod(evn.logic, verbose=verbose)
+        doctest.testmod(evn.path, verbose=verbose, raise_on_error=True)
+        doctest.testmod(evn.root, verbose=verbose, raise_on_error=True)
+        doctest.testmod(evn.util, verbose=verbose, raise_on_error=True)
+        doctest.testmod(evn.logic, verbose=verbose, raise_on_error=True)
 
 class UnittestCommand(Command):
     def run(self):
@@ -98,6 +98,20 @@ class SelftestCommand(Command):
             with Command.prime(self, test) as command:
                 command.run()
 
+class ListUnitTestClassnamesCommand(Command):
+    def run(self):
+        import evn.test
+
+        # Whip up a little helper class to transform the 'module_name: class'
+        # format to 'module_name.class'.
+        class Writer:
+            ostream = self.ostream
+            def write(self, s):
+                self.ostream.write(s.replace(': ', '.'))
+        stream = Writer()
+        for dummy in evn.test.suites(stream=stream, load=False):
+            pass
+
 class DumpDefaultConfigCommand(Command):
     def run(self):
         cf = Config()
@@ -113,19 +127,51 @@ class DumpRepoConfigCommand(RepositoryCommand):
         RepositoryCommand.run(self)
         self.conf.write(self.ostream)
 
-class ShowConfigFileLoadOrderCommand(Command):
-    def run(self):
-        if not self.conf.files:
-            raise CommandError('no configuration files are being loaded')
-        self._out(os.linesep.join(self.conf.files))
-
-class ShowRepoConfigFileLoadOrderCommand(RepositoryCommand):
+class DumpModifiedRepoConfigCommand(RepositoryCommand):
     @requires_context
     def run(self):
         RepositoryCommand.run(self)
-        if not self.conf.repo_files:
+        from ..config import NoModificationsMade
+        try:
+            conf = self.conf.create_new_conf_from_modifications()
+        except NoModificationsMade:
+            raise CommandError(
+                "repository '%s' has no custom configuration "
+                "modifications made" % (self.conf.repo_name)
+            )
+        conf.write(self.ostream)
+
+class ShowPossibleConfigFileLoadOrderCommand(Command):
+    @requires_context
+    def run(self):
+        self._out(os.linesep.join(self.conf.possible_conf_filenames))
+
+class ShowPossibleRepoConfigFileLoadOrderCommand(RepositoryCommand):
+    @requires_context
+    def run(self):
+        RepositoryCommand.run(self)
+        self._out(os.linesep.join(self.conf.possible_repo_conf_filenames))
+
+class ShowActualConfigFileLoadOrderCommand(Command):
+    @requires_context
+    def run(self):
+        if not self.conf.actual_conf_filenames:
+            raise CommandError('no configuration files are being loaded')
+        self._out(os.linesep.join(self.conf.actual_conf_filenames))
+
+class ShowActualRepoConfigFileLoadOrderCommand(RepositoryCommand):
+    @requires_context
+    def run(self):
+        RepositoryCommand.run(self)
+        if not self.conf.actual_repo_conf_filenames:
             raise CommandError('no repo configuration files are being loaded')
-        self._out(os.linesep.join(self.conf.repo_files))
+        self._out(os.linesep.join(self.conf.actual_repo_conf_filenames))
+
+class ShowWritableRepoOverrideConfigFilenameCommand(RepositoryCommand):
+    @requires_context
+    def run(self):
+        RepositoryCommand.run(self)
+        self._out(self.conf.writable_repo_override_conf_filename)
 
 class DumpHookCodeCommand(RepositoryCommand):
     @requires_context
@@ -414,6 +460,19 @@ class GetRepoComponentDepthCommand(RepositoryCommand):
             else:
                 err('Invalid depth: %s' % str(depth))
 
+class SetRepoCustomHookClassCommand(RepositoryCommand):
+    @requires_context
+    def run(self):
+        RepositoryCommand.run(self)
+        custom_hook_classname = self.options.custom_hook_classname
+        self.conf.set_custom_hook_classname(custom_hook_classname)
+
+class GetRepoCustomHookClassCommand(RepositoryCommand):
+    @requires_context
+    def run(self):
+        RepositoryCommand.run(self)
+        self._out(self.conf.custom_hook_classname)
+
 class SetRepoHookRemoteDebugCommand(RepoHookCommand):
     action = None
 
@@ -480,6 +539,7 @@ class SetRepoHookRemoteDebugCommand(RepoHookCommand):
 
 class RunHookCommand(RepoHookCommand):
     hook_args = None
+    rdb = None
 
     @requires_context
     def run(self):
@@ -498,6 +558,7 @@ class RunHookCommand(RepoHookCommand):
             self.rdb.set_trace()
 
         with RepositoryHook(**self.repo_kwds) as r:
+            r.rdb = self.rdb
             try:
                 r.run_hook(self.hook_name, self.hook_args)
             except Exception as exc:

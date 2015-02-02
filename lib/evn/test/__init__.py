@@ -3,6 +3,7 @@
 #===============================================================================
 import os
 import sys
+import shutil
 import inspect
 import unittest
 
@@ -31,6 +32,10 @@ from evn.util import (
     literal_eval,
     try_remove_dir,
     try_remove_dir_atexit,
+)
+
+from evn.config import (
+    Config,
 )
 
 from evn.exe import (
@@ -72,19 +77,27 @@ class TestRepo(object):
 
         self.dot = dot
         self.dash = dash
+        self.conf = None
 
+    def reload_conf(self):
+        conf = Config()
+        conf.load()
+        conf.load_repo(self.path)
+        self.conf = conf
+        return conf
 
     def create(self, **kwds):
-        if isdir(self.name):
-            try_remove_dir(self.name)
+        if isdir(self.path):
+            shutil.rmtree(self.path)
         self.evnadmin.create(self.name, **kwds)
         self.dot()
         if not self.keep:
             try_remove_dir_atexit(self.path)
+        self.reload_conf()
 
     def checkout(self):
         if isdir(self.wc):
-            try_remove_dir(self.wc)
+            shutil.rmtree(self.wc)
         self.svn.checkout(self.uri, self.wc)
         self.dot()
         if not self.keep:
@@ -109,6 +122,21 @@ class EnversionTest(object):
     __metaclass__ = ABCMeta
 
     repo = None
+
+    @property
+    def repo_name(self):
+        # Helper method; can be called from derived classes for a convenient
+        # way to get at the repo name without needing to create the repo.
+        test_name = inspect.currentframe().f_back.f_code.co_name
+        repo_name = '_'.join((self.__class__.__name__, test_name))
+        return repo_name
+
+    @property
+    def repo_path(self):
+        # As above but for the repo path.
+        test_name = inspect.currentframe().f_back.f_code.co_name
+        repo_name = '_'.join((self.__class__.__name__, test_name))
+        return abspath(self.repo_name)
 
     def create_repo(self, checkout=True, **kwds):
         test_name = inspect.currentframe().f_back.f_code.co_name
@@ -149,7 +177,7 @@ def all_tests():
 def announce(stream, module_name, test_class):
     stream.write('%s: %s\n' % (module_name, test_class))
 
-def suites(stream, single=None):
+def suites(stream, single=None, load=True):
     loader = unittest.defaultTestLoader
     for (module_name, classes) in all_tests().items():
         for test_class in classes:
@@ -157,7 +185,11 @@ def suites(stream, single=None):
             if single and not classname.endswith(single):
                 continue
             announce(stream, module_name, classname)
-            yield loader.loadTestsFromTestCase(test_class)
+            if load:
+                tests = loader.loadTestsFromTestCase(test_class)
+            else:
+                tests = None
+            yield tests
 
 def crude_error_message_test(actual, expected):
     ix = expected.find('%')
