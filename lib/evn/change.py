@@ -449,7 +449,7 @@ class AbstractChange(object):
 
     @property
     def is_branch(self):
-        return self.root_details.is_trunk
+        return self.root_details.is_branch
 
     @property
     def is_tag_create(self):
