@@ -493,6 +493,29 @@ def load_class(classname, default_modulename=None):
     else:
         return globals()[classname]
 
+def chargen(lineno, nchars=72):
+    start = ord(' ')
+    end = ord('~')
+    c = lineno + start
+    while c > end:
+        c = (c % end) + start
+    b = bytearray(nchars)
+    for i in range(0, nchars-2):
+        if c > end:
+            c = start
+        b[i] = c
+        c += 1
+
+    b[nchars-1] = ord('\n')
+
+    return b
+
+def bulk_chargen(nbytes):
+    b = chargen(0, nbytes)
+    for i in range(0, nbytes, 72):
+        b[i] = '\n'
+    return b
+
 #===============================================================================
 # Memoize Helpers (lovingly stolen from conda.utils)
 #===============================================================================
