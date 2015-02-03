@@ -104,7 +104,7 @@ class TestRepo(object):
             try_remove_dir_atexit(self.wc)
 
     def build(self, tree, prefix=''):
-        build_tree(tree, prefix=''.join((self.wc, prefix)))
+        build_tree(tree, prefix='/'.join((self.wc, prefix)))
 
     @property
     def roots(self):
