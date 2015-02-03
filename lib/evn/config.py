@@ -582,6 +582,10 @@ class Config(RawConfigParser):
             i = 0
         return i
 
+    def set_max_file_size_in_bytes(self, size):
+        self.set('main', 'max-file-size-in-bytes', size)
+        self.save()
+
     @property
     def standard_layout(self):
         layout = self.get('main', 'standard-layout')
