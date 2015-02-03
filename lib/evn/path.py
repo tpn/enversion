@@ -4,6 +4,13 @@
 import os
 import re
 
+from os.path import (
+    join,
+    abspath,
+    dirname,
+    normpath,
+)
+
 #===============================================================================
 # Helper Methods
 #===============================================================================
@@ -15,7 +22,7 @@ def get_base_dir(path):
         return '/'
 
     assert pc >= 2
-    return os.path.dirname(p[:-1] if p[-1] == '/' else p) + '/'
+    return dirname(p[:-1] if p[-1] == '/' else p) + '/'
 
 def reduce_path(p):
     assert p and p[0] == '/'
@@ -27,7 +34,7 @@ def reduce_path(p):
     return r
 
 def join_path(*args):
-    return os.path.abspath(os.path.normpath(os.path.join(*args)))
+    return abspath(normpath(join(*args)))
 
 def format_path(path, is_dir=None):
     """
