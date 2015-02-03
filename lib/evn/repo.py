@@ -89,6 +89,7 @@ from evn.constants import (
     n,  # Notes
     w,  # Warnings
     e,  # Errors
+    format_file_exceeds_max_size_error,
 )
 
 #===============================================================================
@@ -1624,11 +1625,10 @@ class RepositoryRevOrTxn(ImplicitContextSensitiveObject):
             return
 
         if self.track_file_sizes:
-            limit_mb = self.max_file_size_in_mb
-            msg = e.FileExceedsMaxSize
             for c in cs.files_over_max_size:
-                size_mb = float(c.filesize) / 1024.0 / 1024.0
-                c.error(msg % (size_mb, limit_mb))
+                args = (c.filesize, self.max_file_size_in_bytes)
+                msg = format_file_exceeds_max_size_error(*args)
+                c.error(msg)
 
         self.__process_mergeinfo(cs)
         self.__process_toplevel_dirs(cs)
