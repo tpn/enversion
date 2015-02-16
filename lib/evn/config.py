@@ -361,6 +361,12 @@ class Config(RawConfigParser):
 
         self.set(
             'main',
+            'blocked-file-extensions-iregex',
+            '\.(com|ocx|mdb|dll|war|jar|so|exe|o|bin|iso|zip|tar|tgz|dat|tar\.gz|msi|msp|7z|pkg|rpm|nupkg|deb|dmg)$'
+        )
+
+        self.set(
+            'main',
             'hook-names',
             ','.join((
                 'post-commit',
@@ -632,5 +638,33 @@ class Config(RawConfigParser):
     @property
     def custom_hook_class(self):
         return load_class(self.custom_hook_classname)
+
+    @staticmethod
+    def verify_blocked_file_extensions_iregex(iregex):
+        # iregex = case-insensitive regex
+        pattern = re.compile(iregex)
+
+    def set_blocked_file_extensions_iregex(self, iregex):
+        Config.verify_blocked_file_extensions_iregex(iregex)
+        self.set('main', 'blocked-file-extensions-iregex', iregex)
+        self.save()
+
+    @property
+    @memoize
+    def blocked_file_extensions_iregex(self):
+        pattern = self.get('main', 'blocked-file-extensions-iregex')
+        if not pattern:
+            return
+        else:
+            return re.compile(pattern, re.IGNORECASE)
+
+    def is_blocked_file(self, filename):
+        pattern = self.blocked_file_extensions_iregex
+        if not pattern:
+            return False
+
+        match = pattern.search(filename)
+        return bool(match)
+
 
 # vim:set ts=8 sw=4 sts=4 tw=78 et:

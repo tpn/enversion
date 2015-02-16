@@ -1913,6 +1913,9 @@ class RepositoryRevOrTxn(ImplicitContextSensitiveObject):
             if c.is_replace:
                 self.__processed_replace(c)
 
+        if self.conf.is_blocked_file(c.path):
+            c.error(e.BlockedFileExtension)
+
         return
 
     def _check_component_depth(self, c):
