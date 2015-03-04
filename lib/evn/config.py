@@ -347,8 +347,8 @@ class Config(RawConfigParser):
         self.set('main', 'remote-debug-complete-key', 'tab')
         self.set('main', 'svn-hook-enabled-prefix', 'evn')
         self.set('main', 'svn-hook-remote-debug-suffix', 'remote-debug')
-        self.set('main', 'svnadmin-create-flags', ''),
-        self.set('main', 'max-file-size-in-bytes', '26214400'), # 25MB
+        self.set('main', 'svnadmin-create-flags', '')
+        self.set('main', 'max-file-size-in-bytes', '26214400') # 25MB
         self.set('main', 'standard-layout', 'branches,tags,trunk')
         self.set('main', 'no-svnmucc-after-evnadmin-create', '')
         self.set('main', 'selftest-base-dir', '~/tmp/evn-test')
