@@ -49,7 +49,7 @@ def suite():
 # Test Classes
 #===============================================================================
 class TestBlockedFileExtensions(EnversionTest, unittest.TestCase):
-    def test_01(self):
+    def test_01_conf_setting(self):
         repo = self.create_repo()
         conf = repo.conf
         pattern = '\.(dll|exe|jar)$'
@@ -62,7 +62,7 @@ class TestBlockedFileExtensions(EnversionTest, unittest.TestCase):
 
         svn = repo.svn
 
-    def test_02(self):
+    def test_02_add_new(self):
         repo = self.create_repo()
         conf = repo.conf
         svn = repo.svn
@@ -82,6 +82,32 @@ class TestBlockedFileExtensions(EnversionTest, unittest.TestCase):
             svn.add('trunk/test.dll')
             with ensure_blocked(self, error):
                 svn.ci('trunk/test.dll', m='Adding test.dll...')
+
+    def test_03_rename(self):
+        repo = self.create_repo()
+        conf = repo.conf
+        svn = repo.svn
+
+        dot()
+        tree = {
+            'test.txt': bulk_chargen(100),
+        }
+        repo.build(tree, prefix='trunk')
+
+        with chdir(repo.wc):
+            dot()
+            svn.add('trunk/test.txt')
+            dot()
+            svn.ci('trunk/test.txt', m='Adding test.txt...')
+
+        dot()
+        error = e.BlockedFileExtension
+        with chdir(repo.wc):
+            svn.mv('trunk/test.txt', 'trunk/test.dll')
+            dot()
+            with ensure_blocked(self, error):
+                svn.ci('trunk', m='Renaming test.txt to test.dll...')
+                dot()
 
 def main():
     runner = unittest.TextTestRunner()
