@@ -215,12 +215,36 @@ class ensure_blocked(object):
         obj.assertEqual(exc_type, SubversionClientException)
         actual = exc_val.args[1]
         if not crude_error_message_test(actual, self.expected):
-            # Ugh, this is hacky; use self.assertEqual() here just so we can
-            # have the two different values printed out for us (which won't
-            # happen if we pass the result of the method call above to
-            # assertTrue()).
+            if '\n' in actual:
+                sys.stderr.write('\n'.join(('ACTUAL:', actual)))
+            if '\n' in self.expected:
+                sys.stderr.write('\n'.join(('EXPECTED:', expected)))
             obj.assertEqual(actual, self.expected)
         return True
+
+class ensure_fails(object):
+    # Slight modification of the ensure_blocked decorator above that is
+    # intended to be called against general ProcessWrapper RuntimeErrors.
+    def __init__(self, obj, expected):
+        self.obj = obj
+        self.expected = expected
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc_info):
+        (exc_type, exc_val, exc_tb) = exc_info
+        obj = self.obj
+        obj.assertEqual(exc_type, RuntimeError)
+        actual = exc_val.args[1]
+        if not crude_error_message_test(actual, self.expected):
+            if '\n' in actual:
+                sys.stderr.write('\n'.join(('ACTUAL:', actual)))
+            if '\n' in self.expected:
+                sys.stderr.write('\n'.join(('EXPECTED:', expected)))
+            obj.assertEqual(actual, self.expected)
+        return True
+
 
 #===============================================================================
 # Decorators

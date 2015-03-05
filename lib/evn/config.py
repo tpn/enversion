@@ -347,8 +347,9 @@ class Config(RawConfigParser):
         self.set('main', 'remote-debug-complete-key', 'tab')
         self.set('main', 'svn-hook-enabled-prefix', 'evn')
         self.set('main', 'svn-hook-remote-debug-suffix', 'remote-debug')
-        self.set('main', 'svnadmin-create-flags', ''),
-        self.set('main', 'max-file-size-in-bytes', '26214400'), # 25MB
+        self.set('main', 'svnadmin-create-flags', '')
+        self.set('main', 'max-file-size-in-bytes', '26214400') # 25MB
+        self.set('main', 'max-file-size-exclusion-regex', '')
         self.set('main', 'standard-layout', 'branches,tags,trunk')
         self.set('main', 'no-svnmucc-after-evnadmin-create', '')
         self.set('main', 'selftest-base-dir', '~/tmp/evn-test')
@@ -361,7 +362,7 @@ class Config(RawConfigParser):
 
         self.set(
             'main',
-            'blocked-file-extensions-iregex',
+            'blocked-file-extensions-regex',
             '\.(com|ocx|mdb|dll|war|jar|so|exe|o|bin|iso|zip|tar|tgz|dat|tar\.gz|msi|msp|7z|pkg|rpm|nupkg|deb|dmg)$'
         )
 
@@ -640,31 +641,85 @@ class Config(RawConfigParser):
         return load_class(self.custom_hook_classname)
 
     @staticmethod
-    def verify_blocked_file_extensions_iregex(iregex):
-        # iregex = case-insensitive regex
-        pattern = re.compile(iregex)
+    def verify_blocked_file_extensions_regex(regex):
+        pattern = re.compile(regex)
 
-    def set_blocked_file_extensions_iregex(self, iregex):
-        Config.verify_blocked_file_extensions_iregex(iregex)
-        self.set('main', 'blocked-file-extensions-iregex', iregex)
+    def set_blocked_file_extensions_regex(self, regex):
+        Config.verify_blocked_file_extensions_regex(regex)
+        self.set('main', 'blocked-file-extensions-regex', regex)
         self.save()
 
     @property
     @memoize
-    def blocked_file_extensions_iregex(self):
-        pattern = self.get('main', 'blocked-file-extensions-iregex')
+    def blocked_file_extensions_regex(self):
+        pattern = self.get('main', 'blocked-file-extensions-regex')
         if not pattern:
             return
         else:
             return re.compile(pattern, re.IGNORECASE)
 
     def is_blocked_file(self, filename):
-        pattern = self.blocked_file_extensions_iregex
+        pattern = self.blocked_file_extensions_regex
         if not pattern:
             return False
 
         match = pattern.search(filename)
         return bool(match)
 
+    def does_path_match_blocked_file_extensions_regex(self, path):
+        pattern = self.blocked_file_extensions_regex
+        if not pattern:
+            msg = "config parameter 'blocked-file-extension-regex' not set"
+            raise CommandError(msg)
+
+        match = pattern.search(path)
+        return bool(match)
+
+    @staticmethod
+    def verify_max_file_size_exclusion_regex(regex):
+        pattern = re.compile(regex)
+
+    def set_max_file_size_exclusion_regex(self, regex):
+        Config.verify_max_file_size_exclusion_regex(regex)
+        self.set('main', 'max-file-size-exclusion-regex', regex)
+        self.save()
+
+    @property
+    @memoize
+    def max_file_size_exclusion_regex(self):
+        pattern = self.get('main', 'max-file-size-exclusion-regex')
+        if not pattern:
+            return
+        else:
+            return re.compile(pattern, re.IGNORECASE)
+
+    def is_file_excluded_from_size_limits(self, path, size):
+        max_size = self.max_file_size_in_bytes
+        if not max_size:
+            return True
+
+        if size < max_size:
+            return True
+
+        pattern = self.max_file_size_exclusion_regex
+        if not pattern:
+            return False
+
+        return self.does_path_match_file_size_exclusion_regex(path)
+
+    def is_change_excluded_from_size_limits(self, change):
+        return self.is_file_excluded_from_size_limits(
+            change.path,
+            change.filesize,
+        )
+
+    def does_path_match_file_size_exclusion_regex(self, path):
+        pattern = self.max_file_size_exclusion_regex
+        if not pattern:
+            msg = "config parameter 'max-file-size-exclusion-regex' not set"
+            raise CommandError(msg)
+
+        match = pattern.search(path)
+        return bool(match)
 
 # vim:set ts=8 sw=4 sts=4 tw=78 et:

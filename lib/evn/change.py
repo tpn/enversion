@@ -2268,7 +2268,7 @@ class ChangeSet(AbstractChangeSet):
         if not new.is_remove:
             self._all_changes[new.path] = new
 
-        if new.is_create and new.is_file and self.track_file_sizes:
+        if not new.is_remove and new.is_file and self.track_file_sizes:
             size = new.filesize
             if size >= self.max_file_size_in_bytes:
                 self.files_over_max_size.append(new)
