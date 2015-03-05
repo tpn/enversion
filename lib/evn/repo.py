@@ -1626,6 +1626,8 @@ class RepositoryRevOrTxn(ImplicitContextSensitiveObject):
 
         if self.track_file_sizes:
             for c in cs.files_over_max_size:
+                if self.conf.is_change_excluded_from_size_limits(c):
+                    continue
                 args = (c.filesize, self.max_file_size_in_bytes)
                 msg = format_file_exceeds_max_size_error(*args)
                 c.error(msg)

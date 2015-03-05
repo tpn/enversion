@@ -55,12 +55,10 @@ class TestBlockedFileExtensions(EnversionTest, unittest.TestCase):
         pattern = '\.(dll|exe|jar)$'
 
         dot()
-        conf.set_blocked_file_extensions_iregex(pattern)
+        conf.set_blocked_file_extensions_regex(pattern)
 
-        actual = conf.get('main', 'blocked-file-extensions-iregex')
+        actual = conf.get('main', 'blocked-file-extensions-regex')
         self.assertEqual(pattern, actual)
-
-        svn = repo.svn
 
     def test_02_add_new(self):
         repo = self.create_repo()
@@ -108,6 +106,27 @@ class TestBlockedFileExtensions(EnversionTest, unittest.TestCase):
             with ensure_blocked(self, error):
                 svn.ci('trunk', m='Renaming test.txt to test.dll...')
                 dot()
+
+    def test_04_verify(self):
+        repo = self.create_repo()
+        evnadmin = repo.evnadmin
+        verify = evnadmin.verify_path_matches_blocked_file_extensions_regex
+
+        dot()
+        verify(repo.path, path='/trunk/foo.dll')
+
+        dot()
+        verify(repo.path, path='FOO.DLL')
+
+        dot()
+        verify(repo.path, path='tomcat.exe')
+
+        dot()
+        verify(repo.path, path='hornet.jAr')
+
+        dot()
+        verify(repo.path, path='/abcd/efg/viper.EXE')
+
 
 def main():
     runner = unittest.TextTestRunner()

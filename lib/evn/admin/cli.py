@@ -521,6 +521,30 @@ class GetRepoCustomHookClassCommandLine(AdminCommandLine):
     _conf_ = True
     _repo_ = True
 
+class VerifyPathMatchesBlockedFileExtensionsRegexCommandLine(AdminCommandLine):
+    _conf_ = True
+    _repo_ = True
+
+    def _add_parser_options(self):
+        self.parser.add_option(
+            '-p', '--path',
+            dest='path',
+            type='string',
+            help="path to test (e.g. '/trunk/foo.txt')",
+        )
+
+class VerifyPathMatchesFileSizeExclusionRegexCommandLine(AdminCommandLine):
+    _conf_ = True
+    _repo_ = True
+
+    def _add_parser_options(self):
+        self.parser.add_option(
+            '-p', '--path',
+            dest='path',
+            type='string',
+            help="path to test (e.g. '/trunk/foo.txt')",
+        )
+
 class RunHookCommandLine(AdminCommandLine):
     _conf_ = True
     _repo_ = True

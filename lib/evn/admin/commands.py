@@ -473,6 +473,38 @@ class GetRepoCustomHookClassCommand(RepositoryCommand):
         RepositoryCommand.run(self)
         self._out(self.conf.custom_hook_classname)
 
+class VerifyPathMatchesBlockedFileExtensionsRegexCommand(RepositoryCommand):
+    @requires_context
+    def run(self):
+        RepositoryCommand.run(self)
+        path = self.options.path
+        conf = self.conf
+        if conf.does_path_match_blocked_file_extensions_regex(path):
+            return
+        else:
+            raise CommandError(
+                "path '%s' does not match regex '%s'" % (
+                    path,
+                    conf.get('main', 'blocked-file-extensions-regex'),
+                )
+            )
+
+class VerifyPathMatchesFileSizeExclusionRegexCommand(RepositoryCommand):
+    @requires_context
+    def run(self):
+        RepositoryCommand.run(self)
+        path = self.options.path
+        conf = self.conf
+        if conf.does_path_match_file_size_exclusion_regex(path):
+            return
+        else:
+            raise CommandError(
+                "path '%s' does not match regex '%s'" % (
+                    path,
+                    conf.get('main', 'max-file-size-exclusion-regex'),
+                )
+            )
+
 class SetRepoHookRemoteDebugCommand(RepoHookCommand):
     action = None
 
