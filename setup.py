@@ -92,7 +92,6 @@ def run_setup():
             'Programming Language :: Unix Shell',
             'Topic :: Software Development :: Quality Assurance',
             'Topic :: Software Development :: Version Control',
-            'Topic :: Software Development :: Version Control :: Subversion',
         ],
     )
 
