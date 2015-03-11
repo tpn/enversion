@@ -52,10 +52,8 @@ from evn.path import (
 
 from evn.root import (
     Roots,
-    RootDetails,
     RootPathMatcher,
     SimpleRootMatcher,
-    AbsoluteRootDetails,
 )
 
 from evn.change import (
@@ -91,6 +89,7 @@ from evn.constants import (
     n,  # Notes
     w,  # Warnings
     e,  # Errors
+    format_file_exceeds_max_size_error,
 )
 
 #===============================================================================
@@ -1626,11 +1625,12 @@ class RepositoryRevOrTxn(ImplicitContextSensitiveObject):
             return
 
         if self.track_file_sizes:
-            limit_mb = self.max_file_size_in_mb
-            msg = e.FileExceedsMaxSize
             for c in cs.files_over_max_size:
-                size_mb = float(c.filesize) / 1024.0 / 1024.0
-                c.error(msg % (size_mb, limit_mb))
+                if self.conf.is_change_excluded_from_size_limits(c):
+                    continue
+                args = (c.filesize, self.max_file_size_in_bytes)
+                msg = format_file_exceeds_max_size_error(*args)
+                c.error(msg)
 
         self.__process_mergeinfo(cs)
         self.__process_toplevel_dirs(cs)
@@ -1914,6 +1914,9 @@ class RepositoryRevOrTxn(ImplicitContextSensitiveObject):
         else:
             if c.is_replace:
                 self.__processed_replace(c)
+
+        if self.conf.is_blocked_file(c.path):
+            c.error(e.BlockedFileExtension)
 
         return
 
@@ -2985,6 +2988,9 @@ class RepositoryRevOrTxn(ImplicitContextSensitiveObject):
         else:
             if c.is_replace:
                 self.__processed_replace(c)
+
+        if self.conf.is_blocked_file(c.path):
+            c.error(e.BlockedFileExtension)
 
         if c.is_file:
             return

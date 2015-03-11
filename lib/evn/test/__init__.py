@@ -3,6 +3,7 @@
 #===============================================================================
 import os
 import sys
+import shutil
 import inspect
 import unittest
 
@@ -31,6 +32,10 @@ from evn.util import (
     literal_eval,
     try_remove_dir,
     try_remove_dir_atexit,
+)
+
+from evn.config import (
+    Config,
 )
 
 from evn.exe import (
@@ -72,26 +77,34 @@ class TestRepo(object):
 
         self.dot = dot
         self.dash = dash
+        self.conf = None
 
+    def reload_conf(self):
+        conf = Config()
+        conf.load()
+        conf.load_repo(self.path)
+        self.conf = conf
+        return conf
 
     def create(self, **kwds):
-        if isdir(self.name):
-            try_remove_dir(self.name)
+        if isdir(self.path):
+            shutil.rmtree(self.path)
         self.evnadmin.create(self.name, **kwds)
         self.dot()
         if not self.keep:
             try_remove_dir_atexit(self.path)
+        self.reload_conf()
 
     def checkout(self):
         if isdir(self.wc):
-            try_remove_dir(self.wc)
+            shutil.rmtree(self.wc)
         self.svn.checkout(self.uri, self.wc)
         self.dot()
         if not self.keep:
             try_remove_dir_atexit(self.wc)
 
     def build(self, tree, prefix=''):
-        build_tree(tree, prefix=''.join((self.wc, prefix)))
+        build_tree(tree, prefix='/'.join((self.wc, prefix)))
 
     @property
     def roots(self):
@@ -109,6 +122,21 @@ class EnversionTest(object):
     __metaclass__ = ABCMeta
 
     repo = None
+
+    @property
+    def repo_name(self):
+        # Helper method; can be called from derived classes for a convenient
+        # way to get at the repo name without needing to create the repo.
+        test_name = inspect.currentframe().f_back.f_code.co_name
+        repo_name = '_'.join((self.__class__.__name__, test_name))
+        return repo_name
+
+    @property
+    def repo_path(self):
+        # As above but for the repo path.
+        test_name = inspect.currentframe().f_back.f_code.co_name
+        repo_name = '_'.join((self.__class__.__name__, test_name))
+        return abspath(self.repo_name)
 
     def create_repo(self, checkout=True, **kwds):
         test_name = inspect.currentframe().f_back.f_code.co_name
@@ -149,7 +177,7 @@ def all_tests():
 def announce(stream, module_name, test_class):
     stream.write('%s: %s\n' % (module_name, test_class))
 
-def suites(stream, single=None):
+def suites(stream, single=None, load=True):
     loader = unittest.defaultTestLoader
     for (module_name, classes) in all_tests().items():
         for test_class in classes:
@@ -157,7 +185,11 @@ def suites(stream, single=None):
             if single and not classname.endswith(single):
                 continue
             announce(stream, module_name, classname)
-            yield loader.loadTestsFromTestCase(test_class)
+            if load:
+                tests = loader.loadTestsFromTestCase(test_class)
+            else:
+                tests = None
+            yield tests
 
 def crude_error_message_test(actual, expected):
     ix = expected.find('%')
@@ -183,12 +215,36 @@ class ensure_blocked(object):
         obj.assertEqual(exc_type, SubversionClientException)
         actual = exc_val.args[1]
         if not crude_error_message_test(actual, self.expected):
-            # Ugh, this is hacky; use self.assertEqual() here just so we can
-            # have the two different values printed out for us (which won't
-            # happen if we pass the result of the method call above to
-            # assertTrue()).
+            if '\n' in actual:
+                sys.stderr.write('\n'.join(('ACTUAL:', actual)))
+            if '\n' in self.expected:
+                sys.stderr.write('\n'.join(('EXPECTED:', expected)))
             obj.assertEqual(actual, self.expected)
         return True
+
+class ensure_fails(object):
+    # Slight modification of the ensure_blocked decorator above that is
+    # intended to be called against general ProcessWrapper RuntimeErrors.
+    def __init__(self, obj, expected):
+        self.obj = obj
+        self.expected = expected
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc_info):
+        (exc_type, exc_val, exc_tb) = exc_info
+        obj = self.obj
+        obj.assertEqual(exc_type, RuntimeError)
+        actual = exc_val.args[1]
+        if not crude_error_message_test(actual, self.expected):
+            if '\n' in actual:
+                sys.stderr.write('\n'.join(('ACTUAL:', actual)))
+            if '\n' in self.expected:
+                sys.stderr.write('\n'.join(('EXPECTED:', expected)))
+            obj.assertEqual(actual, self.expected)
+        return True
+
 
 #===============================================================================
 # Decorators

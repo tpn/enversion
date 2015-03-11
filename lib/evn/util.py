@@ -123,7 +123,7 @@ def strip_linesep_if_present(s):
 
 def prepend_warning_if_missing(s):
     return add_linesep_if_missing(
-        s if s.startsiwth('warning: ') else 'warning: ' + s
+        s if s.startswith('warning: ') else 'warning: ' + s
     )
 
 def prepend_error_if_missing(s):
@@ -365,6 +365,63 @@ def touch_file(path):
 
     assert os.path.exists(path)
 
+def file_exists_and_not_empty(path):
+    """
+    Returns an os.path.abspath()-version of `path` if it exists, is a file,
+    and is not empty (i.e. has a size greater than zero bytes).
+    """
+    if not path:
+        return
+
+    path = os.path.abspath(path)
+
+    if not os.path.isfile(path):
+        return
+
+    try:
+        with open(path, 'r') as f:
+            pass
+
+        if os.stat(path).st_size > 0:
+            return path
+    except:
+        return
+
+def first_writable_file_that_preferably_exists(files):
+    """
+    Returns the first file in files (sequence of path names) that preferably
+    exists and is writable.  "Preferably exists" means that two loops are done
+    over the files -- the first loop returns the first file that exists and is
+    writable.  If no files are found, a second loop is performed and the first
+    file that can be opened for write is returned.  If that doesn't find
+    anything, a RuntimeError is raised.
+
+    Note that the "writability" test is literally conducted by attempting to
+    open the file for writing (versus just checking for write permissions).
+    """
+    # Explicitly coerce into a list as we may need to enumerate over the
+    # contents twice (which we couldn't do if we're passed a generator).
+    files = [ f for f in filter(None, files) ]
+
+    # First pass: look for files that exist and are writable.
+    for f in files:
+        if file_exists_and_not_empty(f):
+            try:
+                with open(f, 'w'):
+                    return f
+            except (IOError, OSError):
+                pass
+
+    # Second pass: just pick the first file we can find that's writable.
+    for f in files:
+        try:
+            with open(f, 'w'):
+                return f
+        except (IOError, OSError):
+            pass
+
+    raise RuntimeError("no writable files found")
+
 def try_remove_file(path):
     try:
         os.unlink(path)
@@ -409,6 +466,62 @@ class chdir(object):
 
     def __exit__(self, *exc_info):
         os.chdir(self.old_path)
+
+def import_module(modulename):
+    try:
+        # Python 2.7+ only.
+        import importlib
+        return importlib.import_module(modulename)
+    except ImportError:
+        return __import__(modulename)
+
+def load_class(classname, default_modulename=None):
+    """
+    Uses ``import_module`` to load an instance of the class specified by
+    ``classname``.  If ``default_modulename`` is not null, it will be
+    prepended to the classname if no module is already present.
+    If default_module is null and classname is not dotted, then
+    globals()[classname] will be returned.
+    """
+    module = None
+    n = classname
+    if '.' in n:
+        ix = n.rfind('.')
+        classname = n[ix+1:]
+        modulename = n[:ix]
+        module = import_module(modulename)
+    else:
+        classname = n
+        if default_module:
+            module = import_module(default_modulename)
+
+    if module:
+        return getattr(module, classname)
+    else:
+        return globals()[classname]
+
+def chargen(lineno, nchars=72):
+    start = ord(' ')
+    end = ord('~')
+    c = lineno + start
+    while c > end:
+        c = (c % end) + start
+    b = bytearray(nchars)
+    for i in range(0, nchars-2):
+        if c > end:
+            c = start
+        b[i] = c
+        c += 1
+
+    b[nchars-1] = ord('\n')
+
+    return b
+
+def bulk_chargen(nbytes):
+    b = chargen(0, nbytes)
+    for i in range(0, nbytes, 72):
+        b[i] = '\n'
+    return b
 
 #===============================================================================
 # Memoize Helpers (lovingly stolen from conda.utils)
@@ -459,6 +572,55 @@ class memoize(object): # 577452
 #===============================================================================
 class UnexpectedCodePath(RuntimeError):
     pass
+
+class NullObject(object):
+    """
+    This is a helper class that does its best to pretend to be forgivingly
+    null-like.
+
+    >>> n = NullObject()
+    >>> n
+    None
+    >>> n.foo
+    None
+    >>> n.foo.bar.moo
+    None
+    >>> n.foo().bar.moo(True).cat().hello(False, abc=123)
+    None
+    >>> n.hornet(afterburner=True).shotdown(by=n().tomcat)
+    None
+    >>> n or 1
+    1
+    >>> str(n)
+    ''
+    >>> int(n)
+    0
+    >>> len(n)
+    0
+    """
+    def __getattr__(self, name):
+        return self
+
+    def __getitem__(self, item):
+        return self
+
+    def __call__(self, *args, **kwds):
+        return self
+
+    def __nonzero__(self):
+        return False
+
+    def __repr__(self):
+        return repr(None)
+
+    def __str__(self):
+        return ''
+
+    def __int__(self):
+        return 0
+
+    def __len__(self):
+        return 0
 
 class Constant(dict):
     def __init__(self):

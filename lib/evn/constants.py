@@ -128,7 +128,7 @@ class _Errors(Constant):
     StaleTxnProbablyDueToHighLoad = "please re-try your commit -- the repository is under load and your transaction became out-of-date while it was being queued for processing (base revision for this transaction: %d, repository last synchronised at revision: %d, current repository revision: %d)"
     AbsoluteRootOfRepositoryCopied = "absolute root of repository copied"
     PropertyChangedButOldAndNewValuesAreSame = "the property '%s' is recorded as having changed, but the old value and new value are identical ('%s')"
-    FileExceedsMaxSize = "file size (%0.2fMB) exceeds limit (%dMB)"
+    FileExceedsMaxSize = "file size (%d bytes, %0.2fMB) exceeds limit (%d bytes, %0.2fMB)"
     InvalidTopLevelRepoDirectoryCreated = "invalid top-level repository directory (valid top-level directories: %s)"
     TopLevelRepoDirectoryRemoved = "top-level repository directories cannot be removed"
     TopLevelRepoDirectoryReplaced = "top-level repository directories cannot be replaced"
@@ -136,6 +136,7 @@ class _Errors(Constant):
     TopLevelRepoComponentDirectoryRemoved = "top-level repository directories cannot be removed for component '%s'"
     TopLevelRepoComponentDirectoryReplaced = "top-level repository directories cannot be replaced for component '%s'"
     StandardLayoutTopLevelDirectoryCreatedInMultiComponentRepo = "standard layout top-level directories must be created within a component as this is a multi-component repository (i.e. try mkdir /foo/trunk instead of mkdir /trunk)"
+    BlockedFileExtension = "blocked file extension"
 
 e = _Errors()
 
@@ -171,5 +172,16 @@ EVN_ERROR_CONFIRMATION_BLURB = (
     " this restriction by including the following text anywhere in the"
     " commit message: %s)"
 )
+
+#===============================================================================
+# Helpers
+#===============================================================================
+def format_file_exceeds_max_size_error(filesize_in_bytes, max_size_in_bytes):
+    return e.FileExceedsMaxSize % (
+        filesize_in_bytes,
+        float(filesize_in_bytes) / 1024.0 / 1024.0,
+        max_size_in_bytes,
+        float(max_size_in_bytes) / 1024.0 / 1024.0,
+    )
 
 # vim:set ts=8 sw=4 sts=4 tw=0 et:

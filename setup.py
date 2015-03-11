@@ -5,6 +5,7 @@ import sys
 import versioneer
 versioneer.VCS = 'git'
 versioneer.versionfile_source = 'lib/evn/_version.py'
+versioneer.versionfile_build = 'evn/_version.py'
 versioneer.tag_prefix = 'v'
 versioneer.parentdir_prefix = 'enversion-'
 
@@ -80,19 +81,17 @@ def run_setup():
         classifiers=[
             'Environment :: Console',
             'License :: OSI Approved :: Apache Software License',
-            'Development Status :: 3 - Alpha',
+            'Development Status :: 5 - Production/Stable',
             'Operating System :: POSIX',
             'Operating System :: MacOS :: MacOS X',
             'Operating System :: Microsoft :: Windows',
             'Intended Audience :: Developers',
             'Intended Audience :: System Administrators',
-            'Intended Audience :: Configuration Managers',
             'Intended Audience :: Information Technology',
             'Programming Language :: Python',
             'Programming Language :: Unix Shell',
             'Topic :: Software Development :: Quality Assurance',
             'Topic :: Software Development :: Version Control',
-            'Topic :: Software Development :: Version Control :: Subversion',
         ],
     )
 
