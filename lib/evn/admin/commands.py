@@ -53,6 +53,7 @@ from evn.change import (
 
 from evn.util import (
     chdir,
+    literal_eval,
     requires_context,
     Pool,
     Dict,
@@ -968,5 +969,40 @@ class PurgeEvnPropsCommand(RepositoryRevisionRangeCommand):
                 if key.startswith(prefix):
                     changerevprop(fs, i, key, None)
                     self._out('[%i]: deleting %s' % (i, key))
+
+class ShowRevPropsCommand(RepositoryRevisionCommand):
+    @requires_context
+    def run(self):
+        RepositoryRevisionCommand.run(self)
+
+        fs = self.fs
+        revproplist = svn.fs.revision_proplist
+        d = revproplist(fs, self.rev)
+        # Sample output:
+        #   ipdb> svn.fs.revision_proplist(self.fs, 0)
+        #   {'evn:version': '1', 'evn:component_depth': '0', 'evn:last_rev': '1', 'svn:date': '2015-03-23T20:36:45.498093Z'}
+        #
+        #   ipdb> svn.fs.revision_proplist(self.fs, 1)
+        #   {'svn:log': '"Initializing repository."', 'evn:roots': "{'/trunk/': {'copies': {}, 'created': 1, 'creation_method': 'created'}}", 'svn:author': 'Trent', 'svn:date': '2015-03-23T20:36:45.522838Z'}
+
+        r = {}
+        for (key, value) in d.items():
+            ix = key.find(':')
+            try:
+                v = literal_eval(value)
+            except:
+                v = value
+            if ix != -1:
+                prefix = key[:ix]
+                suffix = key[ix+1:]
+                if prefix not in r:
+                    r[prefix] = {}
+                r[prefix][suffix] = v
+            else:
+                r[key] = v
+
+        m = "Showing revision properties for repository '%s' at r%d:"
+        self._out(m % (self.name, self.rev))
+        pprint.pprint(r, self.ostream)
 
 # vim:set ts=8 sw=4 sts=4 tw=78 et:

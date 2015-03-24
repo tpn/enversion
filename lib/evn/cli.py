@@ -336,7 +336,7 @@ class CommandLine:
         if self._rev_:
             assert self._rev_range_ is None
             self.parser.add_option(
-                '-r',
+                '-r', '--revision',
                 dest='revision',
                 metavar='ARG',
                 action='store',
