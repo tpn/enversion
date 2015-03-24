@@ -267,7 +267,7 @@ class RepositoryRevisionCommand(RepositoryCommand):
             except ValueError:
                 raise CommandError("invalid revision: '%s'" % self.rev_str)
 
-        if r < 1:
+        if r < 0:
             raise CommandError("invalid revision: '%d'" % r)
 
         if r > self.youngest_rev:
