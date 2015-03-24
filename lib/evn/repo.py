@@ -2622,21 +2622,36 @@ class RepositoryRevOrTxn(ImplicitContextSensitiveObject):
                         root.renamed = (dst_path, cs.rev)
 
                 elif dst.known_root_subtree:
-                    # Known root is being renamed to an existing root's
-                    # subtree.  The existing root takes precedence so we need
-                    # to remove the old root.
+                    # A known root is being copied/renamed to an existing
+                    # root's subtree.
                     CopyOrRename.KnownRootToKnownRootSubtree(c)
 
-                    rm.remove_root_path(src_path)
+                    if c.is_copy:
+                        # We don't do anything for copies.  No roots need to
+                        # be updated/removed/created.  (Note that this was the
+                        # source of a pretty nasty bug (see issue 24 and 35
+                        # on github) in the past -- we weren't checking for
+                        # the c.is_copy and were just blowing away the old
+                        # root via the rename path below.)
+                        pass
+                    else:
+                        assert c.is_rename
+                        assert not dst_path.startswith(src_path)
+                        # Someone has renamed a known root into the subtree of
+                        # an existing root.  We keep the existing root in tact,
+                        # but as the original path doesn't exist any more, we
+                        # need to remove that root.
 
-                    if self.is_txn:
-                        raise logic.Break
+                        rm.remove_root_path(src_path)
 
-                    root = self.__get_root(src_path, src_rev)
-                    root.removed = cs.rev
-                    root.removal_method = 'removed_indirectly_via_rename'
+                        if self.is_txn:
+                            raise logic.Break
 
-                    del self.roots[src_path]
+                        root = self.__get_root(src_path, src_rev)
+                        root.removed = cs.rev
+                        root.removal_method = 'removed_indirectly_via_rename'
+
+                        del self.roots[src_path]
 
                 elif dst.unknown or dst.valid_root or dst.valid_root_subtree:
                     # A known root is being renamed/copied to a new path that
