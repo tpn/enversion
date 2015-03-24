@@ -612,6 +612,13 @@ class ShowRootsCommandLine(AdminCommandLine):
     _quiet_     = True
     _usage_     = '%prog [ options ] REPO_PATH'
 
+class ShowRevPropsCommandLine(AdminCommandLine):
+    _rev_       = True
+    _repo_      = True
+    _conf_      = True
+    _quiet_     = True
+    _usage_     = '%prog [ options ] REPO_PATH'
+
 class RootInfoCommandLine(AdminCommandLine):
     _rev_       = True
     _repo_      = True

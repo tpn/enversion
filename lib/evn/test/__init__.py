@@ -69,7 +69,6 @@ class TestRepo(object):
         self.svnadmin = svnadmin
         self.evnadmin = evnadmin
 
-
         from evn.test.dot import (
             dot,
             dash,
@@ -78,6 +77,12 @@ class TestRepo(object):
         self.dot = dot
         self.dash = dash
         self.conf = None
+
+    def ra(self, path):
+        """
+        Combines self.uri with path to return a 'remote access' URL.
+        """
+        return '/'.join((self.uri, path))
 
     def reload_conf(self):
         conf = Config()
@@ -110,6 +115,10 @@ class TestRepo(object):
     def roots(self):
         return literal_eval(self.evnadmin.show_roots(self.name, quiet=True))
 
+    def roots_at(self, revision):
+        roots = self.evnadmin.show_roots(self.name, revision=revision, quiet=True)
+        return literal_eval(roots)
+
     @property
     def component_depth_full(self):
         return self.evnadmin.get_repo_component_depth(self.name)
@@ -117,6 +126,29 @@ class TestRepo(object):
     @property
     def component_depth(self):
         return int(self.component_depth_full.split(' ')[0])
+
+    def roots_at(self, revision):
+        roots = self.evnadmin.show_roots(
+            self.name,
+            revision=str(revision),
+            quiet=True,
+        )
+        return literal_eval(roots)
+
+    @property
+    def revprops(self):
+        props = self.evnadmin.show_rev_props(self.name, quiet=True)
+        return literal_eval(props)
+
+    @property
+    def revprops_at(self, revision):
+        props = self.evnadmin.show_rev_props(
+            self.name,
+            revision=revision,
+            quiet=True,
+        )
+        return literal_eval(props)
+
 
 class EnversionTest(object):
     __metaclass__ = ABCMeta
