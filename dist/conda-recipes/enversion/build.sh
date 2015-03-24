@@ -4,4 +4,4 @@ SRC_DIR=$RECIPE_DIR/../../..
 
 cd $SRC_DIR
 
-$PYTHON distutils_setup.py install
+$PYTHON setup.py install

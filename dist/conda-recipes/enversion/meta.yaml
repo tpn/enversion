@@ -1,11 +1,14 @@
 package:
   name: enversion
-  version: 0.2.11
+  version: {{environ['GIT_DESCRIBE_TAG'][1:]}}
 
 build:
   number: {{environ.get('BINSTAR_BUILD', 0)}}
   entry_points:
     - evnadmin = evn.admin.cli:main
+
+source:
+  git_url: ../../../
 
 requirements:
   build:
