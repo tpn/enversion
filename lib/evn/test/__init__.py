@@ -30,6 +30,7 @@ from evn.path import (
 
 from evn.util import (
     literal_eval,
+    import_module,
     try_remove_dir,
     try_remove_dir_atexit,
 )
@@ -195,8 +196,7 @@ def test_module_names():
     ]
 
 def import_all(names):
-    import importlib
-    return [ importlib.import_module(name) for name in names ]
+    return [ import_module(name) for name in names ]
 
 def all_tests():
     import_all(test_module_names())

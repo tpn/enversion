@@ -287,7 +287,11 @@ def build_tree(tree, prefix=''):
             except OSError:
                 pass
             with open(f, 'w') as fp:
-                fp.write(d)
+                try:
+                    fp.write(d)
+                except TypeError:
+                    # Python 2.6 balks if this is a bytearray.
+                    fp.write(str(d))
 
 def extract_component_name(path):
     """
