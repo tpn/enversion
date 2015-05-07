@@ -58,6 +58,63 @@ class TestSetRepoReadonly(EnversionTest, unittest.TestCase):
         actual = is_repo_readonly(repo.path)
         self.assertEqual(expected, actual)
 
+    def test_02_set_repo_readonly(self):
+        repo = self.create_repo()
+        svn = repo.svn
+        evnadmin = repo.evnadmin
+
+        is_repo_readonly = evnadmin.is_repo_readonly
+        set_repo_readonly = evnadmin.set_repo_readonly
+        unset_repo_readonly = evnadmin.unset_repo_readonly
+
+        dot()
+        expected = 'no'
+        actual = is_repo_readonly(repo.path)
+        self.assertEqual(expected, actual)
+
+        tree = { 'test1.txt': bulk_chargen(100) }
+        repo.build(tree, prefix='trunk')
+
+        dot()
+        with chdir(repo.wc):
+            dot()
+            svn.add('trunk/test1.txt')
+            dot()
+            svn.ci('trunk', m='Adding test1.txt')
+
+        dot()
+        set_repo_readonly(repo.path)
+
+        dot()
+        expected = 'yes'
+        actual = is_repo_readonly(repo.path)
+        self.assertEqual(expected, actual)
+
+        dot()
+        tree = { 'test2.txt': bulk_chargen(200), }
+        repo.build(tree, prefix='trunk')
+
+        error = 'This repository cannot be committed to at the present time'
+        with ensure_blocked(self, error):
+            with chdir(repo.wc):
+                dot()
+                svn.add('trunk/test2.txt')
+                dot()
+                svn.ci('trunk', m='Adding test2.txt')
+
+        dot()
+        unset_repo_readonly(repo.path)
+
+        dot()
+        expected = 'no'
+        actual = is_repo_readonly(repo.path)
+        self.assertEqual(expected, actual)
+
+        dot()
+        with chdir(repo.wc):
+            dot()
+            dot()
+            svn.ci('trunk', m='Adding test2.txt')
 
 def main():
     runner = unittest.TextTestRunner()

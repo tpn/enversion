@@ -87,6 +87,11 @@ class RepositoryHook(RepositoryRevOrTxn):
         self.tense = prefix
         self.hook_type = name
 
+        if self.readonly:
+            message = self.readonly_message or self.conf.readonly_error_message
+            self.error = message
+            self.die()
+
         getattr(self, self.hook_name)(*self.hook_args)
         if self.is_pre and self.error:
             self.die()

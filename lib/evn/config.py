@@ -356,6 +356,13 @@ class Config(RawConfigParser):
 
         self.set(
             'main',
+            'readonly-error-message',
+            'This repository cannot be committed to at the present time '
+            'because an administrator has marked it as read-only.'
+        )
+
+        self.set(
+            'main',
             'custom-hook-classname',
             'evn.custom_hook.DummyCustomHook'
         )
@@ -721,5 +728,9 @@ class Config(RawConfigParser):
 
         match = pattern.search(path)
         return bool(match)
+
+    @property
+    def readonly_error_message(self):
+        return self.get('main', 'readonly-error-message')
 
 # vim:set ts=8 sw=4 sts=4 tw=78 et:

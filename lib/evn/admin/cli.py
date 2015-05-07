@@ -657,6 +657,31 @@ class IsRepoReadonlyCommandLine(AdminCommandLine):
     _conf_  = True
     _usage_ = '%prog [ options ] REPO_PATH'
 
+class SetRepoReadonlyCommandLine(AdminCommandLine):
+    _repo_  = True
+    _conf_  = True
+    _usage_ = '%prog [ options ] REPO_PATH'
+
+    def _add_parser_options(self):
+        self.parser.add_option(
+            '-m', '--message',
+            dest='message',
+            metavar='MESSAGE',
+            type='string',
+            default=self.conf.readonly_error_message,
+            help=(
+                'Message to include in error message when a user attempts '
+                'to commit to the repository after it has been set readonly.'
+                "[default: '%default']"
+            )
+        )
+
+
+class UnsetRepoReadonlyCommandLine(AdminCommandLine):
+    _repo_  = True
+    _conf_  = True
+    _usage_ = '%prog [ options ] REPO_PATH'
+
 #=============================================================================#
 # Main                                                                        #
 #=============================================================================#
