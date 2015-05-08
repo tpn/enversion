@@ -1196,17 +1196,6 @@ class RepositoryRevOrTxn(ImplicitContextSensitiveObject):
     @memoize
     def readonly_message(self):
         rc0 = self.r0_revprop_conf
-        v = rc0.get('readonly_message')
-        i = try_int(v)
-        if i == 1:
-            return 1
-        else:
-            return 0
-
-    @property
-    @memoize
-    def readonly_message(self):
-        rc0 = self.r0_revprop_conf
         return rc0.get('readonly_message', None)
 
     @property
