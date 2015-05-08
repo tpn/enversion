@@ -67,6 +67,7 @@ from evn.util import (
     one,
     none,
     is_int,
+    try_int,
     memoize,
     pid_exists,
     literal_eval,
@@ -1179,6 +1180,34 @@ class RepositoryRevOrTxn(ImplicitContextSensitiveObject):
             return -1
 
         return d
+
+    @property
+    @memoize
+    def readonly(self):
+        rc0 = self.r0_revprop_conf
+        v = rc0.get('readonly')
+        i = try_int(v)
+        if i == 1:
+            return 1
+        else:
+            return 0
+
+    @property
+    @memoize
+    def readonly_message(self):
+        rc0 = self.r0_revprop_conf
+        v = rc0.get('readonly_message')
+        i = try_int(v)
+        if i == 1:
+            return 1
+        else:
+            return 0
+
+    @property
+    @memoize
+    def readonly_message(self):
+        rc0 = self.r0_revprop_conf
+        return rc0.get('readonly_message', None)
 
     @property
     def base_rev_roots(self):

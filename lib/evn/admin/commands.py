@@ -1005,4 +1005,45 @@ class ShowRevPropsCommand(RepositoryRevisionCommand):
         self._out(m % (self.name, self.rev))
         pprint.pprint(r, self.ostream)
 
+class IsRepoReadonlyCommand(RepositoryCommand):
+    @requires_context
+    def run(self):
+        RepositoryCommand.run(self)
+        rc0 = self.r0_revprop_conf
+        out = self._out
+        err = self._err
+
+        readonly = 'no'
+
+        if 'readonly' in rc0:
+            if rc0.get('readonly') == 1:
+                readonly = 'yes'
+
+        out(readonly)
+
+class SetRepoReadonlyCommand(RepositoryCommand):
+    message = None
+    @requires_context
+    def run(self):
+        RepositoryCommand.run(self)
+        message = self.options.message or self.conf.readonly_error_message
+
+        rc0 = self.r0_revprop_conf
+        rc0.readonly = 1
+        if message:
+            rc0.readonly_message = message
+
+class UnsetRepoReadonlyCommand(RepositoryCommand):
+    @requires_context
+    def run(self):
+        RepositoryCommand.run(self)
+        rc0 = self.r0_revprop_conf
+
+        if 'readonly' not in rc0:
+            return
+
+        del rc0.readonly
+        if 'readonly_message' in rc0:
+            del rc0.readonly_message
+
 # vim:set ts=8 sw=4 sts=4 tw=78 et:
