@@ -117,7 +117,11 @@ class TestRepo(object):
         return literal_eval(self.evnadmin.show_roots(self.name, quiet=True))
 
     def roots_at(self, revision):
-        roots = self.evnadmin.show_roots(self.name, revision=revision, quiet=True)
+        roots = self.evnadmin.show_roots(
+            self.name,
+            revision=revision,
+            quiet=True,
+        )
         return literal_eval(roots)
 
     @property
