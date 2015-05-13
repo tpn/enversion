@@ -337,7 +337,7 @@ class Config(RawConfigParser):
         #import ipdb
         #ipdb.set_trace()
         self.add_section('main')
-        self.set('main', 'max-revlock-waits', '3')
+        self.set('main', 'max-revlock-waits', '60')
         self.set('main', 'verbose', 'off')
         self.set('main', 'admins', '')
         self.set('main', 'python', sys.executable)
