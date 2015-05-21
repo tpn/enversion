@@ -606,7 +606,7 @@ class AnalyzeCommandLine(AdminCommandLine):
     _conf_  = True
     _quiet_ = True
     _usage_ = '%prog [ options ] REPO_PATH'
-    _description = textwrap.dedent("""
+    _description_ = textwrap.dedent("""
         Analyzes a Subversion repository in preparation for having Enversion
         enabled.
 
