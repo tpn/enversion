@@ -77,6 +77,7 @@ from evn.util import (
     Dict,
     DecayDict,
     ConfigDict,
+    ConfigList,
     UnexpectedCodePath,
     ImplicitContextSensitiveObject,
 )
