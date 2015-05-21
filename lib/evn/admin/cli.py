@@ -10,6 +10,8 @@ from itertools import (
     repeat,
 )
 
+import textwrap
+
 import evn.admin.commands
 
 from evn.util import (
@@ -604,6 +606,18 @@ class AnalyzeCommandLine(AdminCommandLine):
     _conf_  = True
     _quiet_ = True
     _usage_ = '%prog [ options ] REPO_PATH'
+    _description = textwrap.dedent("""
+        Analyzes a Subversion repository in preparation for having Enversion
+        enabled.
+
+        Analysis involves reviewing each commit and constructing evn:roots
+        entries for each revision.  Before Enversion can be enabled, an
+        evn:roots entry must be present on every revision property.
+
+        Enversion tracks the last revision analyzed in the revision 0 revprop
+        named evn:last_rev.  It will query this property when analyzing a repo
+        in order to pick up from the last analyzed revision if appropriate.
+    """)
 
 class ShowRootsCommandLine(AdminCommandLine):
     _rev_       = True
