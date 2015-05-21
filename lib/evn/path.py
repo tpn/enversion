@@ -371,12 +371,16 @@ class PathMatcher(object):
 
         self.singular_to_plural = dict()
         self.plural_to_singular = dict()
+        self.plural_to_basedir = dict()
+        self.plural_to_hint = dict()
 
         data = zip(self.singular, self.plural, self.match, self.ending)
         for (singular, plural, match, ending) in data:
             setattr(self, plural, [])
             self.singular_to_plural[singular] = plural
             self.plural_to_singular[plural] = singular
+            self.plural_to_basedir[plural] = []
+            self.plural_to_hint[plural] = []
             p = '.+?%s/' % match
             if ending:
                 p += ending
@@ -403,6 +407,90 @@ class PathMatcher(object):
         for (p, n, f) in functions:
             self.__dict__.setdefault(f + '_methods', []).append(n)
             setattr(self, n, _method_wrapper(s=self, p=p, n=n, f=f))
+
+    def add_path(self, path, singular):
+        """
+        >>> pm = PathMatcher()
+        >>> pm.add_path('/head/', 'trunk')
+        >>> pm.get_root_details_tuple('/head/')
+        ('/head/', 'trunk', 'head')
+        >>> pm.get_root_details_tuple('/head/head')
+        ('/head/', 'trunk', 'head')
+        >>> pm.get_root_details_tuple('/head/src/trunk/branches/foo/')
+        ('/head/', 'trunk', 'head')
+        >>> pm.get_root_details_tuple('/head/foo.txt')
+        ('/head/', 'trunk', 'head')
+
+        >>> pm = PathMatcher()
+        >>> pm.add_path('/releng/10.1/', 'tag')
+        >>> pm.get_root_details_tuple('/releng/10.1/')
+        ('/releng/10.1/', 'tag', '10.1')
+        >>> pm.is_tag('/releng/10.1/')
+        True
+        """
+        assert path
+        assert path[0] == '/' and path[-1] == '/', path
+        assert len(path) >= 3, path
+        assert singular in ('trunk', 'tag', 'branch')
+        plural = self.singular_to_plural[singular]
+        assert plural in self.plural_to_hint
+        self.plural_to_hint[plural].append(path)
+        getattr(self, plural).append(path)
+
+    def add_trunk(self, path):
+        self.add_path(path, 'trunk')
+
+    def add_branch(self, path):
+        self.add_path(path, 'branch')
+
+    def add_tag(self, path):
+        self.add_path(path, 'tag')
+
+    def add_basedir(self, path, plural):
+        """
+        >>> pm = PathMatcher()
+        >>> pm.add_branches_basedir('/stable/')
+        >>> pm.get_root_details_tuple('/stable/10/')
+        ('/stable/10/', 'branch', '10')
+        >>> pm.get_root_details_tuple('/stable/stable/')
+        ('/stable/stable/', 'branch', 'stable')
+        >>> pm.get_root_details_tuple('/stable/stable')
+        >>>
+        >>> pm.get_root_details_tuple('/stable/10/src/trunk/branches/foo/')
+        ('/stable/10/', 'branch', '10')
+        >>> pm.get_root_details_tuple('/stable/10/foo.txt')
+        ('/stable/10/', 'branch', '10')
+        >>> pm.is_branch('/stable/10/')
+        True
+
+        >>> pm.add_tags_basedir('/releng/')
+        >>> pm.get_root_details_tuple('/releng/10.1/')
+        ('/releng/10.1/', 'tag', '10.1')
+        >>> pm.get_root_details_tuple('/releng/releng/')
+        ('/releng/releng/', 'tag', 'releng')
+        >>> pm.get_root_details_tuple('/releng/releng')
+        >>>
+        >>> pm.get_root_details_tuple('/releng/10.1/src/trunk/tags/foo/')
+        ('/releng/10.1/', 'tag', '10.1')
+        >>> pm.get_root_details_tuple('/releng/10.1/foo.txt')
+        ('/releng/10.1/', 'tag', '10.1')
+        >>> pm.is_tag('/releng/10.1/')
+        True
+        """
+        assert path
+        assert path[0] == '/' and path[-1] == '/', path
+        assert len(path) >= 3, path
+        assert plural in ('tags', 'branches'), plural
+        assert plural in self.plural_to_basedir, plural
+        self.plural_to_basedir[plural].append(path)
+        pattern = path + '([^/]+)/'
+        getattr(self, plural).append(pattern)
+
+    def add_branches_basedir(self, path):
+        self.add_basedir(path, 'branches')
+
+    def add_tags_basedir(self, path):
+        self.add_basedir(path, 'tags')
 
     def _get_xxx(self, path, xxx):
         assert isinstance(path, str)
