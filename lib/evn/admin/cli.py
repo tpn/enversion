@@ -616,7 +616,7 @@ class AnalyzeCommandLine(AdminCommandLine):
 
         Enversion tracks the last revision analyzed in the revision 0 revprop
         named evn:last_rev.  It will query this property when analyzing a repo
-        in order to pick up from the last analyzed revision if appropriate.
+        in order to pick up from the last analyzed revision.
     """)
 
 class ShowRootsCommandLine(AdminCommandLine):
