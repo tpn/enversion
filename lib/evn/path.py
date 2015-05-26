@@ -373,6 +373,9 @@ class PathMatcher(object):
         self.plural_to_singular = dict()
         self.plural_to_basedir = dict()
         self.plural_to_hint = dict()
+        self.excluded_paths = set()
+        self.excluded_pattern = ''
+        self.excluded_regex = None
 
         data = zip(self.singular, self.plural, self.match, self.ending)
         for (singular, plural, match, ending) in data:
@@ -492,11 +495,47 @@ class PathMatcher(object):
     def add_tags_basedir(self, path):
         self.add_basedir(path, 'tags')
 
+    def add_exclusions(self, paths):
+        """
+        >>> pm = PathMatcher()
+        >>> pm.get_root_dir('/src/trunk/')
+        '/src/trunk/'
+        >>> pm.get_root_dir('/src/trunk/foo.txt')
+        '/src/trunk/'
+        >>> pm.add_exclusions(['/src/trunk/'])
+        >>> pm.get_root_dir('/src/trunk/')
+        >>>
+        >>> pm.get_root_dir('/src/trunk/foo.txt')
+        >>>
+        >>> pm = PathMatcher()
+        >>> exclusions = ['/foo/trunk/', '/branches/1.0.x/']
+        >>> pm.add_exclusions(exclusions)
+        >>> pm.get_root_dir('/src/trunk/foo.txt')
+        '/src/trunk/'
+        >>> pm.get_root_dir('/foo/trunk/')
+        >>>
+        >>> pm.get_root_dir('/branches/1.0.x/')
+        >>>
+        >>> pm.get_root_dir('/branches/1.0.x/foo.txt')
+        >>>
+        """
+        for path in paths:
+            self.excluded_paths.add(path)
+        pattern = '^(%s)' % '|'.join(self.excluded_paths)
+        self.excluded_pattern = pattern
+        self.excluded_regex = re.compile(pattern)
+
+    def is_excluded(self, path):
+        if self.excluded_paths and self.excluded_regex.match(path):
+            return True
+        else:
+            return False
+
     def _get_xxx(self, path, xxx):
         assert isinstance(path, str)
         for pattern in getattr(self, xxx):
             found = re.findall(pattern + '$', path)
-            if found:
+            if found and not self.is_excluded(path):
                 return found
 
     def _is_xxx(self, path, xxx):
@@ -506,7 +545,7 @@ class PathMatcher(object):
         assert isinstance(path, str)
         for pattern in getattr(self, xxx):
             found = re.findall(pattern, path)
-            if found:
+            if found and not self.is_excluded(path):
                 return found
 
     def _is_xxx_path(self, path, xxx):
@@ -518,7 +557,7 @@ class PathMatcher(object):
         for pattern in getattr(self, xxx):
             for path in paths:
                 m = re.search(pattern, path)
-                if m:
+                if m and not self.is_excluded(path):
                     f.setdefault('/'.join(m.groups()), []).append(m.group(0))
         return f
 
@@ -595,7 +634,7 @@ class PathMatcher(object):
             ]
             for pattern in patterns:
                 match = re.search(pattern, path)
-                if match:
+                if match and not self.is_excluded(path):
                     groups = match.groups()
                     assert len(groups) in (1, 2)
                     r = groups[0]
@@ -665,6 +704,7 @@ class PathMatcher(object):
         for method_name in self._get_xxx_methods:
             match = getattr(self, method_name)(root_dir)
             if match:
+                assert not self.is_excluded(root_dir), (method_name, root_dir)
                 if found:
                     # Yet more hackery to support crap like /branches/trunk/
                     # and /tags/trunk/.  We're relying on the fact that the

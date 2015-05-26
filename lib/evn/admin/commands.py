@@ -1005,6 +1005,12 @@ class ShowRevPropsCommand(RepositoryRevisionCommand):
         self._out(m % (self.name, self.rev))
         pprint.pprint(r, self.ostream)
 
+class ShowBaseRevPropsCommand(ShowRevPropsCommand):
+    @requires_context
+    def run(self):
+        self.rev_str = '0'
+        ShowRevPropsCommand.run(self)
+
 class IsRepoReadonlyCommand(RepositoryCommand):
     @requires_context
     def run(self):
@@ -1045,5 +1051,95 @@ class UnsetRepoReadonlyCommand(RepositoryCommand):
         del rc0.readonly
         if 'readonly_message' in rc0:
             del rc0.readonly_message
+
+class AddRootHintCommand(RepositoryRevisionCommand):
+    root_path = None
+    root_type = None
+
+    @requires_context
+    def run(self):
+        RepositoryRevisionCommand.run(self)
+        rev = self.rev
+        root_path = format_dir(self.root_path)
+        root_type = self.root_type
+        assert root_type in ('tag', 'trunk', 'branches')
+
+        rc0 = self.r0_revprop_conf
+
+        if not rc0.get('root_hints'):
+            rc0.root_hints = {}
+
+        if not rc0['root_hints'].get(rev):
+            rc0['root_hints'][rev] = {}
+
+        hints = rc0['root_hints'][rev]
+        if root_path in hints:
+            msg = "hint already exists for %s@%d" % (root_path, rev)
+            raise CommandError(msg)
+
+        hints[root_path] = root_type
+
+        repo_name = self.conf.repo_name
+        msg = 'Added root hint for %s@%d to %s.' % (root_path, rev, repo_name)
+        self._out(msg)
+
+class RemoveRootHintCommand(RepositoryRevisionCommand):
+    root_path = None
+
+    @requires_context
+    def run(self):
+        RepositoryRevisionCommand.run(self)
+        root_path = format_dir(self.root_path)
+
+        rev = self.rev
+
+        rc0 = self.r0_revprop_conf
+
+        if not rc0.get('root_hints'):
+            raise CommandError("no such root hint: %s" % root_path)
+
+        hints = rc0['root_hints'].get(rev)
+        if not hints:
+            msg = "no such root hint at r%d: %s" % (rev, root_path)
+            raise CommandError(msg)
+
+        if root_path not in hints:
+            msg = "no such root hint at r%d: %s" % (rev, root_path)
+            raise CommandError(msg)
+
+        del hints[root_path]
+        msg = "Removed root hint %r for r%d from %s."
+        repo_name = self.conf.repo_name
+        self._out(msg % (hint, rev, repo_name))
+
+class AddRootExclusionCommand(RepositoryRevisionCommand):
+    @requires_context
+    def run(self):
+        RepositoryRevisionCommand.run(self)
+
+class RemoveRootExclusionCommand(RepositoryRevisionCommand):
+    @requires_context
+    def run(self):
+        RepositoryRevisionCommand.run(self)
+
+class AddBranchesBasedirCommand(RepositoryCommand):
+    @requires_context
+    def run(self):
+        RepositoryCommand.run(self)
+
+class RemoveBranchesBasedirCommand(RepositoryCommand):
+    @requires_context
+    def run(self):
+        RepositoryCommand.run(self)
+
+class AddTagsBasedirCommand(RepositoryCommand):
+    @requires_context
+    def run(self):
+        RepositoryCommand.run(self)
+
+class RemoveTagsBasedirCommand(RepositoryCommand):
+    @requires_context
+    def run(self):
+        RepositoryCommand.run(self)
 
 # vim:set ts=8 sw=4 sts=4 tw=78 et:

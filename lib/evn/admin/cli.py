@@ -633,6 +633,12 @@ class ShowRevPropsCommandLine(AdminCommandLine):
     _quiet_     = True
     _usage_     = '%prog [ options ] REPO_PATH'
 
+class ShowBaseRevPropsCommandLine(AdminCommandLine):
+    _repo_      = True
+    _conf_      = True
+    _quiet_     = True
+    _usage_     = '%prog [ options ] REPO_PATH'
+
 class RootInfoCommandLine(AdminCommandLine):
     _rev_       = True
     _repo_      = True
@@ -695,6 +701,230 @@ class UnsetRepoReadonlyCommandLine(AdminCommandLine):
     _repo_  = True
     _conf_  = True
     _usage_ = '%prog [ options ] REPO_PATH'
+
+class AddRootHintCommandLine(AdminCommandLine):
+    _rev_   = True
+    _repo_  = True
+    _conf_  = True
+    _usage_ = '%prog -p PATH -t TYPE REPO_PATH'
+    _description_ = textwrap.dedent("""
+        Add a root hint for a path of a given root type ('trunk', 'tag' or
+        'branch').  The path must have been created in the given revision,
+        either via mkdir or a copy of an existing path.
+
+        This command is used to provide hints to Enversion for when it's
+        default root detection logic doesn't pick up that a new root is being
+        created.  This could be because the branch wasn't being created
+        properly (e.g. a directory called /branches/1.x was created manually
+        via mkdir, but it is still desirable for it to be a root), or because
+        the path represents a new 'trunk', but isn't named as such (e.g. the
+        FreeBSD project uses /head/ as their main 'trunk', so they would use
+        `evnadmin add-root-hint -p /head/ -r1 -t trunk freebsd` in order for
+        an evn:roots entry to be added whilst analyzing the repository).
+
+        The naming of this command as 'add root hint' versus simply 'add root'
+        is intentional -- it does not create evn:roots entries directly.  What
+        it does is provide Enversion with additional information about a path
+        when a repository is being analyzed that will result in a new root
+        being added as long as all other root invariants are met.  Thus, a
+        root hint is only that, a hint.  That being said, if, after analysis,
+        Enversion did not create an evn:roots entry, it means that there is
+        some condition preventing that root from existing as specified, such
+        as it being a sub-path of an existing root.  E.g. a root hint of
+        /trunk/foo/ would be ignored if a root already exists for /trunk/ at
+        the given revision.
+
+        Examples:
+
+            % evnadmin create foo
+            % evnadmin add-root-hint -p /head/ -t trunk foo
+            % evnadmin add-root-hint -p /release/1.0.24/ -t tag foo
+    """)
+
+    def _add_parser_options(self):
+        self.parser.add_option(
+            '-p', '--path',
+            dest='path',
+            type='string',
+            help="path of directory to add root hint for (e.g. /head/)"
+        )
+
+        self.parser.add_option(
+            '-t', '--root-type',
+            dest='root_type',
+            metavar='ROOT_TYPE',
+            type='string',
+            default='trunk',
+            help=(
+                "type of root: 'trunk', 'tag', or 'branch' "
+                "[default: %default]"
+            ),
+        )
+
+    def _process_parser_results(self):
+        opts = self.options
+
+        if opts.root_type not in ('trunk', 'tag', 'branches'):
+            msg = (
+                "invalid root type %s, expected one of 'trunk', "
+                "'tag', or 'branches'" % opts.root_type
+            )
+            raise CommandError(msg)
+
+        self.command.root_type = opts.root_type
+        self.command.root_path = opts.path
+
+class RemoveRootHintCommandLine(AdminCommandLine):
+    _rev_   = True
+    _repo_  = True
+    _conf_  = True
+    _usage_ = '%prog [ options ] REPO_PATH'
+    _description_ = textwrap.dedent("""
+        Remove a previously added root hint from a repository.
+
+        Note: this only removes the root hint from the evn:root_hints revision
+        property on revision 0 of the repository.  It does not remove anly
+        evn:roots that may have been created on account of this root hint, nor
+        will it do any re-analysis of the repository.
+
+        You can infer if roots were created because of this root hint via
+        `evnadmin srp -r <rev> <repo>`.  If you need to remove these roots as
+        well, after you've removed the root hint, you'll need to re-start
+        analysis from the affected revision.
+    """)
+
+    def _add_parser_options(self):
+        self.parser.add_option(
+            '-p', '--path',
+            dest='path',
+            type='string',
+            help="path of root hint to remove"
+        )
+
+    def _process_parser_results(self):
+        self.command.root_path = self.options.path
+
+class AddRootExclusionCommandLine(AdminCommandLine):
+    _rev_   = True
+    _repo_  = True
+    _conf_  = True
+    _usage_ = '%prog [ options ] REPO_PATH'
+    _description_ = textwrap.dedent("""
+        Add a root exclusion path to the repository.  A root exclusion tells
+        Enversion not to treat this path as a root when it otherwise would
+        have.  It is essentially the inverse of a root hint.
+    """)
+
+    def _add_parser_options(self):
+        self.parser.add_option(
+            '-p', '--path',
+            dest='path',
+            type='string',
+            help="directory to exclude"
+        )
+
+class RemoveRootExclusionCommandLine(AdminCommandLine):
+    _rev_   = True
+    _repo_  = True
+    _conf_  = True
+    _usage_ = '%prog [ options ] REPO_PATH'
+    _description_ = textwrap.dedent("""
+        Remove an existing root exclusion from the repository.
+    """)
+
+    def _add_parser_options(self):
+        self.parser.add_option(
+            '-p', '--path',
+            dest='path',
+            type='string',
+            help="existing root exclusion directory to remove"
+        )
+
+class AddBranchesBasedirCommandLine(AdminCommandLine):
+    _repo_  = True
+    _conf_  = True
+    _usage_ = '%prog [ options ] REPO_PATH'
+    _description_ = textwrap.dedent("""
+        Add a branches base directory hint to the repository.
+
+        This instructs Enversion to treat paths rooted in this directory as if
+        they were rooted in a /branches/ directory.
+    """)
+
+    def _add_parser_options(self):
+        self.parser.add_option(
+            '-p', '--path',
+            dest='path',
+            type='string',
+            help=(
+                "path representing the branches base directory "
+                "(e.g.  /stable/"
+            )
+        )
+
+class RemoveBranchesBasedirCommandLine(AdminCommandLine):
+    _repo_  = True
+    _conf_  = True
+    _usage_ = '%prog [ options ] REPO_PATH'
+    _description_ = textwrap.dedent("""
+        Remove a previously added branches base directory from the repository.
+
+        This will not affect existing roots nor will it re-analyze the
+        repository.
+    """)
+
+    def _add_parser_options(self):
+        self.parser.add_option(
+            '-p', '--path',
+            dest='path',
+            type='string',
+            help=(
+                "path representing the branches base directory "
+                "(e.g.  /stable/"
+            )
+        )
+
+class AddTagsBasedirCommandLine(AdminCommandLine):
+    _repo_  = True
+    _conf_  = True
+    _usage_ = '%prog [ options ] REPO_PATH'
+    _description_ = textwrap.dedent("""
+        Add a tags base directory hint to the repository.
+
+        This instructs Enversion to treat paths rooted in this directory as if
+        they were rooted in a /tags/ directory.
+    """)
+
+    def _add_parser_options(self):
+        self.parser.add_option(
+            '-p', '--path',
+            dest='path',
+            type='string',
+            help=(
+                "path representing the tags base directory "
+                "(e.g.  /stable/"
+            )
+        )
+
+class RemoveTagsBasedirCommandLine(AdminCommandLine):
+    _repo_  = True
+    _conf_  = True
+    _usage_ = '%prog [ options ] REPO_PATH'
+    _description_ = textwrap.dedent("""
+        Remove a previously added tags base directory from the repository.
+
+        This will not affect existing roots nor will it re-analyze the
+        repository.
+    """)
+
+    def _add_parser_options(self):
+        self.parser.add_option(
+            '-p', '--path',
+            dest='path',
+            type='string',
+            help="path representing the tags base directory (e.g. /releng/)"
+        )
+
 
 #=============================================================================#
 # Main                                                                        #

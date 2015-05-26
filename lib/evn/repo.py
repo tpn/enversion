@@ -797,12 +797,16 @@ class RepositoryRevOrTxn(ImplicitContextSensitiveObject):
         self._init_authz_conf()
         self.pathmatcher = RootPathMatcher()
 
-        if self.is_rev and self.rev in self.root_hints:
-            hints = self.root_hints[self.rev]
-            for hint in hints:
-                (path, root_type) = hint
-                assert root_type in ('trunk', 'tag', 'branch'), root_type
-                self.pathmatcher.add_path(path, root_type)
+        if self.is_rev:
+            hints = self.root_hints.get(self.rev)
+            if hints:
+                for (path, root_type) in hints.items():
+                    assert root_type in ('trunk', 'tag', 'branch'), root_type
+                    self.pathmatcher.add_path(path, root_type)
+
+            exclusions = self.root_exclusions.get(self.rev)
+            if exclusions:
+                self.pathmatcher.add_exclusions(exclusions)
 
         for path in self.branches_basedirs:
             self.pathmatcher.add_branches_basedir(path)
@@ -1189,14 +1193,18 @@ class RepositoryRevOrTxn(ImplicitContextSensitiveObject):
 
     @property
     @memoize
-    def branches_basedirs(self):
+    def root_exclusions(self):
         assert self.is_rev
+        return self.r0_revprop_conf.get('root_exclusions', {})
+
+    @property
+    @memoize
+    def branches_basedirs(self):
         return self.r0_revprop_conf.get('branches_basedirs', [])
 
     @property
     @memoize
     def tags_basedirs(self):
-        assert self.is_rev
         return self.r0_revprop_conf.get('tags_basedirs', [])
 
     @property
