@@ -607,7 +607,7 @@ class RunHookCommand(RepoHookCommand):
                     args = ', '.join('%s' % repr(a) for a in self.hook_args)
                     e = ''.join(traceback.format_exception(*sys.exc_info()))
                     err = m % (self.hook_name, args, os.linesep, e)
-                    # XXX TODO: err, log this somewhere.
+                    sys.stderr.write(err)
                     raise exc
 
 class AnalyzeCommand(RepositoryCommand):
