@@ -1888,8 +1888,6 @@ class ChangeSet(AbstractChangeSet):
 
         AbstractChangeSet.destroy(self)
 
-        gc.collect()
-
     @property
     def fs(self):
         return self.__fs
@@ -2666,8 +2664,6 @@ class ChangeSet(AbstractChangeSet):
         #remote_debug.set_trace()
 
         #self.__pool.destroy()
-
-        #gc.collect()
 
     #@track_resource_usage
     def __process_action_roots(self):
