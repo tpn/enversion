@@ -643,18 +643,13 @@ class AnalyzeCommand(RepositoryCommand):
                 )
 
         k = self.repo_kwds
-        import gc
-        gc.disable()
-        try:
-            for i in xrange(start_rev, end_rev+1):
-                with RepositoryRevOrTxn(**k) as r:
-                    r.process_rev_or_txn(i)
-                    if i == 0:
-                        continue
-                    cs = r.changeset
-                    self._out(str(i) + ':' + cs.analysis.one_liner)
-        finally:
-            gc.enable()
+        for i in xrange(start_rev, end_rev+1):
+            with RepositoryRevOrTxn(**k) as r:
+                r.process_rev_or_txn(i)
+                if i == 0:
+                    continue
+                cs = r.changeset
+                self._out(str(i) + ':' + cs.analysis.one_liner)
 
         self._out("Finished analyzing repository '%s'." % self.name)
 
