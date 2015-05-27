@@ -1188,14 +1188,12 @@ class RepositoryRevOrTxn(ImplicitContextSensitiveObject):
     @property
     @memoize
     def root_hints(self):
-        assert self.is_rev
         return self.r0_revprop_conf.get('root_hints', {})
 
     @property
     @memoize
     def root_exclusions(self):
-        assert self.is_rev
-        return self.r0_revprop_conf.get('root_exclusions', {})
+        return self.r0_revprop_conf.get('root_exclusions', [])
 
     @property
     @memoize
