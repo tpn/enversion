@@ -764,10 +764,10 @@ class AddRootHintCommandLine(AdminCommandLine):
     def _process_parser_results(self):
         opts = self.options
 
-        if opts.root_type not in ('trunk', 'tag', 'branches'):
+        if opts.root_type not in ('trunk', 'tag', 'branch'):
             msg = (
                 "invalid root type %s, expected one of 'trunk', "
-                "'tag', or 'branches'" % opts.root_type
+                "'tag', or 'branch'" % opts.root_type
             )
             raise CommandError(msg)
 
@@ -810,18 +810,21 @@ class AddRootExclusionCommandLine(AdminCommandLine):
     _conf_  = True
     _usage_ = '%prog [ options ] REPO_PATH'
     _description_ = textwrap.dedent("""
-        Add a root exclusion path to the repository.  A root exclusion tells
+        Add a root exclusion to the repository.  A root exclusion tells
         Enversion not to treat this path as a root when it otherwise would
         have.  It is essentially the inverse of a root hint.
     """)
 
     def _add_parser_options(self):
         self.parser.add_option(
-            '-p', '--path',
-            dest='path',
+            '-e', '--root-exclusion',
+            dest='root_exclusion',
             type='string',
-            help="directory to exclude"
+            help="root to exclude"
         )
+
+    def _process_parser_results(self):
+        self.command.root_exclusion = self.options.root_exclusion
 
 class RemoveRootExclusionCommandLine(AdminCommandLine):
     _rev_   = True
@@ -834,11 +837,14 @@ class RemoveRootExclusionCommandLine(AdminCommandLine):
 
     def _add_parser_options(self):
         self.parser.add_option(
-            '-p', '--path',
-            dest='path',
+            '-e', '--root-exclusion',
+            dest='root_exclusion',
             type='string',
-            help="existing root exclusion directory to remove"
+            help="existing root exclusion"
         )
+
+    def _process_parser_results(self):
+        self.command.root_exclusion = self.options.root_exclusion
 
 class AddBranchesBasedirCommandLine(AdminCommandLine):
     _repo_  = True
@@ -853,14 +859,17 @@ class AddBranchesBasedirCommandLine(AdminCommandLine):
 
     def _add_parser_options(self):
         self.parser.add_option(
-            '-p', '--path',
-            dest='path',
+            '-b', '--basedir',
+            dest='basedir',
             type='string',
             help=(
                 "path representing the branches base directory "
-                "(e.g.  /stable/"
+                "(e.g.  /stable/)"
             )
         )
+
+    def _process_parser_results(self):
+        self.command.branches_basedir = self.options.basedir
 
 class RemoveBranchesBasedirCommandLine(AdminCommandLine):
     _repo_  = True
@@ -875,14 +884,17 @@ class RemoveBranchesBasedirCommandLine(AdminCommandLine):
 
     def _add_parser_options(self):
         self.parser.add_option(
-            '-p', '--path',
-            dest='path',
+            '-b', '--basedir',
+            dest='basedir',
             type='string',
             help=(
                 "path representing the branches base directory "
-                "(e.g.  /stable/"
+                "(e.g.  /stable/)"
             )
         )
+
+    def _process_parser_results(self):
+        self.command.branches_basedir = self.options.basedir
 
 class AddTagsBasedirCommandLine(AdminCommandLine):
     _repo_  = True
@@ -897,14 +909,14 @@ class AddTagsBasedirCommandLine(AdminCommandLine):
 
     def _add_parser_options(self):
         self.parser.add_option(
-            '-p', '--path',
-            dest='path',
+            '-b', '--basedir',
+            dest='basedir',
             type='string',
-            help=(
-                "path representing the tags base directory "
-                "(e.g.  /stable/"
-            )
+            help="path representing the tags base directory (e.g. /releng/)"
         )
+
+    def _process_parser_results(self):
+        self.command.tags_basedir = self.options.basedir
 
 class RemoveTagsBasedirCommandLine(AdminCommandLine):
     _repo_  = True
@@ -919,12 +931,14 @@ class RemoveTagsBasedirCommandLine(AdminCommandLine):
 
     def _add_parser_options(self):
         self.parser.add_option(
-            '-p', '--path',
-            dest='path',
+            '-b', '--basedir',
+            dest='basedir',
             type='string',
             help="path representing the tags base directory (e.g. /releng/)"
         )
 
+    def _process_parser_results(self):
+        self.command.tags_basedir = self.options.basedir
 
 #=============================================================================#
 # Main                                                                        #
