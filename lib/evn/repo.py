@@ -804,7 +804,7 @@ class RepositoryRevOrTxn(ImplicitContextSensitiveObject):
                     assert root_type in ('trunk', 'tag', 'branch'), root_type
                     self.pathmatcher.add_path(path, root_type)
 
-            exclusions = self.root_exclusions.get(self.rev)
+            exclusions = self.root_exclusions
             if exclusions:
                 self.pathmatcher.add_exclusions(exclusions)
 
