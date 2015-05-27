@@ -814,6 +814,12 @@ class RepositoryRevOrTxn(ImplicitContextSensitiveObject):
         for path in self.tags_basedirs:
             self.pathmatcher.add_tags_basedir(path)
 
+    def has_root_hint(self, path):
+        hints = self.root_hints.get(self.rev)
+        if not hints:
+            return False
+        return path in hints
+
     @property
     def processed_changes(self):
         return self.__processed_changes
