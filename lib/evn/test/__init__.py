@@ -145,11 +145,10 @@ class TestRepo(object):
         props = self.evnadmin.show_rev_props(self.name, quiet=True)
         return literal_eval(props)
 
-    @property
     def revprops_at(self, revision):
         props = self.evnadmin.show_rev_props(
             self.name,
-            revision=revision,
+            revision=str(revision),
             quiet=True,
         )
         return literal_eval(props)
