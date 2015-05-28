@@ -375,6 +375,12 @@ class Config(RawConfigParser):
 
         self.set(
             'main',
+            'exempt-symlinks-from-blocked-file-extensions',
+            '1',
+        )
+
+        self.set(
+            'main',
             'hook-names',
             ','.join((
                 'post-commit',
@@ -664,6 +670,11 @@ class Config(RawConfigParser):
             return
         else:
             return re.compile(pattern, re.IGNORECASE)
+
+    @property
+    def exempt_symlinks_from_blocked_file_extensions(self):
+        val = self.get('main', 'exempt-symlinks-from-blocked-file-extensions')
+        return bool(try_int(val))
 
     def is_blocked_file(self, filename):
         pattern = self.blocked_file_extensions_regex
