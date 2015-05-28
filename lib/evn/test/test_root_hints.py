@@ -254,6 +254,67 @@ class TestRootHints(EnversionTest, unittest.TestCase):
         dot()
         evnadmin.enable(repo.name)
 
+        dot()
+        roots_r6_expected = {
+            '/head/': { 'created': 1 },
+            '/stable/1/': { 'created': 3 },
+            '/stable/2/': { 'created': 5 },
+            '/stable/3-broken/': {
+                'created': 6,
+                'creation_method': 'created',
+                'copies': {
+                    7: [('/releng/3/', 8)],
+                    8: [('/releng/3-take2/', 9)]
+                },
+            },
+        }
+        self.assertEqual(repo.roots_at(6), roots_r6_expected)
+
+        dot()
+        roots_r7_expected = {
+            '/head/': { 'created': 1 },
+            '/stable/1/': { 'created': 3 },
+            '/stable/2/': { 'created': 5 },
+            '/stable/3-broken/': { 'created': 6 },
+        }
+        self.assertEqual(repo.roots_at(7), roots_r7_expected)
+
+        dot()
+        evn_props_r8_expected = {
+            'notes': {
+                '/releng/3/': [ 'known root path copied to unknown path' ],
+            },
+            'roots': {
+                '/head/': { 'created': 1 },
+                '/stable/1/': { 'created': 3 },
+                '/stable/2/': { 'created': 5 },
+                '/stable/3-broken/': { 'created': 6 },
+                '/releng/3/': {
+                    'errors': [],
+                    'copies': {},
+                    'created': 8,
+                    'creation_method': 'copied',
+                    'copied_from': ('/stable/3-broken/', 7),
+                },
+            },
+        }
+        self.assertEqual(repo.revprops_at(8)['evn'], evn_props_r8_expected)
+
+        dot()
+        evn_props_r9_expected = {
+            'notes': {
+                '/releng/3-take2/': [ 'known root path copied to unknown path' ],
+            },
+            'roots': {
+                '/head/': { 'created': 1 },
+                '/stable/1/': { 'created': 3 },
+                '/stable/2/': { 'created': 5 },
+                '/stable/3-broken/': { 'created': 6 },
+                '/releng/3/': { 'created': 8 },
+            },
+        }
+        self.assertEqual(repo.revprops_at(9)['evn'], evn_props_r9_expected)
+
     def test_02_root_hint_for_trunk_subdir(self):
         # Test cp /trunk/foo /branches/foo-1.x creates root when
         # /branches/foo-1.x/ has a root hint created for it.
