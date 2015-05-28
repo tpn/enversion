@@ -1377,7 +1377,7 @@ class RepositoryRevOrTxn(ImplicitContextSensitiveObject):
 
         self.roots[c.path] = d
 
-    def __new_trunk_via_copy_or_rename(self, change, src_path, src_rev):
+    def __new_root_via_copy_or_rename(self, change, src_path, src_rev):
         c = change
         assert c.is_copy or c.is_rename
         rm = self.rootmatcher
@@ -2610,7 +2610,7 @@ class RepositoryRevOrTxn(ImplicitContextSensitiveObject):
                     CopyOrRename.UnknownToValidRoot(c)
                     if valid_dst_root_details.is_trunk:
                         args = (c, src_path, src_rev)
-                        self.__new_trunk_via_copy_or_rename(*args)
+                        self.__new_root_via_copy_or_rename(*args)
 
                 elif dst.valid_root_subtree:
                     CopyOrRename.UnknownToValidRootSubtree(c)
@@ -2833,7 +2833,7 @@ class RepositoryRevOrTxn(ImplicitContextSensitiveObject):
                         raise logic.Break
 
                     args = (c, src_path, src_rev)
-                    self.__new_trunk_via_copy_or_rename(*args)
+                    self.__new_root_via_copy_or_rename(*args)
 
                 elif dst.valid_root_subtree:
                     CopyOrRename.KnownRootSubtreeToValidRootSubtree(c)
@@ -2861,7 +2861,7 @@ class RepositoryRevOrTxn(ImplicitContextSensitiveObject):
                     CopyOrRename.ValidRootToValidRoot(c)
                     if valid_dst_root_details.is_trunk:
                         args = (c, src_path, src_rev)
-                        self.__new_trunk_via_copy_or_rename(*args)
+                        self.__new_root_via_copy_or_rename(*args)
 
                 elif dst.valid_root_subtree:
                     CopyOrRename.ValidRootToValidRootSubtree(c)
@@ -2889,7 +2889,7 @@ class RepositoryRevOrTxn(ImplicitContextSensitiveObject):
                     CopyOrRename.ValidRootSubtreeToValidRoot(c)
                     if valid_dst_root_details.is_trunk:
                         args = (c, src_path, src_rev)
-                        self.__new_trunk_via_copy_or_rename(*args)
+                        self.__new_root_via_copy_or_rename(*args)
 
                 elif dst.valid_root_subtree:
                     CopyOrRename.ValidRootSubtreeToValidRootSubtree(c)
