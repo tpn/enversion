@@ -23,7 +23,10 @@ from svn.core import (
     svn_mergeinfo_parse,
     svn_rangelist_to_string,
 
+    Stream,
+
     SVN_INVALID_REVNUM,
+    SVN_PROP_SPECIAL,
     SVN_PROP_MERGEINFO,
     SVN_PROP_REVISION_LOG,
     SVN_PROP_REVISION_AUTHOR,
@@ -866,6 +869,28 @@ class NodeChange(AbstractChange):
         return bool(self.merge_root)
 
     @property
+    def is_link(self):
+        raise NotImplementedError
+
+    @property
+    def is_special(self):
+        """
+        Returns True if the node has the svn:special property set on it, False
+        otherwise.
+        """
+        if self.is_remove:
+            return False
+        else:
+            return SVN_PROP_SPECIAL in self.proplist
+
+    @property
+    def is_symlink(self):
+        """
+        Returns True if the node is a symlink, False otherwise.
+        """
+        return self.is_special or self.is_link
+
+    @property
     def has_mergeinfo_propchange(self):
         if self.is_remove:
             return False
@@ -1450,6 +1475,10 @@ class DirectoryChange(AbstractChangeSet, NodeChange):
         return True
 
     @property
+    def is_link(self):
+        return False
+
+    @property
     def is_subtree(self):
         return not self.is_root
 
@@ -1559,6 +1588,32 @@ class FileChange(NodeChange):
         self.__text_checksum = None
         self.__apply_textdelta_count = itertools.count(1)
         self.__has_text_changed = False
+
+        # Force the is_link property to be resolved up front whilst the root
+        # is still open; things get segfaulty when called after the root has
+        # closed.
+        if self.is_link:
+            pass
+
+    @property
+    @memoize
+    def is_link(self):
+        # The file contents of a symlink (from Subversion's perspective) will
+        # be the string 'link <target path>'.
+        if self.is_remove:
+            return False
+
+        # 6 = len('link a') <- shortest possible link
+        if self.filesize < 6:
+            return False
+
+        with Pool() as pool:
+            fs = svn.fs.file_contents(self.root, self.path, pool)
+            if not fs:
+                return False
+            stream = Stream(fs)
+            buf = stream.read(5)
+            return (buf == 'link ')
 
     @property
     @memoize

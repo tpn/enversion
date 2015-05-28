@@ -735,6 +735,10 @@ class RepositoryRevOrTxn(ImplicitContextSensitiveObject):
             self.options.track_file_sizes = True
             self.options.max_file_size_in_bytes = self.max_file_size_in_bytes
 
+        self.exempt_symlinks_from_blocked_file_extensions = (
+            self.conf.exempt_symlinks_from_blocked_file_extensions
+        )
+
     def __enter__(self):
         assert self.entered is False
         self.entered = True
@@ -1981,8 +1985,17 @@ class RepositoryRevOrTxn(ImplicitContextSensitiveObject):
             if c.is_replace:
                 self.__processed_replace(c)
 
+        self._check_blocked_file(c)
+        return
+
+    def _check_blocked_file(self, c):
         if self.conf.is_blocked_file(c.path):
-            c.error(e.BlockedFileExtension)
+            blocked = True
+            if self.exempt_symlinks_from_blocked_file_extensions:
+                if c.is_symlink:
+                    blocked = False
+            if blocked:
+                c.error(e.BlockedFileExtension)
 
         return
 
@@ -3070,8 +3083,7 @@ class RepositoryRevOrTxn(ImplicitContextSensitiveObject):
             if c.is_replace:
                 self.__processed_replace(c)
 
-        if self.conf.is_blocked_file(c.path):
-            c.error(e.BlockedFileExtension)
+        self._check_blocked_file(c)
 
         if c.is_file:
             return
