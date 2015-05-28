@@ -1,6 +1,8 @@
 #===============================================================================
 # Imports
 #===============================================================================
+import os
+import os.path
 import unittest
 
 from evn.test import (
@@ -41,9 +43,10 @@ conf = get_or_create_config()
 # Helpers
 #===============================================================================
 def suite():
-    return unittest.defaultTestLoader.loadTestsFromTestCase(
-        TestBlockedFileExtensions,
-    )
+    cases = [ TestBlockedFileExtensions, ]
+    if os.name != 'nt':
+        cases.append(TestSymlinkBlockExemption)
+    return unittest.defaultTestLoader.loadTestsFromTestCase(*cases)
 
 #===============================================================================
 # Test Classes
@@ -127,6 +130,69 @@ class TestBlockedFileExtensions(EnversionTest, unittest.TestCase):
         dot()
         verify(repo.path, path='/abcd/efg/viper.EXE')
 
+class TestSymlinkBlockExemption(EnversionTest, unittest.TestCase):
+    def test_01_exempt(self):
+        repo = self.create_repo()
+        conf = repo.conf
+        svn = repo.svn
+
+        dot()
+        self.assertTrue(conf.exempt_symlinks_from_blocked_file_extensions)
+
+        #evnadmin = repo.evnadmin
+        #evnadmin.enable_remote_debug(repo.path, hook='pre-commit')
+
+        dot()
+        tree = { 'target': bulk_chargen(100) }
+        repo.build(tree, prefix='trunk')
+        trunk = join_path(repo.wc, 'trunk')
+        error = e.BlockedFileExtension
+        with chdir(trunk):
+            dot()
+            os.symlink('target', 'target.so')
+            self.assertTrue(os.path.islink('target.so'))
+            svn.add('target')
+            svn.add('target.so')
+            svn.ci('.', m='Adding target + symlink.')
+
+            dot()
+            svn.mv('target', 'target.dll')
+            with ensure_blocked(self, error):
+                svn.ci('.', m='Renaming target...')
+
+            dot()
+            svn.revert('target', 'target.dll')
+
+            dot()
+            os.rename('target.so', 'target.exe')
+            self.assertTrue(os.path.islink('target.exe'))
+            #evnadmin = repo.evnadmin
+            #evnadmin.enable_remote_debug(repo.path, hook='pre-commit')
+            svn.rm('target.so')
+            svn.add('target.exe')
+            svn.ci('.', m='Renaming target.so to target.exe.')
+
+    def test_02_non_exempt(self):
+        repo = self.create_repo()
+        conf = repo.conf
+        conf.set('main', 'exempt-symlinks-from-blocked-file-extensions', '0')
+        conf.save()
+        svn = repo.svn
+
+        dot()
+        self.assertFalse(conf.exempt_symlinks_from_blocked_file_extensions)
+
+        dot()
+        tree = { 'target': bulk_chargen(100) }
+        repo.build(tree, prefix='trunk')
+        trunk = join_path(repo.wc, 'trunk')
+        error = e.BlockedFileExtension
+        with chdir(trunk):
+            dot()
+            os.symlink('target', 'target.so')
+            svn.add('target.so')
+            with ensure_blocked(self, error):
+                svn.ci('target.so', m='Adding symlink.')
 
 def main():
     runner = unittest.TextTestRunner()
