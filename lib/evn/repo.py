@@ -815,8 +815,12 @@ class RepositoryRevOrTxn(ImplicitContextSensitiveObject):
             self.pathmatcher.add_tags_basedir(path)
 
     def has_root_hint(self, path):
+        if self.is_txn:
+            return False
         hints = self.root_hints.get(self.rev)
         if not hints:
+            return False
+        if self.pathmatcher.is_excluded(path):
             return False
         return path in hints
 
