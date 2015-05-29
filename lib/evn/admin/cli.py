@@ -712,7 +712,7 @@ class AddRootHintCommandLine(AdminCommandLine):
         'branch').  The path must have been created in the given revision,
         either via mkdir or a copy of an existing path.
 
-        This command is used to provide hints to Enversion for when it's
+        This command is used to provide hints to Enversion for when its
         default root detection logic doesn't pick up that a new root is being
         created.  This could be because the branch wasn't being created
         properly (e.g. a directory called /branches/1.x was created manually
