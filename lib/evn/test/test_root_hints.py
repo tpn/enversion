@@ -451,6 +451,74 @@ class TestManualTagCreationRootHint(EnversionTest, unittest.TestCase):
         with ensure_blocked(self, error):
             svn.copy(repo.ra('tags/1.x'), repo.ra('tags/2.x'), m='Copying tag.')
 
+class TestUnknownToValidRoot(EnversionTest, unittest.TestCase):
+    def test_01_copy(self):
+        repo = self.create_repo(component_depth='-1')
+        svn = repo.svn
+        evnadmin = repo.evnadmin
+
+        dot()
+        svn.mkdir(repo.ra('/dev/'), m='Create dev branches area')
+        svn.mkdir(repo.ra('/foo/'), m='Create foo')
+
+        dot()
+        svn.copy(repo.ra('/foo/'), repo.ra('/dev/foo/'), m='Branching...')
+        self.assertEqual(repo.roots_at(3), {})
+
+        dot()
+        evnadmin.add_root_hint(
+            repo.name,
+            path='/dev/foo/',
+            revision='3',
+            root_type='branch',
+        )
+
+        dot()
+        evnadmin.analyze(repo.name)
+        roots_r3_expected = {
+            '/dev/foo/': {
+                'copies': {},
+                'created': 3,
+                'creation_method': 'copied',
+                'copied_from': ('/foo/', 2),
+                'errors': [ 'unknown path copied to valid root path' ],
+            },
+        }
+        self.assertEqual(repo.roots_at(3), roots_r3_expected)
+
+    def test_02_rename(self):
+        repo = self.create_repo(component_depth='-1')
+        svn = repo.svn
+        evnadmin = repo.evnadmin
+
+        dot()
+        svn.mkdir(repo.ra('/dev/'), m='Create dev branches area')
+        svn.mkdir(repo.ra('/foo/'), m='Create foo')
+
+        dot()
+        svn.mv(repo.ra('/foo/'), repo.ra('/dev/foo/'), m='Branching...')
+        self.assertEqual(repo.roots_at(3), {})
+
+        dot()
+        evnadmin.add_root_hint(
+            repo.name,
+            path='/dev/foo/',
+            revision='3',
+            root_type='branch',
+        )
+
+        dot()
+        evnadmin.analyze(repo.name)
+        roots_r3_expected = {
+            '/dev/foo/': {
+                'copies': {},
+                'created': 3,
+                'creation_method': 'renamed',
+                'renamed_from': ('/foo/', 2),
+                'errors': [ 'unknown path renamed to valid root path' ],
+            },
+        }
+        self.assertEqual(repo.roots_at(3), roots_r3_expected)
 
 def main():
     runner = unittest.TextTestRunner()

@@ -2642,7 +2642,11 @@ class RepositoryRevOrTxn(ImplicitContextSensitiveObject):
 
                 elif dst.valid_root:
                     CopyOrRename.UnknownToValidRoot(c)
-                    if valid_dst_root_details.is_trunk:
+                    new_root = (
+                        valid_dst_root_details.is_trunk or
+                        self.has_root_hint(dst_path)
+                    )
+                    if new_root:
                         args = (c, src_path, src_rev)
                         self.__new_root_via_copy_or_rename(*args)
 
