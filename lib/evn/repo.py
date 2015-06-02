@@ -1980,6 +1980,8 @@ class RepositoryRevOrTxn(ImplicitContextSensitiveObject):
 
                 if valid_dst_root_details.is_trunk:
                     self.__create_root(c)
+                elif self.has_root_hint(dst_path):
+                    self.__create_root(c)
 
             elif dst.root_ancestor:
                 c.error(e.RootAncestorReplaced)
@@ -1988,6 +1990,8 @@ class RepositoryRevOrTxn(ImplicitContextSensitiveObject):
                     self.__root_removed_indirectly(c, root_path)
 
                 if valid_dst_root_details.is_trunk:
+                    self.__create_root(c)
+                elif self.has_root_hint(dst_path):
                     self.__create_root(c)
 
             else:
