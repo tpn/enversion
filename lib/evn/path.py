@@ -621,6 +621,9 @@ class PathMatcher(object):
         '/tags/trunk/'
         >>> pm.get_root_dir('/tags/trunk/foo')
         '/tags/trunk/'
+        >>> pm.add_path('/branches/1.x/', 'branch')
+        >>> pm.get_root_dir('/branches/1.x/')
+        '/branches/1.x/'
         >>>
         """
         assert isinstance(path, str)
@@ -636,23 +639,30 @@ class PathMatcher(object):
                 match = re.search(pattern, path)
                 if match and not self.is_excluded(path):
                     groups = match.groups()
-                    assert len(groups) in (1, 2)
+                    assert len(groups) in (1, 2), groups
                     r = groups[0]
                     l = len(r)
                     if root is None:
                         root = r
                         min_root_length = l
                     else:
+                        if r == root:
+                            # If root hints are being used, we could get
+                            # multiple hits for the same path, e.g.
+                            # /branches/1.x/ would be hit by the normal
+                            # /branches/ detection and the root hint logic if
+                            # there was a /branches/1.x/ hint added.
+                            continue
                         # The only way we could possibly have multiple matches
                         # with the exact same length for the root path is for
                         # paths like '/branches/trunk/' or '/tags/trunk/'.
                         if l == min_root_length:
-                            assert r.endswith('trunk/')
+                            assert r.endswith('trunk/'), (r, l, min_root_length)
                         elif l < min_root_length:
                             root = r
                             min_root_length = l
                         else:
-                            assert l > min_root_length
+                            assert l > min_root_length, (l, min_root_length)
 
         return root
 
