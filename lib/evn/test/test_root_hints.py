@@ -46,6 +46,7 @@ def suite():
         TestRootHints,
         TestManualBranchCreationRootHint,
         TestManualTagCreationRootHint,
+        TestUnknownToValidRoot,
     )
 
 #===============================================================================
