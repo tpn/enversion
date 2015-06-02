@@ -1392,7 +1392,7 @@ class RepositoryRevOrTxn(ImplicitContextSensitiveObject):
         if self.is_txn:
             return
 
-        method = 'copy' if c.is_copy else 'rename'
+        method = 'copied' if c.is_copy else 'renamed'
 
         d = Dict()
         d.created = c.changeset.rev
