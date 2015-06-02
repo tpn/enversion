@@ -1957,10 +1957,16 @@ class RepositoryRevOrTxn(ImplicitContextSensitiveObject):
                 t.branch = valid_dst_root_details.is_branch
                 with t as t:
                     if t.branch:
-                        c.error(e.BranchDirectoryCreatedManually)
+                        if self.has_root_hint(dst_path):
+                            self.__create_root(c)
+                        else:
+                            c.error(e.BranchDirectoryCreatedManually)
 
                     elif t.tag:
-                        c.error(e.TagDirectoryCreatedManually)
+                        if self.has_root_hint(dst_path):
+                            self.__create_root(c)
+                        else:
+                            c.error(e.TagDirectoryCreatedManually)
 
                     elif t.trunk:
                         self.__create_root(c)

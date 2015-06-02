@@ -44,6 +44,8 @@ conf = get_or_create_config()
 def suite():
     return unittest.defaultTestLoader.loadTestsFromTestCase(
         TestRootHints,
+        TestManualBranchCreationRootHint,
+        TestManualTagCreationRootHint,
     )
 
 #===============================================================================
@@ -319,6 +321,136 @@ class TestRootHints(EnversionTest, unittest.TestCase):
         # Test cp /trunk/foo /branches/foo-1.x creates root when
         # /branches/foo-1.x/ has a root hint created for it.
         pass
+
+
+class TestManualBranchCreationRootHint(EnversionTest, unittest.TestCase):
+    def test_01(self):
+        repo = self.create_repo()
+        svn = repo.svn
+        evnadmin = repo.evnadmin
+
+        dot()
+        error = e.BranchDirectoryCreatedManually
+        with ensure_blocked(self, error):
+            svn.mkdir(repo.ra('/branches/1.x/'), m='Create branch manually')
+
+        dot()
+        evnadmin.disable(repo.name)
+        svn.mkdir(repo.ra('/branches/1.x/'), m='Create branch manually2')
+
+        dot()
+        evn_props_r2_expected = {
+            'errors': {
+                '/branches/1.x/': [ e.BranchDirectoryCreatedManually ],
+            },
+            'roots': {
+                '/trunk/': { 'created': 1 },
+            },
+        }
+        evnadmin.enable(repo.name)
+        self.assertEqual(repo.revprops_at(2)['evn'], evn_props_r2_expected)
+
+        dot()
+        evnadmin.add_root_hint(
+            repo.name,
+            path='/branches/1.x/',
+            revision='2',
+            root_type='branch',
+        )
+        evnadmin.analyze(repo.name)
+
+        dot()
+        evn_props_r2_expected = {
+            'roots': {
+                '/trunk/': { 'created': 1 },
+                '/branches/1.x/': {
+                    'created': 2,
+                    'copies': {},
+                    'creation_method': 'created',
+                },
+            },
+        }
+        self.assertEqual(repo.revprops_at(2)['evn'], evn_props_r2_expected)
+
+class TestManualTagCreationRootHint(EnversionTest, unittest.TestCase):
+    def test_01(self):
+        repo = self.create_repo()
+        svn = repo.svn
+        evnadmin = repo.evnadmin
+
+        dot()
+        error = e.TagDirectoryCreatedManually
+        with ensure_blocked(self, error):
+            svn.mkdir(repo.ra('/tags/1.x/'), m='Create tag manually')
+
+        dot()
+        evnadmin.disable(repo.name)
+        svn.mkdir(repo.ra('/tags/1.x/'), m='Create tag manually2')
+
+        dot()
+        evn_props_r2_expected = {
+            'errors': {
+                '/tags/1.x/': [ e.TagDirectoryCreatedManually ],
+            },
+            'roots': {
+                '/trunk/': { 'created': 1 },
+            },
+        }
+        evnadmin.enable(repo.name)
+        self.assertEqual(repo.revprops_at(2)['evn'], evn_props_r2_expected)
+
+        dot()
+        evnadmin.add_root_hint(
+            repo.name,
+            path='/tags/1.x/',
+            revision='2',
+            root_type='tag',
+        )
+        evnadmin.analyze(repo.name)
+
+        dot()
+        evn_props_r2_expected = {
+            'roots': {
+                '/trunk/': { 'created': 1 },
+                '/tags/1.x/': {
+                    'created': 2,
+                    'copies': {},
+                    'creation_method': 'created',
+                },
+            },
+        }
+        self.assertEqual(repo.revprops_at(2)['evn'], evn_props_r2_expected)
+
+        dot()
+        svn.up(repo.wc)
+
+        dot()
+        error = e.TagModified
+        tagdir = join_path(repo.wc, 'tags/1.x')
+        with chdir(tagdir):
+            tree = { 'test.txt': bulk_chargen(100) }
+            repo.build(tree, prefix='tags/1.x')
+            dot()
+            svn.add('test.txt')
+            with ensure_blocked(self, error):
+                dot()
+                svn.ci('test.txt', m='Modifying tag')
+
+        dot()
+        error = e.TagRemoved
+        with ensure_blocked(self, error):
+            svn.rm(repo.ra('tags/1.x'), m='Deleting tag.')
+
+        dot()
+        error = e.TagRenamed
+        with ensure_blocked(self, error):
+            svn.mv(repo.ra('tags/1.x'), repo.ra('tags/2.x'), m='Renaming tag.')
+
+        dot()
+        error = e.TagCopied
+        with ensure_blocked(self, error):
+            svn.copy(repo.ra('tags/1.x'), repo.ra('tags/2.x'), m='Copying tag.')
+
 
 def main():
     runner = unittest.TextTestRunner()
