@@ -1735,16 +1735,26 @@ class RepositoryRevOrTxn(ImplicitContextSensitiveObject):
             c = self.revprop_conf
             # Use the _save() shortcut here, otherwise _reload() is going to
             # be called if we used direct attribute notation, i.e. c.notes =,
-            # which is unnecessary this late in the game.
+            # which is unnecessary this late in the game.  Clear any existing
+            # properties via _del(); this will handle cases where a repo is
+            # being re-analyzed after adding a root hint and has created a new
+            # root that wasn't previously created (which may have had an error
+            # entry).
             if cs.notes:
                 c._save('notes', cs.notes)
                 dbg('notes: %s' % repr(cs.notes))
+            elif 'notes' in c:
+                c._del('notes', skip_reload=True)
             if cs.errors:
                 c._save('errors', cs.errors)
                 dbg('errors: %s' % repr(cs.errors))
+            elif 'errors' in c:
+                c._del('errors', skip_reload=True)
             if cs.warnings:
                 c._save('warnings', cs.warnings)
                 dbg('warnings: %s' % repr(cs.warnings))
+            elif 'warnings' in c:
+                c._del('warnings', skip_reload=True)
 
     def __known_subtree_to_other_known_subtree(self, change, **kwds):
         k = DecayDict(kwds)
