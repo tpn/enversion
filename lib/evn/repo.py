@@ -458,7 +458,8 @@ class AbstractRepositoryConfig(dict):
     def _set(self, name, value, default=False, skip_reload=False):
         name = self._format_propname(name)
 
-        value = self._try_convert(value, name, itertools.count(0))
+        if value is not None:
+            value = self._try_convert(value, name, itertools.count(0))
         self._write(name, value)
 
         if not skip_reload:
