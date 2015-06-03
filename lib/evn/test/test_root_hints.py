@@ -449,8 +449,8 @@ class TestManualTagCreationRootHint(EnversionTest, unittest.TestCase):
         with ensure_blocked(self, error):
             svn.copy(repo.ra('tags/1.x'), repo.ra('tags/2.x'), m='Copying tag.')
 
-class TestUnknownToValidRootViaHint(EnversionTest, unittest.TestCase):
-    def test_01_copy(self):
+class TestUnknownCopiedToValidRootViaHint(EnversionTest, unittest.TestCase):
+    def test_01(self):
         repo = self.create_repo(component_depth='-1')
         svn = repo.svn
         evnadmin = repo.evnadmin
@@ -483,7 +483,8 @@ class TestUnknownToValidRootViaHint(EnversionTest, unittest.TestCase):
         }
         self.assertEqual(repo.roots_at(3), roots_r3_expected)
 
-    def test_02_rename(self):
+class TestUnknownRenamedToValidRootViaHint(EnversionTest, unittest.TestCase):
+    def test_01(self):
         repo = self.create_repo(component_depth='-1')
         svn = repo.svn
         evnadmin = repo.evnadmin
@@ -518,7 +519,7 @@ class TestUnknownToValidRootViaHint(EnversionTest, unittest.TestCase):
 
 class TestKnownRootSubtreeCopiedToValidRootViaHint(EnversionTest,
                                                    unittest.TestCase):
-    def test_01_copy(self):
+    def test_01(self):
         repo = self.create_repo()
         svn = repo.svn
         evnadmin = repo.evnadmin
@@ -578,7 +579,7 @@ class TestKnownRootSubtreeCopiedToValidRootViaHint(EnversionTest,
 
 class TestKnownRootSubtreeRenamedToValidRootViaHint(EnversionTest,
                                                     unittest.TestCase):
-    def test_01_rename(self):
+    def test_01(self):
         repo = self.create_repo()
         svn = repo.svn
         evnadmin = repo.evnadmin
@@ -638,7 +639,7 @@ class TestKnownRootSubtreeRenamedToValidRootViaHint(EnversionTest,
 
 class TestValidRootCopiedToValidRootViaHint(EnversionTest,
                                             unittest.TestCase):
-    def test_01_copy(self):
+    def test_01(self):
         repo = self.create_repo()
         svn = repo.svn
         evnadmin = repo.evnadmin
@@ -703,7 +704,7 @@ class TestValidRootCopiedToValidRootViaHint(EnversionTest,
 
 class TestValidRootRenamedToValidRootViaHint(EnversionTest,
                                              unittest.TestCase):
-    def test_01_rename(self):
+    def test_01(self):
         repo = self.create_repo()
         svn = repo.svn
         evnadmin = repo.evnadmin
