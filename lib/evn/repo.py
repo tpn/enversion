@@ -2866,7 +2866,11 @@ class RepositoryRevOrTxn(ImplicitContextSensitiveObject):
                         fn(c, **k)
 
                 elif dst.valid_root:
-                    if not valid_dst_root_details.is_trunk:
+                    new_root = (
+                        valid_dst_root_details.is_trunk or
+                        self.has_root_hint(dst_path)
+                    )
+                    if not new_root:
                         CopyOrRename.KnownRootSubtreeToValidRoot(c)
                         raise logic.Break
 
