@@ -767,6 +767,137 @@ class TestValidRootRenamedToValidRootViaHint(EnversionTest,
         }
         self.assertEqual(repo.revprops_at(3)['evn'], evn_props_r3_expected)
 
+class TestValidRootSubtreeCopiedToValidRootViaHint(EnversionTest,
+                                                   unittest.TestCase):
+    def test_01(self):
+        repo = self.create_repo()
+        svn = repo.svn
+        evnadmin = repo.evnadmin
+        evnadmin.disable(repo.path)
+
+        dot()
+        tree = { 'foo/moo/bar.txt': bulk_chargen(100) }
+        repo.build(tree, prefix='branches')
+        with chdir(repo.wc):
+            # r2
+            svn.add('branches/foo')
+            svn.ci('branches/foo', m='Initializing foo component.')
+
+        dot()
+        evnadmin.enable(repo.path)
+        error = 'valid root subtree path copied to valid root path'
+        with ensure_blocked(self, error):
+            svn.cp(repo.ra('/branches/foo/moo'),
+                   repo.ra('/branches/bar/'),
+                   m='Branch')
+
+        dot()
+        evnadmin.disable(repo.path)
+        # r3
+        svn.cp(repo.ra('/branches/foo/moo'),
+               repo.ra('/branches/bar/'), m='Branch')
+
+        dot()
+        evn_props_r3_expected = {
+            'errors': {
+                '/branches/bar/': [ error ],
+            },
+            'roots': {
+                '/trunk/': { 'created': 1 },
+            },
+        }
+        evnadmin.enable(repo.name)
+        self.assertEqual(repo.revprops_at(3)['evn'], evn_props_r3_expected)
+
+        dot()
+        evnadmin.add_root_hint(
+            repo.name,
+            path='/branches/bar/',
+            revision='3',
+            root_type='branch',
+        )
+        evnadmin.enable(repo.name)
+
+        dot()
+        evn_props_r3_expected = {
+            'roots': {
+                '/trunk/': { 'created': 1 },
+                '/branches/bar/': {
+                    'copies': {},
+                    'created': 3,
+                    'creation_method': 'copied',
+                    'copied_from': ('/branches/foo/moo/', 2),
+                },
+            },
+        }
+        self.assertEqual(repo.revprops_at(3)['evn'], evn_props_r3_expected)
+
+class TestValidRootSubtreeRenamedToValidRootViaHint(EnversionTest,
+                                                    unittest.TestCase):
+    def test_01(self):
+        repo = self.create_repo()
+        svn = repo.svn
+        evnadmin = repo.evnadmin
+        evnadmin.disable(repo.path)
+
+        dot()
+        tree = { 'foo/moo/bar.txt': bulk_chargen(100) }
+        repo.build(tree, prefix='branches')
+        with chdir(repo.wc):
+            # r2
+            svn.add('branches/foo')
+            svn.ci('branches/foo', m='Initializing foo component.')
+
+        dot()
+        evnadmin.enable(repo.path)
+        error = 'valid root subtree path renamed to valid root path'
+        with ensure_blocked(self, error):
+            svn.mv(repo.ra('/branches/foo/moo'),
+                   repo.ra('/branches/bar/'),
+                   m='Branch')
+
+        dot()
+        evnadmin.disable(repo.path)
+        # r3
+        svn.mv(repo.ra('/branches/foo/moo/'),
+               repo.ra('/branches/bar/'), m='Branch')
+
+        dot()
+        evn_props_r3_expected = {
+            'errors': {
+                '/branches/bar/': [ error ],
+            },
+            'roots': {
+                '/trunk/': { 'created': 1 },
+            },
+        }
+        evnadmin.enable(repo.name)
+        self.assertEqual(repo.revprops_at(3)['evn'], evn_props_r3_expected)
+
+        dot()
+        evnadmin.add_root_hint(
+            repo.name,
+            path='/branches/bar/',
+            revision='3',
+            root_type='branch',
+        )
+        evnadmin.enable(repo.name)
+
+        dot()
+        evn_props_r3_expected = {
+            'roots': {
+                '/trunk/': { 'created': 1 },
+                '/branches/bar/': {
+                    'copies': {},
+                    'created': 3,
+                    'creation_method': 'renamed',
+                    'renamed_from': ('/branches/foo/moo/', 2),
+                },
+            },
+        }
+        self.assertEqual(repo.revprops_at(3)['evn'], evn_props_r3_expected)
+
+
 def main():
     runner = unittest.TextTestRunner(verbosity=2)
     runner.run(suite())
