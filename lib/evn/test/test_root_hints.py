@@ -46,7 +46,7 @@ def suite():
         TestRootHints,
         TestManualBranchCreationRootHint,
         TestManualTagCreationRootHint,
-        TestUnknownToValidRoot,
+        TestUnknownToValidRootViaHint,
     )
 
 #===============================================================================
@@ -452,7 +452,7 @@ class TestManualTagCreationRootHint(EnversionTest, unittest.TestCase):
         with ensure_blocked(self, error):
             svn.copy(repo.ra('tags/1.x'), repo.ra('tags/2.x'), m='Copying tag.')
 
-class TestUnknownToValidRoot(EnversionTest, unittest.TestCase):
+class TestUnknownToValidRootViaHint(EnversionTest, unittest.TestCase):
     def test_01_copy(self):
         repo = self.create_repo(component_depth='-1')
         svn = repo.svn
