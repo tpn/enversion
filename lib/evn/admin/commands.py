@@ -82,7 +82,6 @@ class DoctestCommand(Command):
 
 class UnittestCommand(Command):
     def run(self):
-        self._out("running unit tests...")
         with chdir(self.conf.selftest_base_dir):
             import evn.test
             evn.test.main(quiet=self.options.quiet)
