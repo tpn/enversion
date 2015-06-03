@@ -375,7 +375,7 @@ def main(quiet=None):
 
     evn.test.dot.stream = stream
 
-    verbosity = int(not quiet)
+    verbosity = 2 if not quiet else 0
     runner = unittest.TextTestRunner(
         stream=stream,
         verbosity=verbosity,
@@ -384,8 +384,22 @@ def main(quiet=None):
 
     single = None
     if len(sys.argv) == 3:
-        single = sys.argv[-1]
+        arg = sys.argv[-1]
+        if arg.endswith('.py') or arg.startswith('test') or arg.lower() == arg:
+            if not arg.endswith('.py'):
+                arg += '.py'
+            path = join_path(dirname(abspath(__file__)), arg)
+            if not os.path.exists(path):
+                sys.stderr.write('no such file: %s...\n' % path)
+                sys.exit(1)
+
+            sys.stdout.write("Running tests in %s...\n" % path)
+            sys.exit(os.system('"%s" "%s"' % (sys.executable, path)))
+
+        single = arg
         TestRepo.keep = True
+    else:
+        sys.stdout.write("Running all unit tests...\n")
 
     for suite in suites(stream, single):
         result = runner.run(suite)
