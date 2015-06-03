@@ -479,7 +479,6 @@ class TestUnknownToValidRootViaHint(EnversionTest, unittest.TestCase):
                 'created': 3,
                 'creation_method': 'copied',
                 'copied_from': ('/foo/', 2),
-                'errors': [ 'unknown path copied to valid root path' ],
             },
         }
         self.assertEqual(repo.roots_at(3), roots_r3_expected)
@@ -513,7 +512,6 @@ class TestUnknownToValidRootViaHint(EnversionTest, unittest.TestCase):
                 'created': 3,
                 'creation_method': 'renamed',
                 'renamed_from': ('/foo/', 2),
-                'errors': [ 'unknown path renamed to valid root path' ],
             },
         }
         self.assertEqual(repo.roots_at(3), roots_r3_expected)

@@ -2641,14 +2641,16 @@ class RepositoryRevOrTxn(ImplicitContextSensitiveObject):
                     CopyOrRename.UnknownToKnownRootSubtree(c)
 
                 elif dst.valid_root:
-                    CopyOrRename.UnknownToValidRoot(c)
                     new_root = (
                         valid_dst_root_details.is_trunk or
                         self.has_root_hint(dst_path)
                     )
-                    if new_root:
-                        args = (c, src_path, src_rev)
-                        self.__new_root_via_copy_or_rename(*args)
+                    if not new_root:
+                        CopyOrRename.UnknownToValidRoot(c)
+                        raise logic.Break
+
+                    args = (c, src_path, src_rev)
+                    self.__new_root_via_copy_or_rename(*args)
 
                 elif dst.valid_root_subtree:
                     CopyOrRename.UnknownToValidRootSubtree(c)
