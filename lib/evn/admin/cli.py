@@ -48,17 +48,60 @@ class AdminCLI(CLI):
 
 class DoctestCommandLine(AdminCommandLine):
     _quiet_ = True
+    _description_ = textwrap.dedent("""\
+        Run all Enversion doctests.
+
+        Doctests are a convenient way to embed tests for simple/standalone
+        pieces of logic without needing the huge overhead of having to write
+        a formal unit test module.  This command will automatically find all
+        doctests within the Enversion source code and run them.
+    """)
 
 class UnittestCommandLine(AdminCommandLine):
     _quiet_ = True
-    _usage_ = '%prog [options] [unit-test-classname]'
+    _usage_ = '%prog [options] [unit-test-classname|test-file-name]'
+    _description_ = textwrap.dedent("""\
+        Helper command for running all or individual unit tests.
+
+        To run the entire unit test suite:
+            `evnadmin unittest`
+
+        To run all test case classes within the unit test file (note that file
+        is assumed to live in the evn/test directory):
+            `evnadmin unittest test_root_hints.py`
+
+        To run tests within a single test case class:
+            `evnadmin unittest TestManualBranchCreationRootHint`
+
+        To list available unit test case class names for use with that last
+        command, run `evnadmin list-unit-test-classnames`.  Note that this
+        will print the class names in fully qualified form but you only need
+        to specify the class name itself to this command, i.e. use this:
+
+            `evnadmin unittest TestManualBranchCreationRootHint`
+
+        Instead of:
+
+            `evnadmin unittest evn.test.test_root_hints.TestManualBranchCreationRootHint`
+    """)
+
 
 class SelftestCommandLine(AdminCommandLine):
     _quiet_ = True
-    _usage_ = UnittestCommandLine._usage_
+    _usage_ = '%prog [options]'
+    _description_ = textwrap.dedent("""\
+        Run all Enversion test commands.
+
+        This is a convenience command that runs `evnadmin doctest` and then
+        `evnadmin unittest`.
+    """)
 
 class ListUnitTestClassnamesCommandLine(AdminCommandLine):
-    pass
+    _description_ = textwrap.dedent("""\
+        List Enversion unit test class names.
+
+        See also: `evnadmin unittest --help`
+    """)
 
 class DumpDefaultConfigCommandLine(AdminCommandLine):
     pass
