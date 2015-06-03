@@ -316,7 +316,7 @@ class CreateCommandLine(AdminCommandLine):
     _verbose_   = True
 
     _description_ = (
-"""
+"""\
 Create a new Enversion-enabled Subversion repository.
 
 Enversion can enforce two styles of repository layouts: single-component and
@@ -649,7 +649,7 @@ class AnalyzeCommandLine(AdminCommandLine):
     _conf_  = True
     _quiet_ = True
     _usage_ = '%prog [ options ] REPO_PATH'
-    _description_ = textwrap.dedent("""
+    _description_ = textwrap.dedent("""\
         Analyzes a Subversion repository in preparation for having Enversion
         enabled.
 
@@ -750,7 +750,7 @@ class AddRootHintCommandLine(AdminCommandLine):
     _repo_  = True
     _conf_  = True
     _usage_ = '%prog -p PATH -t TYPE REPO_PATH'
-    _description_ = textwrap.dedent("""
+    _description_ = textwrap.dedent("""\
         Add a root hint for a path of a given root type ('trunk', 'tag' or
         'branch').  The path must have been created in the given revision,
         either via mkdir or a copy of an existing path.
@@ -822,7 +822,7 @@ class RemoveRootHintCommandLine(AdminCommandLine):
     _repo_  = True
     _conf_  = True
     _usage_ = '%prog [ options ] REPO_PATH'
-    _description_ = textwrap.dedent("""
+    _description_ = textwrap.dedent("""\
         Remove a previously added root hint from a repository.
 
         Note: this only removes the root hint from the evn:root_hints revision
@@ -852,7 +852,7 @@ class AddRootExclusionCommandLine(AdminCommandLine):
     _repo_  = True
     _conf_  = True
     _usage_ = '%prog [ options ] REPO_PATH'
-    _description_ = textwrap.dedent("""
+    _description_ = textwrap.dedent("""\
         Add a root exclusion to the repository.  A root exclusion tells
         Enversion not to treat this path as a root when it otherwise would
         have.  It is essentially the inverse of a root hint.
@@ -874,7 +874,7 @@ class RemoveRootExclusionCommandLine(AdminCommandLine):
     _repo_  = True
     _conf_  = True
     _usage_ = '%prog [ options ] REPO_PATH'
-    _description_ = textwrap.dedent("""
+    _description_ = textwrap.dedent("""\
         Remove an existing root exclusion from the repository.
     """)
 
@@ -893,7 +893,7 @@ class AddBranchesBasedirCommandLine(AdminCommandLine):
     _repo_  = True
     _conf_  = True
     _usage_ = '%prog [ options ] REPO_PATH'
-    _description_ = textwrap.dedent("""
+    _description_ = textwrap.dedent("""\
         Add a branches base directory hint to the repository.
 
         This instructs Enversion to treat paths rooted in this directory as if
@@ -918,7 +918,7 @@ class RemoveBranchesBasedirCommandLine(AdminCommandLine):
     _repo_  = True
     _conf_  = True
     _usage_ = '%prog [ options ] REPO_PATH'
-    _description_ = textwrap.dedent("""
+    _description_ = textwrap.dedent("""\
         Remove a previously added branches base directory from the repository.
 
         This will not affect existing roots nor will it re-analyze the
@@ -943,7 +943,7 @@ class AddTagsBasedirCommandLine(AdminCommandLine):
     _repo_  = True
     _conf_  = True
     _usage_ = '%prog [ options ] REPO_PATH'
-    _description_ = textwrap.dedent("""
+    _description_ = textwrap.dedent("""\
         Add a tags base directory hint to the repository.
 
         This instructs Enversion to treat paths rooted in this directory as if
@@ -965,7 +965,7 @@ class RemoveTagsBasedirCommandLine(AdminCommandLine):
     _repo_  = True
     _conf_  = True
     _usage_ = '%prog [ options ] REPO_PATH'
-    _description_ = textwrap.dedent("""
+    _description_ = textwrap.dedent("""\
         Remove a previously added tags base directory from the repository.
 
         This will not affect existing roots nor will it re-analyze the
