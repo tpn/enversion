@@ -745,6 +745,123 @@ class UnsetRepoReadonlyCommandLine(AdminCommandLine):
     _conf_  = True
     _usage_ = '%prog [ options ] REPO_PATH'
 
+def _process_parser_username(obj):
+    username = obj.options.username
+    if not username:
+        raise CommandError('-u/--username is mandatory')
+    obj.command.username = username
+
+class IsRepoAdminCommandLine(AdminCommandLine):
+    _repo_  = True
+    _conf_  = True
+    _usage_ = '%prog [ options ] REPO_PATH'
+    _description_ = textwrap.dedent("""\
+        Returns 'yes' if USERNAME is configured as a repository admin, 'no'
+        otherwise.
+
+        This is controlled by the configuration parameter 'repo_admins' and
+        can be set via `evnadmin add-repo-admin`.
+
+        Example:
+            % evnadmin add-repo-admin -u Trent foo
+            % evnadmin is-repo-admin -u Trent foo
+            yes
+    """)
+
+    def _add_parser_options(self):
+        self.parser.add_option(
+            '-u', '--username',
+            dest='username',
+            metavar='USERNAME',
+            default=None,
+            type='string',
+            help='username to check',
+        )
+
+    def _process_parser_results(self):
+        _process_parser_username(self)
+
+class AddRepoAdminCommandLine(AdminCommandLine):
+    _repo_  = True
+    _conf_  = True
+    _usage_ = '%prog [ options ] REPO_PATH'
+    _description_ = textwrap.dedent("""\
+        Adds USERNAME to the 'repo_admins' section of the per-repository
+        configuration file override if it is not already present.  If it is
+        already present, no action is taken.
+
+        Example:
+            % evnadmin add-repo-admin -u Trent foo
+            % evnadmin is-repo-admin -u Trent foo
+            yes
+    """)
+
+    def _add_parser_options(self):
+        self.parser.add_option(
+            '-u', '--username',
+            dest='username',
+            metavar='USERNAME',
+            type='string',
+            help='username to add',
+        )
+
+    def _process_parser_results(self):
+        _process_parser_username(self)
+
+class RemoveRepoAdminCommandLine(AdminCommandLine):
+    _repo_  = True
+    _conf_  = True
+    _usage_ = '%prog [ options ] REPO_PATH'
+    _description_ = textwrap.dedent("""\
+        Remove USERNAME from the 'repo_admins' section of the per-repository
+        configuration file override if it is present.  If it is not present,
+        no action is taken.
+
+        See also:
+            `evnadmin show-repo-admins`
+
+        Example:
+            % evnadmin add-repo-admin -u Trent foo
+            % evnadmin is-repo-admin -u Trent foo
+            yes
+            % evnadmin remove-repo-admin -u Trent foo
+            % evnadmin is-repo-admin -u Trent foo
+            no
+    """)
+
+    def _add_parser_options(self):
+        self.parser.add_option(
+            '-u', '--username',
+            dest='username',
+            metavar='USERNAME',
+            type='string',
+            help='username to remove',
+        )
+
+    def _process_parser_results(self):
+        _process_parser_username(self)
+
+class ShowRepoAdminsCommandLine(AdminCommandLine):
+    _repo_  = True
+    _conf_  = True
+    _usage_ = '%prog [ options ] REPO_PATH'
+    _description_ = textwrap.dedent("""\
+        Print the repository admins configured for a given repository.  The
+        format will be a CSV list sorted alphabetically.
+
+        This is a shortcut for `evnadmin dump-repo-config | grep repo_admins`.
+
+        See also:
+            `evnadmin show-repo-admins`
+
+        Example:
+            % evnadmin add-repo-admin -u trent foo
+            % evnadmin add-repo-admin -u dave foo
+            % evnadmin show-repo-admins foo
+            dave,trent
+    """)
+
+
 class AddRootHintCommandLine(AdminCommandLine):
     _rev_   = True
     _repo_  = True

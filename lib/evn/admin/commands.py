@@ -1046,6 +1046,48 @@ class UnsetRepoReadonlyCommand(RepositoryCommand):
         if 'readonly_message' in rc0:
             del rc0.readonly_message
 
+class IsRepoAdminCommand(RepositoryCommand):
+    username = None
+    @requires_context
+    def run(self):
+        RepositoryCommand.run(self)
+        if self.conf.is_repo_admin(self.options.username):
+            self._out('yes')
+        else:
+            self._out('no')
+
+class AddRepoAdminCommand(RepositoryCommand):
+    username = None
+    @requires_context
+    def run(self):
+        RepositoryCommand.run(self)
+        username = self.username
+        if self.conf.is_repo_admin(username):
+            msg = "%s is already a repo admin for %s"
+            self._out(msg % (username, self.name))
+            return
+
+        self.conf.add_repo_admin(username)
+
+class RemoveRepoAdminCommand(RepositoryCommand):
+    username = None
+    @requires_context
+    def run(self):
+        RepositoryCommand.run(self)
+        username = self.username
+        if not self.conf.is_repo_admin(username):
+            msg = "%s is not a repo admin for %s"
+            self._out(msg % (username, self.name))
+            return
+
+        self.conf.remove_repo_admin(username)
+
+class ShowRepoAdminsCommand(RepositoryCommand):
+    @requires_context
+    def run(self):
+        RepositoryCommand.run(self)
+        self._out(self.conf.repo_admins_repr)
+
 class AddRootHintCommand(RepositoryRevisionCommand):
     root_path = None
     root_type = None

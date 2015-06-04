@@ -1320,20 +1320,18 @@ class RepositoryRevOrTxn(ImplicitContextSensitiveObject):
 
     @property
     def repo_admins(self):
-        return self.authz_admins
-
-    def is_repo_admin(self, user=None):
-        return (user.lower() if user else self.user) in self.repo_admins
-
-    def is_allowed_override(self, user=None):
-        return (user.lower() if user else self.user) in self.authz_overrides
+        return self.conf.repo_admins
 
     @property
     def admins(self):
-        if not isinstance(self.__admins, set):
-            line = self.conf.get('main', 'admins').lower()
-            self.__admins = set(a.strip() for a in line.split(','))
-        return self.__admins
+        return self.conf.admins
+
+    def is_repo_admin(self, user=None):
+        user = (user.lower() if user else self.user)
+        return user in self.repo_admins or user in self.authz_admins
+
+    def is_allowed_override(self, user=None):
+        return (user.lower() if user else self.user) in self.authz_overrides
 
     def is_admin(self, user=None):
         username = (user if user else self.user).lower()
