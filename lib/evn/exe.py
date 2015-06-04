@@ -25,7 +25,18 @@ class SubversionClient(ProcessWrapper):
         args = list(args)
         kwds = dict(kwds)
 
+        is_ra = False
         if action == 'ci':
+            is_ra = True
+        elif action in ('cp', 'copy', 'mv', 'move', 'mkdir', 'rm', 'remove'):
+            line = ' '.join(args)
+            is_ra = (
+                line.count('file://') == 2 or
+                line.count('svn://')  == 2 or
+                line.count('http://') == 2
+            )
+
+        if is_ra:
             assert self.username and self.password
             kwds['username'] = self.username
             kwds['password'] = self.password
