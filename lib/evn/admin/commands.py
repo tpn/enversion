@@ -954,6 +954,11 @@ class PurgeEvnPropsCommand(RepositoryRevisionRangeCommand):
     def run(self):
         RepositoryRevisionRangeCommand.run(self)
 
+        # Don't start at the base revprop by default; this will blow away
+        # things like root_hints, etc.
+        if self._start_rev == 0:
+            self._start_rev = 1
+
         fs = self.fs
         prefix = self.conf.propname_prefix
         revproplist = svn.fs.revision_proplist
