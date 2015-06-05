@@ -559,10 +559,24 @@ class RepositoryRevisionConfig(AbstractRepositoryConfig):
         self.__fs = k.fs
         self.__rev = k.get('rev')
         self.__readonly = False
+        self.__is_txn = False
         if self.rev is None:
+            self.__is_txn = True
             self.__rev = k.base_rev
             self.__readonly = True
         k.assert_empty(self)
+
+        # Controls whether or not we attempt to update the 'roots_modified_at'
+        # list of revisions.
+        self._update_roots_modified_at = False
+
+        # Set to true to prevent root modifications from being persisted in
+        # the underlying revision property.
+        self._disable_roots_update = False
+
+        # Internal state helpers (see _save()).
+        self.__saw_roots_modification = False
+        self.__updated_roots_modified_at = False
 
         assert self.rev >= 0
 
@@ -587,6 +601,10 @@ class RepositoryRevisionConfig(AbstractRepositoryConfig):
     @property
     def rev(self):
         return self.__rev
+
+    @property
+    def is_txn(self):
+        return self.__is_txn
 
     @property
     def readonly(self):
@@ -638,6 +656,32 @@ class RepositoryRevisionConfig(AbstractRepositoryConfig):
     def _read(self, name):
         with self.pool as pool:
             return svn.fs.revision_prop(self.fs, self.rev, name, pool)
+
+    @property
+    def _saw_roots_modification(self):
+        return self.__saw_roots_modification
+
+    def _roots_modified(self):
+        self.__saw_roots_modification = True
+        if not self._update_roots_modified_at:
+            return
+
+        if self.__updated_roots_modified_at:
+            return
+
+        if self.is_txn or self.readonly:
+            return
+
+        if not self.get('roots_modified_at'):
+            self['roots_modified_at'] = []
+
+        self.roots_modified_at.append(self.rev)
+
+    def _save(self, name, value):
+        # Super hacky.
+        if name == 'roots':
+            self._roots_modified()
+        AbstractRepositoryConfig._save(self, name, value)
 
 #===============================================================================
 # Fatal Errors
