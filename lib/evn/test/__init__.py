@@ -405,7 +405,12 @@ def main(quiet=None):
     else:
         sys.stdout.write("Running all unit tests...\n")
 
-    for suite in suites(stream, single):
+    all_suites = [ s for s in suites(stream, single) ]
+    if not all_suites:
+        sys.stderr.write('error: no such test: %s\n' % single)
+        sys.exit(1)
+
+    for suite in all_suites:
         result = runner.run(suite)
         if not result.wasSuccessful():
             failed += 1
