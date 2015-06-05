@@ -819,6 +819,9 @@ class RepositoryRevOrTxn(ImplicitContextSensitiveObject):
         for path in self.tags_basedirs:
             self.pathmatcher.add_tags_basedir(path)
 
+    def is_excluded(self, path):
+        return self.pathmatcher.is_excluded(path)
+
     def has_root_hint(self, path):
         if self.is_txn:
             return False
@@ -1453,12 +1456,32 @@ class RepositoryRevOrTxn(ImplicitContextSensitiveObject):
 
         return new_change
 
-    def __roots_removed_indirectly(self, change, roots):
+    def __record_root_ancestor_action(self, change, root_ancestor_action):
+        c = change
+        raa = root_ancestor_action
+
+        rc0 = self.r0_revprop_conf
+        if not rc0.get('root_ancestor_actions'):
+            rc0.root_ancestor_actions = {}
+
+        if not rc0.root_ancestor_actions.get(c.path):
+            rc0.root_ancestor_actions[c.path] = {}
+
+        ra = rc0.root_ancestor_actions[c.path]
+        assert isinstance(ra, ConfigDict)
+
+        rev = c.changeset.rev
+        if not rc0.root_ancestor_actions[c.path].get(rev):
+            rc0.root_ancestor_actions[c.path][rev] = []
+
+        ra = rc0.root_ancestor_actions[c.path][rev]
+        ra.append(raa)
+
+    def __roots_removed_or_replaced_indirectly(self, change, roots):
         c = change
         rm = self.rootmatcher
 
-        assert c.is_remove
-        assert not c.is_replace
+        assert c.is_remove or c.is_replace
 
         for root_path in roots:
             assert root_path.startswith(c.path)
@@ -1468,12 +1491,16 @@ class RepositoryRevOrTxn(ImplicitContextSensitiveObject):
             if self.is_txn:
                 continue
 
-            root = self.__get_root(root_path)
-            root.removed = c.changeset.rev
-            root.removal_method = 'removed_indirectly'
-            root.removed_indirectly = c.path
-
             del self.roots[root_path]
+
+        if self.is_txn:
+            return
+
+        raa = Dict()
+        raa.action = 'removed' if c.is_remove else 'replaced'
+        raa.num_roots_removed = len(roots)
+
+        self.__record_root_ancestor_action(change, raa)
 
     def __root_replaced_directly(self, change):
         c = change
@@ -1494,27 +1521,6 @@ class RepositoryRevOrTxn(ImplicitContextSensitiveObject):
         del self.roots[c.path]
 
         c.note(e.RootReplaced)
-
-    def __roots_replaced_indirectly(self, change, roots):
-        c = change
-        rm = self.rootmatcher
-
-        assert not c.is_remove
-        assert c.is_replace
-
-        for root_path in roots:
-            assert root_path.startswith(c.path)
-            rm.remove_root_path(root_path)
-
-            if self.is_txn:
-                continue
-
-            root = self.__get_root(root_path)
-            root.removed = c.changeset.rev
-            root.removal_method = 'replaced_indirectly'
-            root.replaced_indirectly_by = c.path
-
-            del self.roots[root_path]
 
     def __get_historical_rootmatcher(self, rev):
         if self.is_txn and rev == self.base_rev:
@@ -1984,8 +1990,7 @@ class RepositoryRevOrTxn(ImplicitContextSensitiveObject):
             elif dst.root_ancestor:
                 c.error(e.RootAncestorReplaced)
 
-                for root_path in dst_roots:
-                    self.__root_removed_indirectly(c, root_path)
+                self.__roots_removed_or_replaced_indirectly(c, dst_roots)
 
                 if valid_dst_root_details.is_trunk:
                     self.__create_root(c)
@@ -2264,7 +2269,7 @@ class RepositoryRevOrTxn(ImplicitContextSensitiveObject):
                 c.error(e.RootAncestorRemoved)
                 c.error(e.MultipleRootsAffectedByRemove)
 
-                self.__roots_removed_indirectly(c, dst_roots)
+                self.__roots_removed_or_replaced_indirectly(c, dst_roots)
 
             else:
                 raise UnexpectedCodePath
@@ -2624,7 +2629,7 @@ class RepositoryRevOrTxn(ImplicitContextSensitiveObject):
 
                 elif dst.root_ancestor:
                     CopyOrRename.AbsoluteToRootAncestor(c)
-                    self.__roots_replaced_indirectly(c, dst_roots)
+                    self.__roots_removed_or_replaced_indirectly(c, dst_roots)
 
             elif src.unknown:
 
@@ -2655,7 +2660,7 @@ class RepositoryRevOrTxn(ImplicitContextSensitiveObject):
 
                 elif dst.root_ancestor:
                     CopyOrRename.UnknownToRootAncestor(c)
-                    self.__roots_replaced_indirectly(c, dst_roots)
+                    self.__roots_removed_or_replaced_indirectly(c, dst_roots)
 
                 else:
                     raise UnexpectedCodePath
@@ -2838,7 +2843,7 @@ class RepositoryRevOrTxn(ImplicitContextSensitiveObject):
 
                 elif dst.root_ancestor:
                     CopyOrRename.KnownRootToRootAncestor(c)
-                    self.__roots_replaced_indirectly(c, dst_roots)
+                    self.__roots_removed_or_replaced_indirectly(c, dst_roots)
 
                 else:
                     raise UnexpectedCodePath
@@ -2888,7 +2893,7 @@ class RepositoryRevOrTxn(ImplicitContextSensitiveObject):
 
                 elif dst.root_ancestor:
                     CopyOrRename.KnownRootSubtreeToRootAncestor(c)
-                    self.__roots_replaced_indirectly(c, dst_roots)
+                    self.__roots_removed_or_replaced_indirectly(c, dst_roots)
 
                 else:
                     raise UnexpectedCodePath
@@ -2922,7 +2927,7 @@ class RepositoryRevOrTxn(ImplicitContextSensitiveObject):
 
                 elif dst.root_ancestor:
                     CopyOrRename.ValidRootToRootAncestor(c)
-                    self.__roots_replaced_indirectly(c, dst_roots)
+                    self.__roots_removed_or_replaced_indirectly(c, dst_roots)
 
                 else:
                     raise UnexpectedCodePath
@@ -2956,14 +2961,12 @@ class RepositoryRevOrTxn(ImplicitContextSensitiveObject):
 
                 elif dst.root_ancestor:
                     CopyOrRename.ValidRootSubtreeToRootAncestor(c)
-                    self.__roots_replaced_indirectly(c, dst_roots)
+                    self.__roots_removed_or_replaced_indirectly(c, dst_roots)
 
                 else:
                     raise UnexpectedCodePath
 
             elif src.root_ancestor:
-
-                copy_or_rename_src_roots = True
 
                 if dst.unknown:
                     CopyOrRename.RootAncestorToUnknown(c)
@@ -3014,42 +3017,36 @@ class RepositoryRevOrTxn(ImplicitContextSensitiveObject):
                 elif dst.root_ancestor:
                     CopyOrRename.RootAncestorToRootAncestor(c)
 
-                    rp = (sp, dp)
-                    if src_roots_len > dst_roots_len:
-                        self.__roots_replaced_indirectly(c, dst_roots)
-
-                    elif src_roots_len < dst_roots_len:
-                        copy_or_rename_src_roots = False
-
-                    elif src_roots_len == dst_roots_len:
-                        # Which one should we keep?  Let's... keep the dst.
-                        # Rationale: it's what I came up with after investing
-                        # a total of about 20 seconds thinking about which one
-                        # we should keep.
-                        copy_or_rename_src_roots = False
-
-                    else:
-                        raise UnexpectedCodePath
+                    # Originally we had logic here that decided which roots to
+                    # keep (src ancestor or dst ancestor) based on which
+                    # ancestor had the most roots.  It made sense at the time,
+                    # but, now that we have root hits/exclusions etc, we're
+                    # going to go back to the same approach used elsewhere:
+                    # a dst ancestor will always lose its roots.
+                    self.__roots_removed_or_replaced_indirectly(c, dst_roots)
 
                 else:
                     raise UnexpectedCodePath
 
-                if not copy_or_rename_src_roots:
-                    self.__roots_replaced_indirectly(c, src_roots)
-                    raise logic.Break
+                is_dst_path_excluded = self.is_excluded(dst_path)
+                is_excluded = lambda path: (
+                    is_dst_path_excluded or
+                    self.is_excluded(path)
+                )
 
                 rp = (sp, dp)
                 new_roots = [ p.replace(*rp) for p in src_roots ]
                 # For each src ancestor affected, check to see if it
                 # still exists in the changeset (i.e. it hasn't been
                 # subsequently deleted).  If it does, add a new root
-                # for it.  If it doesn't, don't.  In either case, we
-                # still need to update the relevant root details for
-                # when the src root was created (i.e. as either being
-                # copied, renamed or removed).
+                # for it (unless the dst path has been excluded).
+                # If it doesn't, don't.
+                roots_created = []
+                roots_removed = []
                 for (old_root, new_root) in zip(src_roots, new_roots):
                     path = new_root
                     new_change = None
+                    excluded = is_excluded(new_root)
                     while path != c.path:
                         try:
                             new_change = c.changeset[path]
@@ -3079,9 +3076,17 @@ class RepositoryRevOrTxn(ImplicitContextSensitiveObject):
                         # old root already being removed by this point.
                         if not old_root in rm.roots_removed:
                             rm.remove_root_path(old_root)
-                        rm.add_root_path(new_root)
+                        if not excluded:
+                            rm.add_root_path(new_root)
 
                     if self.is_txn or action != 'keep':
+                        continue
+
+                    if c.is_rename:
+                        roots_removed.append(old_root)
+                        del self.roots[old_root]
+
+                    if excluded:
                         continue
 
                     # Prepare the new root entry...
@@ -3097,25 +3102,30 @@ class RepositoryRevOrTxn(ImplicitContextSensitiveObject):
                         d.creation_method = 'renamed_indirectly'
                         d.renamed_indirectly_from = (sp, dp)
                         d.renamed_from = (old_root, sr)
-                        # As we're a rename, delete the old root.
-                        del self.roots[old_root]
 
-                    # ....then add it to our roots.
                     assert new_root not in self.roots
+                    roots_created.append(new_root)
                     self.roots[new_root] = d
 
-                    # Find the evn:roots entry for when the old root
-                    # was created.  If we're a copy, we add the copy
-                    # details, if we're a rename, we record the
-                    # rename.
-                    root = self.__get_root(old_root, src_rev)
-                    if c.is_copy:
-                        root._add_copy(sr, new_root, cs.rev)
-                    else:
-                        root.removed = cs.rev
-                        root.removal_method = 'renamed_indirectly'
-                        root.renamed_indirectly = rp
-                        root.renamed = (new_root, cs.rev)
+                if self.is_txn:
+                    raise logic.Break
+
+                # Finally, make a note on the r0 revprop that a root ancestor
+                # copy/rename was detected.
+                raa = Dict()
+                if c.is_copy:
+                    raa.action = 'copied'
+                    raa.copied_from = (c.copied_from_path, c.copied_from_rev)
+                    raa.num_origin_roots = len(src_roots)
+                    raa.num_roots_created = len(roots_created)
+                else:
+                    raa.action = 'renamed'
+                    raa.renamed_from = c.renamed_from_path
+                    raa.num_origin_roots = len(src_roots)
+                    raa.num_roots_created = len(roots_created)
+                    raa.num_roots_removed = len(roots_removed)
+
+                self.__record_root_ancestor_action(c, raa)
 
             else:
                 raise UnexpectedCodePath
