@@ -31,9 +31,9 @@ class SubversionClient(ProcessWrapper):
         elif action in ('cp', 'copy', 'mv', 'move', 'mkdir', 'rm', 'remove'):
             line = ' '.join(args)
             is_ra = (
-                line.count('file://') == 2 or
-                line.count('svn://')  == 2 or
-                line.count('http://') == 2
+                line.count('file://') or
+                line.count('svn://')  or
+                line.count('http://')
             )
 
         if is_ra:
