@@ -65,7 +65,7 @@ class SubversionClient(ProcessWrapper):
 # Instances
 #===============================================================================
 svn = SubversionClient('svn')
-svnmucc = ProcessWrapper('svnmucc')
+svnmucc = SubversionClient('svnmucc')
 svnadmin = ProcessWrapper('svnadmin')
 evnadmin = ProcessWrapper('evnadmin')
 

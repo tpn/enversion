@@ -67,6 +67,9 @@ class TestRepo(object):
         self.svn.password = 'dummy_password'
 
         self.svnmucc = svnmucc
+        self.svnmucc.username = 'test.user'
+        self.svnmucc.password = 'dummy_password'
+
         self.svnadmin = svnadmin
         self.evnadmin = evnadmin
 
