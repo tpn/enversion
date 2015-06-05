@@ -2779,8 +2779,13 @@ class RepositoryRevOrTxn(ImplicitContextSensitiveObject):
                     else:
                         raise UnexpectedCodePath
 
-                    # Always add the new root.
-                    rm.add_root_path(dst_path)
+                    # Quick cop-out for excluded paths.
+                    if self.pathmatcher.is_excluded(dst_path):
+                        is_excluded = True
+                    else:
+                        is_excluded = False
+                        # Add the new root as long as we're not excluded.
+                        rm.add_root_path(dst_path)
 
                     if c.is_rename:
                         # Remove the source root if we're a rename...
@@ -2815,8 +2820,9 @@ class RepositoryRevOrTxn(ImplicitContextSensitiveObject):
                         d.creation_method = 'renamed'
                         d.renamed_from = (src_path, src_rev)
 
-                    # Add it to our roots.
-                    self.roots[dst_path] = d
+                    # Add it to our roots as long as we're not excluded.
+                    if not is_excluded:
+                        self.roots[dst_path] = d
 
                     # Find the evn:roots entry for when the old root
                     # was created.  If we're a copy, we add the copy
