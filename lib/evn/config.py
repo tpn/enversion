@@ -359,6 +359,12 @@ class Config(RawConfigParser):
 
         self.set(
             'main',
+            'max-bulk-root-revprop-changes-due-to-root-ancestor-action',
+            '20',
+        )
+
+        self.set(
+            'main',
             'readonly-error-message',
             'This repository cannot be committed to at the present time '
             'because an administrator has marked it as read-only.'
@@ -603,6 +609,19 @@ class Config(RawConfigParser):
         i = try_int(self.get('main', 'max-file-size-in-bytes')) or 0
         if i < 0:
             i = 0
+        return i
+
+    @property
+    def max_bulk_root_revprop_changes_due_to_root_ancestor_action(self):
+        default = 20
+        i = try_int(
+            self.get(
+                'main',
+                'max-bulk-root-revprop-changes-due-to-root-ancestor-action'
+            ) or default
+        )
+        if i < default:
+            i = default
         return i
 
     def set_max_file_size_in_bytes(self, size):
