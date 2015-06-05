@@ -158,6 +158,7 @@ class EnversionTest(object):
     __metaclass__ = ABCMeta
 
     repo = None
+    maxDiff = None
 
     @property
     def repo_name(self):
