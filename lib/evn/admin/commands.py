@@ -4,6 +4,7 @@
 import os
 import sys
 import pprint
+import textwrap
 import traceback
 import subprocess
 
@@ -111,6 +112,15 @@ class ListUnitTestClassnamesCommand(Command):
         stream = Writer()
         for dummy in evn.test.suites(stream=stream, load=False):
             pass
+
+        msg = textwrap.dedent("""
+            To run an individual test: `evnadmin unittest <classname>`:
+                % evnadmin unittest TestRootAncestorRemoved
+
+            To run all tests in a file: `evnadmin unittest <modulename>.py`:
+                % evnadmin unittest test_root_ancestors.py
+        """)
+        self._out(msg)
 
 class DumpDefaultConfigCommand(Command):
     def run(self):
