@@ -767,6 +767,189 @@ class TestRootAncestorRenamed(EnversionTest, unittest.TestCase):
             evn_brprops_expected_after_r6,
         )
 
+class TestRootAncestorRenamedWithRootExclusion(EnversionTest, unittest.TestCase):
+    def test_01(self):
+        repo = self.create_repo()
+        svn = repo.svn
+        evnadmin = repo.evnadmin
+
+        # Disable so we can mkdir ^/other
+        dot()
+        evnadmin.disable(repo.path)
+        with chdir(repo.wc):
+            svn.mkdir('other')
+            svn.mkdir('keep')
+            svn.ci()
+
+        dot()
+        evnadmin.enable(repo.path)
+        svn.cp(repo.ra('/trunk/'), repo.ra('/branches/1.x/'), m='Branching')
+        svn.cp(repo.ra('/branches/1.x/'), repo.ra('/tags/1.0/'), m='Tagging')
+
+        # Lazy (quick) test of roots.
+        dot()
+        expected_roots = set(('/trunk/', '/branches/1.x/', '/tags/1.0/'))
+        actual_roots = set(repo.roots.keys())
+        self.assertEqual(expected_roots, actual_roots)
+
+        # Add ourselves as a repo admin so that we can force through the next
+        # commit.
+        dot()
+        evnadmin.add_repo_admin(repo.name, username=svn.username)
+        expected = 'yes'
+        actual = evnadmin.is_repo_admin(repo.name, username=svn.username)
+        self.assertEqual(expected, actual)
+
+        dot()
+        with chdir(repo.wc):
+            svn.up()
+            svn.cp('trunk', 'other/foobar')
+            svn.cp('branches/1.x', 'other/1.x')
+            svn.cp('tags/1.0', 'other/1.0')
+            svn.ci(m='IGNORE ERRORS')
+
+        evnadmin.add_root_exclusion(
+            repo.name,
+            root_exclusion='/other.bak/',
+        )
+        dot()
+        svn.mv(repo.ra('/other/'), repo.ra('/other.bak/'), m='IGNORE ERRORS')
+
+        evn_props_r6_expected = {
+            'errors': {
+                '/other.bak/': ['root ancestor path renamed to unknown path'],
+            },
+            'roots' : {
+                '/branches/1.x/': {'created': 3},
+                '/tags/1.0/': {'created': 4},
+                '/trunk/': {'created': 1},
+            }
+        }
+        self.assertEqual(repo.revprops_at(6)['evn'], evn_props_r6_expected)
+
+        evn_brprops_expected_after_r6 = {
+            'component_depth': 0,
+            'last_rev': 6,
+            'root_exclusions': ['/other.bak/'],
+            'version': 1,
+            'root_ancestor_actions': {
+                '/other.bak/': {
+                    6: [
+                        {
+                            'action': 'renamed',
+                            'renamed_from': '/other/',
+                            'num_origin_roots': 3,
+                            'num_roots_created': 0,
+                            'num_roots_removed': 3,
+                        },
+                    ],
+                },
+            },
+        }
+        self.assertEqual(
+            repo.revprops_at(0)['evn'],
+            evn_brprops_expected_after_r6,
+        )
+
+class TestRootAncestorReplacedWithAncestorCopyOfSelfWithRootExclusion(
+        EnversionTest,
+        unittest.TestCase
+    ):
+
+    def test_01(self):
+        repo = self.create_repo()
+        svn = repo.svn
+        svnmucc = repo.svnmucc
+        evnadmin = repo.evnadmin
+
+        # Disable so we can mkdir ^/other
+        dot()
+        evnadmin.disable(repo.path)
+        with chdir(repo.wc):
+            svn.mkdir('other')
+            svn.mkdir('keep')
+            svn.ci()
+
+        dot()
+        evnadmin.enable(repo.path)
+        svn.cp(repo.ra('/trunk/'), repo.ra('/branches/1.x/'), m='Branching')
+        svn.cp(repo.ra('/branches/1.x/'), repo.ra('/tags/1.0/'), m='Tagging')
+
+        # Lazy (quick) test of roots.
+        dot()
+        expected_roots = set(('/trunk/', '/branches/1.x/', '/tags/1.0/'))
+        actual_roots = set(repo.roots.keys())
+        self.assertEqual(expected_roots, actual_roots)
+
+        # Add ourselves as a repo admin so that we can force through the next
+        # commit.
+        dot()
+        evnadmin.add_repo_admin(repo.name, username=svn.username)
+        expected = 'yes'
+        actual = evnadmin.is_repo_admin(repo.name, username=svn.username)
+        self.assertEqual(expected, actual)
+
+        dot()
+        with chdir(repo.wc):
+            svn.up()
+            svn.cp('trunk', 'other/foobar')
+            svn.cp('branches/1.x', 'other/1.x')
+            svn.cp('tags/1.0', 'other/1.0')
+            svn.ci(m='IGNORE ERRORS')
+
+        dot()
+        evnadmin.set_repo_component_depth(repo.name, component_depth='-1')
+
+        evnadmin.add_root_exclusion(
+            repo.name,
+            root_exclusion='/other/',
+        )
+        dot()
+        svnmucc.rm(
+            repo.ra('/other/'),
+            'cp', '5', repo.ra('/other/'), repo.ra('/other/'),
+            m='IGNORE ERRORS',
+        )
+
+        error = 'root ancestor path copied via replace to root ancestor path'
+        evn_props_r6_expected = {
+            'errors': {
+                '/other/': [ error, ]
+            },
+            'roots' : {
+                '/branches/1.x/': {'created': 3},
+                '/tags/1.0/': {'created': 4},
+                '/trunk/': {'created': 1},
+            }
+        }
+        self.assertEqual(repo.revprops_at(6)['evn'], evn_props_r6_expected)
+
+        evn_brprops_expected_after_r6 = {
+            'last_rev': 6,
+            'version': 1,
+            'root_exclusions': ['/other/'],
+            'root_ancestor_actions': {
+                '/other/': {
+                    6: [
+                        {
+                            'action': 'replaced',
+                            'num_roots_removed': 3,
+                        },
+                        {
+                            'action': 'copied',
+                            'copied_from': ('/other/', 5),
+                            'num_origin_roots': 3,
+                            'num_roots_created': 0,
+                        },
+                    ],
+                },
+            },
+        }
+        self.assertEqual(
+            repo.revprops_at(0)['evn'],
+            evn_brprops_expected_after_r6,
+        )
+
 
 def main():
     runner = unittest.TextTestRunner(verbosity=2)
