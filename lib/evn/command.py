@@ -276,8 +276,6 @@ class RepositoryRevisionCommand(RepositoryCommand):
 
         self.rev = r
 
-
-
 class RepositoryRevisionRangeCommand(RepositoryCommand):
     revision_range = None
 
