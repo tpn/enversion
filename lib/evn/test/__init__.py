@@ -316,7 +316,10 @@ class expected_roots(object):
     def __get__(self, obj, objtype=None):
         if obj is None:
             return self.func
-        return partial(self, obj)
+        p = partial(self, obj)
+        # Silence unittest when verbosity > 1.
+        p.__doc__ = None
+        return p
 
     def __call__(self, *args, **kwds):
         if not self.func:
@@ -354,7 +357,10 @@ class expected_component_depth(object):
     def __get__(self, obj, objtype=None):
         if obj is None:
             return self.func
-        return partial(self, obj)
+        p = partial(self, obj)
+        # Silence unittest when verbosity > 1.
+        p.__doc__ = None
+        return p
 
     def __call__(self, *args, **kwds):
         if not self.func:
