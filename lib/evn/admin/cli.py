@@ -663,6 +663,31 @@ class AnalyzeCommandLine(AdminCommandLine):
         Enversion tracks the last revision analyzed in the revision 0 revprop
         named evn:last_rev.  It will query this property when analyzing a repo
         in order to pick up from the last analyzed revision.
+
+        If you need to analyze revision ranges, say as part of altering roots
+        via root hints and exclusions, use the analyze-revision-range command
+        instead.
+    """)
+
+class AnalyzeRevisionRangeCommandLine(AdminCommandLine):
+    _repo_  = True
+    _conf_  = True
+    _usage_ = '%prog [ options ] REPO_PATH'
+    _rev_range_ = True
+    _description_ = textwrap.dedent("""\
+        Analyzes a revision range of a Subversion repository.  This is
+        intended to be used in scenarios where you've manipulated roots
+        with the following commands and you want to verify that the correct
+        evn:roots entries were added/removed:
+            evnadmin add-root-hint
+            evnadmin remove-root-hint
+            evnadmin add-tags-basedir
+            evnadmin add-branches-basedir
+            evnadmin remove-tags-basedir
+            evnadmin remove-branches-basedir
+
+        This command will require the repository to be set to readonly as it
+        will affect evn:last_rev after each revision has been analyzed.
     """)
 
 class ShowRootsCommandLine(AdminCommandLine):
@@ -923,6 +948,13 @@ class AddRootHintCommandLine(AdminCommandLine):
         to be altered in one sitting, and then when complete, you only need to
         run `evnadmin analyze` once.
 
+        Alternatively, for larger repositories where you need to perform a lot
+        of root manipulations, you can limit your analysis to a revision or
+        revision range via the `evnadmin analyze-revision-range` command.
+        If you use this approach, you will still need to run `evnadmin analyze`
+        again when finished in order to ensure all roots were propagated and
+        to update evn:last_rev.
+
         Examples:
 
             To set the repo readonly, add a hint, analyze, then unset readonly:
@@ -942,10 +974,14 @@ class AddRootHintCommandLine(AdminCommandLine):
 
         See also:
             evnadmin remove-root-hint
+            evnadmin add-root-exclusion
+            evnadmin remove-root-exclusion
             evnadmin add-tags-basedir
             evnadmin add-branches-basedir
             evnadmin remove-tags-basedir
             evnadmin remove-branches-basedir
+            evnadmin analyze-revision-range
+            evnadmin set-repo-readonly
     """)
 
     def _add_parser_options(self):
@@ -1020,6 +1056,48 @@ class AddRootExclusionCommandLine(AdminCommandLine):
         Add a root exclusion to the repository.  A root exclusion tells
         Enversion not to treat this path as a root when it otherwise would
         have.  It is essentially the inverse of a root hint.
+
+        Exclusions are treated as regular expressions, however, in most cases,
+        simply specifying the prefix of the path you want to exclude will be
+        sufficient.
+
+        For example, let's say a user mistakenly created one or more roots
+        under a path in the repository called /other/, e.g.:
+            /other/trunk/
+            /other/branches/1.x/
+            /other/tags/1.0/
+
+        In order to exclude those paths, you would add /other/ as an exclusion
+        as follows:
+            % evnadmin add-root-exclusions -e /other/ foo
+
+        The other expressions that would have also worked:
+            ^/oth
+            .*other/.*
+            /[abcdo]{1,1}the.*
+
+        However, as it does not start with a '/', this would not work:
+            other
+
+        (Note that these are pulled directly from the tests in
+         test_root_hints.py that end with '...RootExclusionRegex[1-4]';
+         see the `evnadmin show-library-path` to find out where that file
+         lives to review in more detail.)
+
+        Thus, if you wish to match a path "starting with" a certain prefix,
+        ensure your exclusion always includes the starting '/' slash.  If
+        you're attempting to match a suffix path, you'll need to use a greedy
+        glob like .* at the start of the exclusion.
+
+        Unlike root hints, you don't specify a revision when adding an
+        exclusion.  This is because when you want to exclude something from
+        being a root, you *always* want to exclude it.  If you need to add an
+        exclusion for a single commit only, you will need to make use of the
+        `evnadmin analyze-revision-range` command to bring the repository up
+        to the revision *before* the commit occurs, then add the exclusion,
+        then `evnadmin analyze-revision-range` against the single commit's
+        revision, then remove the exclusion, then `evnadmin analyze` to
+        finish.
     """)
 
     def _add_parser_options(self):

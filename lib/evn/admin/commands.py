@@ -672,6 +672,26 @@ class AnalyzeCommand(RepositoryCommand):
 
         self._out("Finished analyzing repository '%s'." % self.name)
 
+class AnalyzeRevisionRangeCommand(RepositoryRevisionRangeCommand):
+    @requires_context
+    def run(self, from_enable=False):
+        RepositoryRevisionRangeCommand.run(self)
+        self.ensure_readonly()
+
+        from evn.exe import evnadmin
+
+        k = self.repo_kwds
+        for i in xrange(self._start_rev, self._end_rev+1):
+            with RepositoryRevOrTxn(**k) as r:
+                r.process_rev_or_txn(i)
+                if i == 0:
+                    continue
+                cs = r.changeset
+                self._out(str(i) + ':' + cs.analysis.one_liner)
+
+        self._out(evnadmin.show_rev_props(self.name, r=str(self._end_rev)))
+        self._out(evnadmin.show_base_rev_props(self.name))
+
 class ShowRootsCommand(RepositoryRevisionCommand):
     @requires_context
     def run(self):
