@@ -122,6 +122,16 @@ class ListUnitTestClassnamesCommand(Command):
         """)
         self._out(msg)
 
+class ShowLibraryPathCommand(Command):
+    def run(self):
+        import sys
+        from ..path import join_path, dirname
+        module = sys.modules[__name__]
+        lib = join_path(dirname(module.__file__), '../..')
+        tests = join_path(lib, 'tests')
+        self._out("Library path: %s" % lib)
+        self._out("Unit tests: %s" % tests)
+
 class DumpDefaultConfigCommand(Command):
     def run(self):
         cf = Config()

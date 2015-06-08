@@ -139,6 +139,9 @@ class DumpHookCodeCommandLine(AdminCommandLine):
     _conf_ = True
     _repo_ = True
 
+class ShowLibraryPathCommandLine(AdminCommandLine):
+    _conf_ = True
+
 class ShowRepoHookStatusCommandLine(AdminCommandLine):
     _conf_ = True
     _repo_ = True
