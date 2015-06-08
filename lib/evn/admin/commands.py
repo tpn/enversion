@@ -1126,12 +1126,7 @@ class AddRootHintCommand(RepositoryRevisionCommand):
         assert root_type in ('tag', 'trunk', 'branch')
 
         rc0 = self.r0_revprop_conf
-
-        if not rc0.get('readonly'):
-            msg = (
-                "repo is not set readonly; (see `evnadmin set-repo-readonly`)"
-            )
-            raise CommandError(msg)
+        self.ensure_readonly()
 
         if not rc0.get('root_hints'):
             rc0.root_hints = {}

@@ -33,6 +33,8 @@ from evn.util import (
     ImplicitContextSensitiveObject,
 )
 
+from evn.constants import e
+
 #===============================================================================
 # Commands
 #===============================================================================
@@ -223,6 +225,10 @@ class RepositoryCommand(SubversionCommand):
         if not self._evn_hook_file:
             self._evn_hook_file = EvnHookFile(self)
         return self._evn_hook_file
+
+    def ensure_readonly(self):
+        if not self.r0_revprop_conf.get('readonly'):
+            raise CommandError(e.RepoNotReadonly)
 
 class RepoHookCommand(RepositoryCommand):
     hook_name = None
