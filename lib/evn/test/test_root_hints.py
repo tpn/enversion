@@ -1183,6 +1183,285 @@ class TestKnownRootRenamedWithRootExclusion(EnversionTest,
         }
         self.assertEqual(repo.revprops_at(5)['evn'], evn_props_r5_expected)
 
+class TestKnownRootRenamedWithRootExclusionRegex1(EnversionTest,
+                                                  unittest.TestCase):
+    def test_01(self):
+        repo = self.create_repo()
+        svn = repo.svn
+        evnadmin = repo.evnadmin
+
+        # Disable so we can mkdir ^/other
+        dot()
+        evnadmin.disable(repo.path)
+        svn.mkdir(repo.ra('/other/'), m='Creating other directory')
+        evnadmin.add_root_exclusion(
+            repo.name,
+            root_exclusion='other',
+        )
+
+        dot()
+        evnadmin.enable(repo.path)
+        svn.cp(repo.ra('/trunk/'), repo.ra('/branches/1.x/'), m='Branching')
+        svn.cp(repo.ra('/branches/1.x/'), repo.ra('/tags/1.0/'), m='Tagging')
+
+        # Lazy (quick) test of roots.
+        dot()
+        expected_roots = set(('/trunk/', '/branches/1.x/', '/tags/1.0/'))
+        actual_roots = set(repo.roots.keys())
+        self.assertEqual(expected_roots, actual_roots)
+
+        # Add ourselves as a repo admin so that we can force through the next
+        # commit.
+        dot()
+        evnadmin.add_repo_admin(repo.name, username=svn.username)
+        expected = 'yes'
+        actual = evnadmin.is_repo_admin(repo.name, username=svn.username)
+        self.assertEqual(expected, actual)
+
+        dot()
+        with chdir(repo.wc):
+            svn.up()
+            svn.mv('trunk', 'other/foobar')
+            svn.mv('branches/1.x', 'other/1.x')
+            svn.mv('tags/1.0', 'other/1.0')
+            svn.ci(m='IGNORE ERRORS')
+
+        evn_props_r5_expected = {
+            'errors': {
+                '/other/1.0/': [
+                    'tag renamed',
+                    'known root path renamed to unknown path',
+                ],
+                '/other/1.x/': [
+                    'known root path renamed to unknown path',
+                    'branch renamed to unknown',
+                ],
+                '/other/foobar/': [
+                    'known root path renamed to unknown path',
+                    'trunk renamed to unknown path',
+                ],
+            },
+            'roots': {
+                '/other/1.0/': {
+                    'renamed_from': ('/tags/1.0/', 4),
+                    'copies': {},
+                    'created': 5,
+                    'creation_method': 'renamed',
+                    'errors': [
+                        'tag renamed',
+                        'known root path renamed to unknown path',
+                    ],
+                },
+                '/other/1.x/': {
+                    'renamed_from': ('/branches/1.x/', 4),
+                    'copies': {},
+                    'created': 5,
+                    'creation_method': 'renamed',
+                    'errors': [
+                        'known root path renamed to unknown path',
+                        'branch renamed to unknown',
+                    ],
+                },
+                '/other/foobar/': {
+                    'renamed_from': ('/trunk/', 4),
+                    'copies': {},
+                    'created': 5,
+                    'creation_method': 'renamed',
+                    'errors': [
+                        'known root path renamed to unknown path',
+                        'trunk renamed to unknown path',
+                    ],
+                },
+            },
+        }
+        self.assertEqual(repo.revprops_at(5)['evn'], evn_props_r5_expected)
+
+class TestKnownRootRenamedWithRootExclusionRegex2(EnversionTest,
+                                                  unittest.TestCase):
+    def test_01(self):
+        repo = self.create_repo()
+        svn = repo.svn
+        evnadmin = repo.evnadmin
+
+        # Disable so we can mkdir ^/other
+        dot()
+        evnadmin.disable(repo.path)
+        svn.mkdir(repo.ra('/other/'), m='Creating other directory')
+        evnadmin.add_root_exclusion(
+            repo.name,
+            root_exclusion='.*other/.*',
+        )
+
+        dot()
+        evnadmin.enable(repo.path)
+        svn.cp(repo.ra('/trunk/'), repo.ra('/branches/1.x/'), m='Branching')
+        svn.cp(repo.ra('/branches/1.x/'), repo.ra('/tags/1.0/'), m='Tagging')
+
+        # Lazy (quick) test of roots.
+        dot()
+        expected_roots = set(('/trunk/', '/branches/1.x/', '/tags/1.0/'))
+        actual_roots = set(repo.roots.keys())
+        self.assertEqual(expected_roots, actual_roots)
+
+        # Add ourselves as a repo admin so that we can force through the next
+        # commit.
+        dot()
+        evnadmin.add_repo_admin(repo.name, username=svn.username)
+        expected = 'yes'
+        actual = evnadmin.is_repo_admin(repo.name, username=svn.username)
+        self.assertEqual(expected, actual)
+
+        dot()
+        with chdir(repo.wc):
+            svn.up()
+            svn.mv('trunk', 'other/foobar')
+            svn.mv('branches/1.x', 'other/1.x')
+            svn.mv('tags/1.0', 'other/1.0')
+            svn.ci(m='IGNORE ERRORS')
+
+        evn_props_r5_expected = {
+            'errors': {
+                '/other/1.0/': [
+                    'tag renamed',
+                    'known root path renamed to unknown path',
+                ],
+                '/other/1.x/': [
+                    'known root path renamed to unknown path',
+                    'branch renamed to unknown',
+                ],
+                '/other/foobar/': [
+                    'known root path renamed to unknown path',
+                    'trunk renamed to unknown path',
+                ],
+            },
+            'roots': { }
+        }
+        self.assertEqual(repo.revprops_at(5)['evn'], evn_props_r5_expected)
+
+class TestKnownRootRenamedWithRootExclusionRegex3(EnversionTest,
+                                                  unittest.TestCase):
+    def test_01(self):
+        repo = self.create_repo()
+        svn = repo.svn
+        evnadmin = repo.evnadmin
+
+        # Disable so we can mkdir ^/other
+        dot()
+        evnadmin.disable(repo.path)
+        svn.mkdir(repo.ra('/other/'), m='Creating other directory')
+        evnadmin.add_root_exclusion(
+            repo.name,
+            root_exclusion='^/oth',
+        )
+
+        dot()
+        evnadmin.enable(repo.path)
+        svn.cp(repo.ra('/trunk/'), repo.ra('/branches/1.x/'), m='Branching')
+        svn.cp(repo.ra('/branches/1.x/'), repo.ra('/tags/1.0/'), m='Tagging')
+
+        # Lazy (quick) test of roots.
+        dot()
+        expected_roots = set(('/trunk/', '/branches/1.x/', '/tags/1.0/'))
+        actual_roots = set(repo.roots.keys())
+        self.assertEqual(expected_roots, actual_roots)
+
+        # Add ourselves as a repo admin so that we can force through the next
+        # commit.
+        dot()
+        evnadmin.add_repo_admin(repo.name, username=svn.username)
+        expected = 'yes'
+        actual = evnadmin.is_repo_admin(repo.name, username=svn.username)
+        self.assertEqual(expected, actual)
+
+        dot()
+        with chdir(repo.wc):
+            svn.up()
+            svn.mv('trunk', 'other/foobar')
+            svn.mv('branches/1.x', 'other/1.x')
+            svn.mv('tags/1.0', 'other/1.0')
+            svn.ci(m='IGNORE ERRORS')
+
+        evn_props_r5_expected = {
+            'errors': {
+                '/other/1.0/': [
+                    'tag renamed',
+                    'known root path renamed to unknown path',
+                ],
+                '/other/1.x/': [
+                    'known root path renamed to unknown path',
+                    'branch renamed to unknown',
+                ],
+                '/other/foobar/': [
+                    'known root path renamed to unknown path',
+                    'trunk renamed to unknown path',
+                ],
+            },
+            'roots': { }
+        }
+        self.assertEqual(repo.revprops_at(5)['evn'], evn_props_r5_expected)
+
+class TestKnownRootRenamedWithRootExclusionRegex4(EnversionTest,
+                                                  unittest.TestCase):
+    def test_01(self):
+        repo = self.create_repo()
+        svn = repo.svn
+        evnadmin = repo.evnadmin
+
+        # Disable so we can mkdir ^/other
+        dot()
+        evnadmin.disable(repo.path)
+        svn.mkdir(repo.ra('/other/'), m='Creating other directory')
+        evnadmin.add_root_exclusion(
+            repo.name,
+            root_exclusion='/[abcdo]{1,1}the.*',
+        )
+
+        dot()
+        evnadmin.enable(repo.path)
+        svn.cp(repo.ra('/trunk/'), repo.ra('/branches/1.x/'), m='Branching')
+        svn.cp(repo.ra('/branches/1.x/'), repo.ra('/tags/1.0/'), m='Tagging')
+
+        # Lazy (quick) test of roots.
+        dot()
+        expected_roots = set(('/trunk/', '/branches/1.x/', '/tags/1.0/'))
+        actual_roots = set(repo.roots.keys())
+        self.assertEqual(expected_roots, actual_roots)
+
+        # Add ourselves as a repo admin so that we can force through the next
+        # commit.
+        dot()
+        evnadmin.add_repo_admin(repo.name, username=svn.username)
+        expected = 'yes'
+        actual = evnadmin.is_repo_admin(repo.name, username=svn.username)
+        self.assertEqual(expected, actual)
+
+        dot()
+        with chdir(repo.wc):
+            svn.up()
+            svn.mv('trunk', 'other/foobar')
+            svn.mv('branches/1.x', 'other/1.x')
+            svn.mv('tags/1.0', 'other/1.0')
+            svn.ci(m='IGNORE ERRORS')
+
+        evn_props_r5_expected = {
+            'errors': {
+                '/other/1.0/': [
+                    'tag renamed',
+                    'known root path renamed to unknown path',
+                ],
+                '/other/1.x/': [
+                    'known root path renamed to unknown path',
+                    'branch renamed to unknown',
+                ],
+                '/other/foobar/': [
+                    'known root path renamed to unknown path',
+                    'trunk renamed to unknown path',
+                ],
+            },
+            'roots': { }
+        }
+        self.assertEqual(repo.revprops_at(5)['evn'], evn_props_r5_expected)
+
 
 def main():
     runner = unittest.TextTestRunner(verbosity=2)
