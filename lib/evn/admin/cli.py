@@ -866,7 +866,7 @@ class AddRootHintCommandLine(AdminCommandLine):
     _rev_   = True
     _repo_  = True
     _conf_  = True
-    _usage_ = '%prog -p PATH -t TYPE REPO_PATH'
+    _usage_ = '%prog -r REV -p PATH -t TYPE REPO_PATH'
     _description_ = textwrap.dedent("""\
         Add a root hint for a path of a given root type ('trunk', 'tag' or
         'branch').  The path must have been created in the given revision,
@@ -875,7 +875,7 @@ class AddRootHintCommandLine(AdminCommandLine):
         This command is used to provide hints to Enversion for when its
         default root detection logic doesn't pick up that a new root is being
         created.  This could be because the branch wasn't being created
-        properly (e.g. a directory called /branches/1.x was created manually
+        properly (e.g. a directory called /branches/1.x/ was created manually
         via mkdir, but it is still desirable for it to be a root), or because
         the path represents a new 'trunk', but isn't named as such (e.g. the
         FreeBSD project uses /head/ as their main 'trunk', so they would use
@@ -894,11 +894,55 @@ class AddRootHintCommandLine(AdminCommandLine):
         /trunk/foo/ would be ignored if a root already exists for /trunk/ at
         the given revision.
 
+        The revision is required for two reasons:
+            1. Enversion verifies that the root hint was actually created in
+               some way in the given revision.  That is, it was either copied
+               or created manually.
+            2. Once verified, Enversion resets the evn:last_rev property on
+               revision 0 to match the revision that's been passed in, minus
+               1.  E.g. if `evnadmin add-root-hint -r 5 -p /head/ -t trunk`
+               was passed in, Enversion would verify that /head/ was indeed
+               created in revision 5, and then it would set evn:last_rev to
+               4 and display a message indicating it will pick up analysis
+               from that point once `evnadmin analyze ...` is run.
+
+        Because successfully setting a root hint will alter the repository's
+        evn:last_rev setting and require another run of `evnadmin analyze`,
+        there is a final constraint: the repository must be set to read-only
+        mode before root hints are added.  This is a precautionary measure
+        put in place to reduce the likelihood of inadvertently adding a root
+        hint to an active, production repository, and having its last_rev
+        reset and thus, require re-analysis.  Commits during this point would
+        be blocked with a "repository out of sync" error message.  If the
+        root hint is desired, then one can set a more meaningful error message
+        with `evnadmin set-repo-readonly` prior to adding the hint.  This also
+        allows multiple root hints (and branches base dirs and tags basedirs)
+        to be altered in one sitting, and then when complete, you only need to
+        run `evnadmin analyze` once.
+
         Examples:
 
-            % evnadmin create foo
-            % evnadmin add-root-hint -p /head/ -t trunk foo
-            % evnadmin add-root-hint -p /release/1.0.24/ -t tag foo
+            To set the repo readonly, add a hint, analyze, then unset readonly:
+                % evnadmin set-repo-readonly foo
+                % evnadmin add-root-hint -r 10 -p /base/ -t trunk foo
+                % evnadmin analyze foo
+                % evnadmin unset-repo-readonly foo
+
+            Add a root hint for /head/, of type trunk created in r1:
+                % evnadmin add-root-hint -r 1 -p /head/ -t trunk foo
+
+            Add a root hint for /release/1.0.24/, of type tag created in r500:
+                % evnadmin add-root-hint -r 500 -p /release/1.0.24/ -t tag foo
+
+            To view the root hints set on a repository foo:
+                % evnadmin show-rev-props -r0 foo
+
+        See also:
+            evnadmin remove-root-hint
+            evnadmin add-tags-basedir
+            evnadmin add-branches-basedir
+            evnadmin remove-tags-basedir
+            evnadmin remove-branches-basedir
     """)
 
     def _add_parser_options(self):
