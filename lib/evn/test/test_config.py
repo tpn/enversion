@@ -1,6 +1,7 @@
 #===============================================================================
 # Imports
 #===============================================================================
+import sys
 import unittest
 import os.path
 
@@ -28,10 +29,8 @@ from evn.test.dot import (
 # Helper Methods
 #===============================================================================
 def suite():
-    return unittest.defaultTestLoader.loadTestsFromTestCase(
-        TestBasicManualRepoOverrideLogic,
-        TestRepoOverride,
-    )
+    module = sys.modules[__name__]
+    return unittest.defaultTestLoader.loadTestsFromModule(module)
 
 #===============================================================================
 # Test Classes
@@ -166,7 +165,7 @@ class TestRepoOverride(EnversionTest, unittest.TestCase):
 
 
 def main():
-    runner = unittest.TextTestRunner()
+    runner = unittest.TextTestRunner(verbosity=2)
     runner.run(suite())
 
 if __name__ == '__main__':

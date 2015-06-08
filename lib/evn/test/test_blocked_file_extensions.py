@@ -2,6 +2,7 @@
 # Imports
 #===============================================================================
 import os
+import sys
 import os.path
 import unittest
 
@@ -43,10 +44,8 @@ conf = get_or_create_config()
 # Helpers
 #===============================================================================
 def suite():
-    cases = [ TestBlockedFileExtensions, ]
-    if os.name != 'nt':
-        cases.append(TestSymlinkBlockExemption)
-    return unittest.defaultTestLoader.loadTestsFromTestCase(*cases)
+    module = sys.modules[__name__]
+    return unittest.defaultTestLoader.loadTestsFromModule(module)
 
 #===============================================================================
 # Test Classes
@@ -195,7 +194,7 @@ class TestSymlinkBlockExemption(EnversionTest, unittest.TestCase):
                 svn.ci('target.so', m='Adding symlink.')
 
 def main():
-    runner = unittest.TextTestRunner()
+    runner = unittest.TextTestRunner(verbosity=2)
     runner.run(suite())
 
 if __name__ == '__main__':
