@@ -1,6 +1,7 @@
 #===============================================================================
 # Imports
 #===============================================================================
+import sys
 import unittest
 
 from evn.test import (
@@ -41,9 +42,8 @@ conf = get_or_create_config()
 # Helpers
 #===============================================================================
 def suite():
-    return unittest.defaultTestLoader.loadTestsFromTestCase(
-        TestSetRepoReadonly,
-    )
+    module = sys.modules[__name__]
+    return unittest.defaultTestLoader.loadTestsFromModule(module)
 
 #===============================================================================
 # Test Classes
@@ -117,7 +117,7 @@ class TestSetRepoReadonly(EnversionTest, unittest.TestCase):
             svn.ci('trunk', m='Adding test2.txt')
 
 def main():
-    runner = unittest.TextTestRunner()
+    runner = unittest.TextTestRunner(verbosity=2)
     runner.run(suite())
 
 if __name__ == '__main__':

@@ -67,6 +67,9 @@ class TestRepo(object):
         self.svn.password = 'dummy_password'
 
         self.svnmucc = svnmucc
+        self.svnmucc.username = 'test.user'
+        self.svnmucc.password = 'dummy_password'
+
         self.svnadmin = svnadmin
         self.evnadmin = evnadmin
 
@@ -145,11 +148,10 @@ class TestRepo(object):
         props = self.evnadmin.show_rev_props(self.name, quiet=True)
         return literal_eval(props)
 
-    @property
     def revprops_at(self, revision):
         props = self.evnadmin.show_rev_props(
             self.name,
-            revision=revision,
+            revision=str(revision),
             quiet=True,
         )
         return literal_eval(props)
@@ -159,6 +161,7 @@ class EnversionTest(object):
     __metaclass__ = ABCMeta
 
     repo = None
+    maxDiff = None
 
     @property
     def repo_name(self):
@@ -313,7 +316,10 @@ class expected_roots(object):
     def __get__(self, obj, objtype=None):
         if obj is None:
             return self.func
-        return partial(self, obj)
+        p = partial(self, obj)
+        # Silence unittest when verbosity > 1.
+        p.__doc__ = None
+        return p
 
     def __call__(self, *args, **kwds):
         if not self.func:
@@ -351,7 +357,10 @@ class expected_component_depth(object):
     def __get__(self, obj, objtype=None):
         if obj is None:
             return self.func
-        return partial(self, obj)
+        p = partial(self, obj)
+        # Silence unittest when verbosity > 1.
+        p.__doc__ = None
+        return p
 
     def __call__(self, *args, **kwds):
         if not self.func:
@@ -376,7 +385,7 @@ def main(quiet=None):
 
     evn.test.dot.stream = stream
 
-    verbosity = int(not quiet)
+    verbosity = 2 if not quiet else 0
     runner = unittest.TextTestRunner(
         stream=stream,
         verbosity=verbosity,
@@ -385,10 +394,29 @@ def main(quiet=None):
 
     single = None
     if len(sys.argv) == 3:
-        single = sys.argv[-1]
-        TestRepo.keep = True
+        arg = sys.argv[-1]
+        if arg.endswith('.py') or arg.startswith('test') or arg.lower() == arg:
+            if not arg.endswith('.py'):
+                arg += '.py'
+            path = join_path(dirname(abspath(__file__)), arg)
+            if not os.path.exists(path):
+                sys.stderr.write('no such file: %s...\n' % path)
+                sys.exit(1)
 
-    for suite in suites(stream, single):
+            sys.stdout.write("Running tests in %s...\n" % path)
+            sys.exit(os.system('"%s" "%s"' % (sys.executable, path)))
+
+        single = arg
+        TestRepo.keep = True
+    else:
+        sys.stdout.write("Running all unit tests...\n")
+
+    all_suites = [ s for s in suites(stream, single) ]
+    if not all_suites:
+        sys.stderr.write('error: no such test: %s\n' % single)
+        sys.exit(1)
+
+    for suite in all_suites:
         result = runner.run(suite)
         if not result.wasSuccessful():
             failed += 1

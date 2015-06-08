@@ -137,6 +137,7 @@ class _Errors(Constant):
     TopLevelRepoComponentDirectoryReplaced = "top-level repository directories cannot be replaced for component '%s'"
     StandardLayoutTopLevelDirectoryCreatedInMultiComponentRepo = "standard layout top-level directories must be created within a component as this is a multi-component repository (i.e. try mkdir /foo/trunk instead of mkdir /trunk)"
     BlockedFileExtension = "blocked file extension"
+    RepoNotReadonly = "repo is not set readonly (see `evnadmin set-repo-readonly`)"
 
 e = _Errors()
 

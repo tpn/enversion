@@ -725,6 +725,10 @@ class ConfigList(list):
         list.append(self, value)
         self._parent._save(self._name, self)
 
+    def remove(self, value):
+        list.remove(self, value)
+        self._parent._save(self._name, self)
+
 class ConfigDict(dict):
     def __init__(self, parent, name, kwds):
         self._parent = parent

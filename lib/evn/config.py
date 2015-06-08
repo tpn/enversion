@@ -90,6 +90,8 @@ class Config(RawConfigParser):
         RawConfigParser.__init__(self)
         self.__repo_path = None
         self._repo_name = None
+        self._repo_admins = None
+        self._admins = None
 
         d = dirname(abspath(__file__))
         f = join_path(d, 'admin', 'cli.py')
@@ -340,6 +342,7 @@ class Config(RawConfigParser):
         self.set('main', 'max-revlock-waits', '60')
         self.set('main', 'verbose', 'off')
         self.set('main', 'admins', '')
+        self.set('main', 'repo_admins', '')
         self.set('main', 'python', sys.executable)
         self.set('main', 'propname-prefix', 'evn')
         self.set('main', 'remote-debug-host', 'localhost')
@@ -643,6 +646,72 @@ class Config(RawConfigParser):
     @property
     def custom_hook_classname(self):
         return self.get('main', 'custom-hook-classname')
+
+    def set_custom_hook_classname(self, classname):
+        Config.verify_custom_hook_classname(classname)
+        self.set('main', 'custom-hook-classname', classname)
+        self.save()
+
+    def _csv_to_set(self, line):
+        if not line:
+            return set()
+        elif ',' in line:
+            return set(a.strip() for a in line.split(',') if a)
+        else:
+            return set((line,))
+
+    def _set_to_csv(self, s):
+        if not s:
+            return ' '
+        elif len(s) == 1:
+            return s.pop()
+        else:
+            return ','.join(sorted(s))
+
+    @property
+    def admins(self):
+        if self._admins is None:
+            line = self.get('main', 'admins').lower()
+            self._admins = self._csv_to_set(line)
+        return self._admins
+
+    @property
+    def repo_admins(self):
+        if self._repo_admins is None:
+            line = self.get('main', 'repo_admins').lower()
+            self._repo_admins = self._csv_to_set(line)
+        return self._repo_admins
+
+    @property
+    def repo_admins_repr(self):
+        if not self.repo_admins:
+            return '<none>'
+        else:
+            return ','.join(sorted(self.repo_admins))
+
+    @property
+    def admins_repr(self):
+        if not self.admins:
+            return '<none>'
+        else:
+            return ','.join(sorted(self.admins))
+
+    def add_repo_admin(self, username):
+        if username not in self._repo_admins:
+            self._repo_admins.add(username)
+            line = self._set_to_csv(self._repo_admins)
+            self.set('main', 'repo_admins', line)
+            self.save()
+
+    def remove_repo_admin(self, username):
+        if username in self._repo_admins:
+            self._repo_admins.remove(username)
+            line = self._set_to_csv(self._repo_admins)
+            self.set('main', 'repo_admins', line)
+            self.save()
+
+    def is_repo_admin(self, username):
+        return username in self.repo_admins
 
     def set_custom_hook_classname(self, classname):
         Config.verify_custom_hook_classname(classname)

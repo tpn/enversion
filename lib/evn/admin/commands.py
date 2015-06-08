@@ -4,6 +4,7 @@
 import os
 import sys
 import pprint
+import textwrap
 import traceback
 import subprocess
 
@@ -82,7 +83,6 @@ class DoctestCommand(Command):
 
 class UnittestCommand(Command):
     def run(self):
-        self._out("running unit tests...")
         with chdir(self.conf.selftest_base_dir):
             import evn.test
             evn.test.main(quiet=self.options.quiet)
@@ -112,6 +112,25 @@ class ListUnitTestClassnamesCommand(Command):
         stream = Writer()
         for dummy in evn.test.suites(stream=stream, load=False):
             pass
+
+        msg = textwrap.dedent("""
+            To run an individual test: `evnadmin unittest <classname>`:
+                % evnadmin unittest TestRootAncestorRemoved
+
+            To run all tests in a file: `evnadmin unittest <modulename>.py`:
+                % evnadmin unittest test_root_ancestors.py
+        """)
+        self._out(msg)
+
+class ShowLibraryPathCommand(Command):
+    def run(self):
+        import sys
+        from ..path import join_path, dirname
+        module = sys.modules[__name__]
+        lib = join_path(dirname(module.__file__), '../..')
+        tests = join_path(lib, 'tests')
+        self._out("Library path: %s" % lib)
+        self._out("Unit tests: %s" % tests)
 
 class DumpDefaultConfigCommand(Command):
     def run(self):
@@ -607,7 +626,7 @@ class RunHookCommand(RepoHookCommand):
                     args = ', '.join('%s' % repr(a) for a in self.hook_args)
                     e = ''.join(traceback.format_exception(*sys.exc_info()))
                     err = m % (self.hook_name, args, os.linesep, e)
-                    # XXX TODO: err, log this somewhere.
+                    sys.stderr.write(err)
                     raise exc
 
 class AnalyzeCommand(RepositoryCommand):
@@ -652,6 +671,26 @@ class AnalyzeCommand(RepositoryCommand):
                 self._out(str(i) + ':' + cs.analysis.one_liner)
 
         self._out("Finished analyzing repository '%s'." % self.name)
+
+class AnalyzeRevisionRangeCommand(RepositoryRevisionRangeCommand):
+    @requires_context
+    def run(self, from_enable=False):
+        RepositoryRevisionRangeCommand.run(self)
+        self.ensure_readonly()
+
+        from evn.exe import evnadmin
+
+        k = self.repo_kwds
+        for i in xrange(self._start_rev, self._end_rev+1):
+            with RepositoryRevOrTxn(**k) as r:
+                r.process_rev_or_txn(i)
+                if i == 0:
+                    continue
+                cs = r.changeset
+                self._out(str(i) + ':' + cs.analysis.one_liner)
+
+        self._out(evnadmin.show_rev_props(self.name, r=str(self._end_rev)))
+        self._out(evnadmin.show_base_rev_props(self.name))
 
 class ShowRootsCommand(RepositoryRevisionCommand):
     @requires_context
@@ -955,6 +994,11 @@ class PurgeEvnPropsCommand(RepositoryRevisionRangeCommand):
     def run(self):
         RepositoryRevisionRangeCommand.run(self)
 
+        # Don't start at the base revprop by default; this will blow away
+        # things like root_hints, etc.
+        if self._start_rev == 0:
+            self._start_rev = 1
+
         fs = self.fs
         prefix = self.conf.propname_prefix
         revproplist = svn.fs.revision_proplist
@@ -1000,6 +1044,12 @@ class ShowRevPropsCommand(RepositoryRevisionCommand):
         self._out(m % (self.name, self.rev))
         pprint.pprint(r, self.ostream)
 
+class ShowBaseRevPropsCommand(ShowRevPropsCommand):
+    @requires_context
+    def run(self):
+        self.rev_str = '0'
+        ShowRevPropsCommand.run(self)
+
 class IsRepoReadonlyCommand(RepositoryCommand):
     @requires_context
     def run(self):
@@ -1040,5 +1090,328 @@ class UnsetRepoReadonlyCommand(RepositoryCommand):
         del rc0.readonly
         if 'readonly_message' in rc0:
             del rc0.readonly_message
+
+class IsRepoAdminCommand(RepositoryCommand):
+    username = None
+    @requires_context
+    def run(self):
+        RepositoryCommand.run(self)
+        if self.conf.is_repo_admin(self.options.username):
+            self._out('yes')
+        else:
+            self._out('no')
+
+class AddRepoAdminCommand(RepositoryCommand):
+    username = None
+    @requires_context
+    def run(self):
+        RepositoryCommand.run(self)
+        username = self.username
+        if self.conf.is_repo_admin(username):
+            msg = "%s is already a repo admin for %s"
+            self._out(msg % (username, self.name))
+            return
+
+        self.conf.add_repo_admin(username)
+
+class RemoveRepoAdminCommand(RepositoryCommand):
+    username = None
+    @requires_context
+    def run(self):
+        RepositoryCommand.run(self)
+        username = self.username
+        if not self.conf.is_repo_admin(username):
+            msg = "%s is not a repo admin for %s"
+            self._out(msg % (username, self.name))
+            return
+
+        self.conf.remove_repo_admin(username)
+
+class ShowRepoAdminsCommand(RepositoryCommand):
+    @requires_context
+    def run(self):
+        RepositoryCommand.run(self)
+        self._out(self.conf.repo_admins_repr)
+
+class AddRootHintCommand(RepositoryRevisionCommand):
+    root_path = None
+    root_type = None
+
+    @requires_context
+    def run(self):
+        RepositoryRevisionCommand.run(self)
+        rev = self.rev
+        root_path = format_dir(self.root_path)
+        root_type = self.root_type
+        assert root_type in ('tag', 'trunk', 'branch')
+
+        rc0 = self.r0_revprop_conf
+        self.ensure_readonly()
+
+        if not rc0.get('root_hints'):
+            rc0.root_hints = {}
+
+        if not rc0['root_hints'].get(rev):
+            rc0['root_hints'][rev] = {}
+
+        hints = rc0['root_hints'][rev]
+        if root_path in hints:
+            msg = "hint already exists for %s@%d" % (root_path, rev)
+            raise CommandError(msg)
+
+        from evn.change import ChangeSet
+        opts = Options()
+        cs = ChangeSet(self.path, self.rev, opts)
+        cs.load()
+
+        import svn.fs
+        from svn.core import (
+            svn_node_dir,
+            svn_node_file,
+            svn_node_none,
+            svn_node_unknown,
+        )
+
+        svn_root = cs._get_root(rev)
+        node_kind = svn.fs.check_path(svn_root, root_path, self.pool)
+        if node_kind == svn_node_none:
+            msg = "no such path %s in revision %d"
+            raise CommandError(msg % (root_path, rev))
+        elif node_kind == svn_node_unknown:
+            msg = "unexpected node type 'unknown' for path %s in revision %d"
+            raise CommandError(msg % (root_path, rev))
+        elif node_kind == svn_node_file:
+            msg = "path %s was a file in revision %d, not a directory"
+            raise CommandError(msg % (root_path, rev))
+        else:
+            assert node_kind == svn_node_dir, node_kind
+
+        change = cs.get_change_for_path(root_path)
+        if not change:
+            msg = (
+                "path %s already existed in revision %d; specify the revision "
+                "it was created in when adding a root hint (tip: try running "
+                "`svn log --stop-on-copy --limit 1 %s%s@%d` to get the "
+                "correct revision to use)" % (
+                    root_path,
+                    rev,
+                    self.uri,
+                    root_path,
+                    rev,
+                )
+            )
+            raise CommandError(msg)
+
+        if change.is_remove or change.is_modify:
+            msg = (
+                "path %s wasn't created in revision %d; you need to specify "
+                "the revision it was created in when adding a root hint "
+                "(tip: try running `svn log --stop-on-copy --limit 1 %s%s@%d`"
+                " to get the correct revision to use)" % (
+                    root_path,
+                    rev,
+                    self.uri,
+                    root_path,
+                    rev,
+                )
+            )
+            raise CommandError(msg)
+
+        hints[root_path] = root_type
+
+        repo_name = self.conf.repo_name
+        msg = 'Added root hint for %s@%d to %s.' % (root_path, rev, repo_name)
+        self._out(msg)
+
+        last_rev = rev-1
+        if rc0.last_rev <= last_rev:
+            msg = (
+                'evn:last_rev (%d) is already set less than or equal to the '
+                'new would-be evn:last_rev (%d) based on the revision used '
+                'for this root hint (%d); run `evnadmin analyze %s` when '
+                'ready to restart analysis from revision %d.' % (
+                    rc0.last_rev,
+                    last_rev,
+                    rev,
+                    repo_name,
+                    rc0.last_rev,
+                )
+            )
+        else:
+            rc0.last_rev = last_rev
+            msg = (
+                'evn:last_rev has been reset from %d to %d; '
+                'run `evnadmin analyze %s` when ready to '
+                'restart analysis from revision %d.' % (
+                    rev,
+                    last_rev,
+                    repo_name,
+                    last_rev,
+                )
+            )
+        self._out(msg)
+
+class RemoveRootHintCommand(RepositoryRevisionCommand):
+    root_path = None
+
+    @requires_context
+    def run(self):
+        RepositoryRevisionCommand.run(self)
+        root_path = format_dir(self.root_path)
+
+        rev = self.rev
+
+        rc0 = self.r0_revprop_conf
+
+        if not rc0.get('root_hints'):
+            raise CommandError("no such root hint: %s" % root_path)
+
+        hints = rc0['root_hints'].get(rev)
+        if not hints:
+            msg = "no such root hint at r%d: %s" % (rev, root_path)
+            raise CommandError(msg)
+
+        if root_path not in hints:
+            msg = "no such root hint at r%d: %s" % (rev, root_path)
+            raise CommandError(msg)
+
+        del hints[root_path]
+        msg = "Removed root hint %r for r%d from %s."
+        repo_name = self.conf.repo_name
+        self._out(msg % (hint, rev, repo_name))
+
+class AddRootExclusionCommand(RepositoryCommand):
+    root_exclusion = None
+    @requires_context
+    def run(self):
+        RepositoryCommand.run(self)
+
+        root_exclusion = self.root_exclusion
+
+        rc0 = self.r0_revprop_conf
+
+        if not rc0.get('root_exclusions'):
+            rc0.root_exclusions = []
+
+        if root_exclusion in rc0.root_exclusions:
+            msg = "root exclusion already exists for %s" % root_exclusion
+            raise CommandError(msg)
+
+        rc0.root_exclusions.append(root_exclusion)
+        msg = 'Added root exclusion %s to %s.' % (
+            root_exclusion,
+            self.conf.repo_name,
+        )
+        self._out(msg)
+
+class RemoveRootExclusionCommand(RepositoryCommand):
+    root_exclusion = None
+    @requires_context
+    def run(self):
+        RepositoryCommand.run(self)
+
+        root_exclusion = self.root_exclusion
+
+        rc0 = self.r0_revprop_conf
+
+        if not rc0.get('root_exclusions'):
+            raise CommandError('no root exclusions set')
+
+        if root_exclusion not in rc0.root_exclusions:
+            raise CommandError('no such root exclusion: %s' % root_exclusions)
+
+        rc0.root_exclusions.remove(root_exclusion)
+        msg = 'Removed root exclusion %s from %s.' % (
+            root_exclusion,
+            self.conf.repo_name,
+        )
+        self._out(msg)
+
+class AddBranchesBasedirCommand(RepositoryCommand):
+    branches_basedir = None
+    @requires_context
+    def run(self):
+        RepositoryCommand.run(self)
+        branches_basedir = format_dir(self.branches_basedir)
+
+        rc0 = self.r0_revprop_conf
+
+        if not rc0.get('branches_basedirs'):
+            rc0.branches_basedirs = []
+
+        basedirs = rc0.branches_basedirs
+        if branches_basedir in basedirs:
+            msg = "branches basedir already exists for %s" % branches_basedir
+            raise CommandError(msg)
+
+        basedirs.append(branches_basedir)
+        repo_name = self.conf.repo_name
+        msg = 'Added branches basedir %s to %s.' % (
+            branches_basedir,
+            self.conf.repo_name,
+        )
+        self._out(msg)
+
+class RemoveBranchesBasedirCommand(RepositoryCommand):
+    branches_basedir = None
+    @requires_context
+    def run(self):
+        RepositoryCommand.run(self)
+        branches_basedir = self.branches_basedir
+
+        rc0 = self.r0_revprop_conf
+        if not rc0.get('branches_basedirs'):
+            raise CommandError('no branches basedirs present')
+
+        basedirs = rc0.branches_basedirs
+        if branches_basedir not in basedirs:
+            msg = 'no such branches basedir: %s' % branches_basedir
+            raise CommandError(msg)
+
+        basedirs.remove(branches_basedir)
+        msg = "Removed branches basedir %s from %s."
+        self._out(msg % (branches_basedir, self.conf.repo_name))
+
+class AddTagsBasedirCommand(RepositoryCommand):
+    tags_basedir = None
+    @requires_context
+    def run(self):
+        RepositoryCommand.run(self)
+        tags_basedir = format_dir(self.tags_basedir)
+
+        rc0 = self.r0_revprop_conf
+
+        if not rc0.get('tags_basedirs'):
+            rc0.tags_basedirs = []
+
+        basedirs = rc0.tags_basedirs
+        if tags_basedir in basedirs:
+            msg = "tags basedir already exists for %s" % tags_basedir
+            raise CommandError(msg)
+
+        basedirs.append(tags_basedir)
+        repo_name = self.conf.repo_name
+        msg = 'Added tags basedir %s to %s.' % (tags_basedir, repo_name)
+        self._out(msg)
+
+class RemoveTagsBasedirCommand(RepositoryCommand):
+    tags_basedir = None
+    @requires_context
+    def run(self):
+        RepositoryCommand.run(self)
+        tags_basedir = self.tags_basedir
+
+        rc0 = self.r0_revprop_conf
+        if not rc0.get('tags_basedirs'):
+            raise CommandError('no tags basedirs present')
+
+        basedirs = rc0.tags_basedirs
+        if tags_basedir not in basedirs:
+            msg = 'no such tags basedir: %s' % tags_basedir
+            raise CommandError(msg)
+
+        basedirs.remove(tags_basedir)
+        msg = "Removed tags basedir %s from %s."
+        self._out(msg % (tags_basedir, self.conf.repo_name))
 
 # vim:set ts=8 sw=4 sts=4 tw=78 et:

@@ -1,6 +1,6 @@
 package:
   name: enversion
-  version: {{environ['GIT_DESCRIBE_TAG'][1:]}}
+  version: {{environ.get('GIT_DESCRIBE_TAG', 'vunknown')[1:]}}
 
 build:
   number: {{environ.get('BINSTAR_BUILD', 0)}}

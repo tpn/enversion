@@ -10,6 +10,8 @@ from itertools import (
     repeat,
 )
 
+import textwrap
+
 import evn.admin.commands
 
 from evn.util import (
@@ -46,17 +48,60 @@ class AdminCLI(CLI):
 
 class DoctestCommandLine(AdminCommandLine):
     _quiet_ = True
+    _description_ = textwrap.dedent("""\
+        Run all Enversion doctests.
+
+        Doctests are a convenient way to embed tests for simple/standalone
+        pieces of logic without needing the huge overhead of having to write
+        a formal unit test module.  This command will automatically find all
+        doctests within the Enversion source code and run them.
+    """)
 
 class UnittestCommandLine(AdminCommandLine):
     _quiet_ = True
-    _usage_ = '%prog [options] [unit-test-classname]'
+    _usage_ = '%prog [options] [unit-test-classname|test-file-name]'
+    _description_ = textwrap.dedent("""\
+        Helper command for running all or individual unit tests.
+
+        To run the entire unit test suite:
+            `evnadmin unittest`
+
+        To run all test case classes within the unit test file (note that file
+        is assumed to live in the evn/test directory):
+            `evnadmin unittest test_root_hints.py`
+
+        To run tests within a single test case class:
+            `evnadmin unittest TestManualBranchCreationRootHint`
+
+        To list available unit test case class names for use with that last
+        command, run `evnadmin list-unit-test-classnames`.  Note that this
+        will print the class names in fully qualified form but you only need
+        to specify the class name itself to this command, i.e. use this:
+
+            `evnadmin unittest TestManualBranchCreationRootHint`
+
+        Instead of:
+
+            `evnadmin unittest evn.test.test_root_hints.TestManualBranchCreationRootHint`
+    """)
+
 
 class SelftestCommandLine(AdminCommandLine):
     _quiet_ = True
-    _usage_ = UnittestCommandLine._usage_
+    _usage_ = '%prog [options]'
+    _description_ = textwrap.dedent("""\
+        Run all Enversion test commands.
+
+        This is a convenience command that runs `evnadmin doctest` and then
+        `evnadmin unittest`.
+    """)
 
 class ListUnitTestClassnamesCommandLine(AdminCommandLine):
-    pass
+    _description_ = textwrap.dedent("""\
+        List Enversion unit test class names.
+
+        See also: `evnadmin unittest --help`
+    """)
 
 class DumpDefaultConfigCommandLine(AdminCommandLine):
     pass
@@ -93,6 +138,9 @@ class ShowWritableRepoOverrideConfigFilenameCommandLine(AdminCommandLine):
 class DumpHookCodeCommandLine(AdminCommandLine):
     _conf_ = True
     _repo_ = True
+
+class ShowLibraryPathCommandLine(AdminCommandLine):
+    _conf_ = True
 
 class ShowRepoHookStatusCommandLine(AdminCommandLine):
     _conf_ = True
@@ -271,7 +319,7 @@ class CreateCommandLine(AdminCommandLine):
     _verbose_   = True
 
     _description_ = (
-"""
+"""\
 Create a new Enversion-enabled Subversion repository.
 
 Enversion can enforce two styles of repository layouts: single-component and
@@ -604,6 +652,43 @@ class AnalyzeCommandLine(AdminCommandLine):
     _conf_  = True
     _quiet_ = True
     _usage_ = '%prog [ options ] REPO_PATH'
+    _description_ = textwrap.dedent("""\
+        Analyzes a Subversion repository in preparation for having Enversion
+        enabled.
+
+        Analysis involves reviewing each commit and constructing evn:roots
+        entries for each revision.  Before Enversion can be enabled, an
+        evn:roots entry must be present on every revision property.
+
+        Enversion tracks the last revision analyzed in the revision 0 revprop
+        named evn:last_rev.  It will query this property when analyzing a repo
+        in order to pick up from the last analyzed revision.
+
+        If you need to analyze revision ranges, say as part of altering roots
+        via root hints and exclusions, use the analyze-revision-range command
+        instead.
+    """)
+
+class AnalyzeRevisionRangeCommandLine(AdminCommandLine):
+    _repo_  = True
+    _conf_  = True
+    _usage_ = '%prog [ options ] REPO_PATH'
+    _rev_range_ = True
+    _description_ = textwrap.dedent("""\
+        Analyzes a revision range of a Subversion repository.  This is
+        intended to be used in scenarios where you've manipulated roots
+        with the following commands and you want to verify that the correct
+        evn:roots entries were added/removed:
+            evnadmin add-root-hint
+            evnadmin remove-root-hint
+            evnadmin add-tags-basedir
+            evnadmin add-branches-basedir
+            evnadmin remove-tags-basedir
+            evnadmin remove-branches-basedir
+
+        This command will require the repository to be set to readonly as it
+        will affect evn:last_rev after each revision has been analyzed.
+    """)
 
 class ShowRootsCommandLine(AdminCommandLine):
     _rev_       = True
@@ -614,6 +699,12 @@ class ShowRootsCommandLine(AdminCommandLine):
 
 class ShowRevPropsCommandLine(AdminCommandLine):
     _rev_       = True
+    _repo_      = True
+    _conf_      = True
+    _quiet_     = True
+    _usage_     = '%prog [ options ] REPO_PATH'
+
+class ShowBaseRevPropsCommandLine(AdminCommandLine):
     _repo_      = True
     _conf_      = True
     _quiet_     = True
@@ -681,6 +772,458 @@ class UnsetRepoReadonlyCommandLine(AdminCommandLine):
     _repo_  = True
     _conf_  = True
     _usage_ = '%prog [ options ] REPO_PATH'
+
+def _process_parser_username(obj):
+    username = obj.options.username
+    if not username:
+        raise CommandError('-u/--username is mandatory')
+    obj.command.username = username
+
+class IsRepoAdminCommandLine(AdminCommandLine):
+    _repo_  = True
+    _conf_  = True
+    _usage_ = '%prog [ options ] REPO_PATH'
+    _description_ = textwrap.dedent("""\
+        Returns 'yes' if USERNAME is configured as a repository admin, 'no'
+        otherwise.
+
+        This is controlled by the configuration parameter 'repo_admins' and
+        can be set via `evnadmin add-repo-admin`.
+
+        Example:
+            % evnadmin add-repo-admin -u Trent foo
+            % evnadmin is-repo-admin -u Trent foo
+            yes
+    """)
+
+    def _add_parser_options(self):
+        self.parser.add_option(
+            '-u', '--username',
+            dest='username',
+            metavar='USERNAME',
+            default=None,
+            type='string',
+            help='username to check',
+        )
+
+    def _process_parser_results(self):
+        _process_parser_username(self)
+
+class AddRepoAdminCommandLine(AdminCommandLine):
+    _repo_  = True
+    _conf_  = True
+    _usage_ = '%prog [ options ] REPO_PATH'
+    _description_ = textwrap.dedent("""\
+        Adds USERNAME to the 'repo_admins' section of the per-repository
+        configuration file override if it is not already present.  If it is
+        already present, no action is taken.
+
+        Example:
+            % evnadmin add-repo-admin -u Trent foo
+            % evnadmin is-repo-admin -u Trent foo
+            yes
+    """)
+
+    def _add_parser_options(self):
+        self.parser.add_option(
+            '-u', '--username',
+            dest='username',
+            metavar='USERNAME',
+            type='string',
+            help='username to add',
+        )
+
+    def _process_parser_results(self):
+        _process_parser_username(self)
+
+class RemoveRepoAdminCommandLine(AdminCommandLine):
+    _repo_  = True
+    _conf_  = True
+    _usage_ = '%prog [ options ] REPO_PATH'
+    _description_ = textwrap.dedent("""\
+        Remove USERNAME from the 'repo_admins' section of the per-repository
+        configuration file override if it is present.  If it is not present,
+        no action is taken.
+
+        See also:
+            `evnadmin show-repo-admins`
+
+        Example:
+            % evnadmin add-repo-admin -u Trent foo
+            % evnadmin is-repo-admin -u Trent foo
+            yes
+            % evnadmin remove-repo-admin -u Trent foo
+            % evnadmin is-repo-admin -u Trent foo
+            no
+    """)
+
+    def _add_parser_options(self):
+        self.parser.add_option(
+            '-u', '--username',
+            dest='username',
+            metavar='USERNAME',
+            type='string',
+            help='username to remove',
+        )
+
+    def _process_parser_results(self):
+        _process_parser_username(self)
+
+class ShowRepoAdminsCommandLine(AdminCommandLine):
+    _repo_  = True
+    _conf_  = True
+    _usage_ = '%prog [ options ] REPO_PATH'
+    _description_ = textwrap.dedent("""\
+        Print the repository admins configured for a given repository.  The
+        format will be a CSV list sorted alphabetically.
+
+        This is a shortcut for `evnadmin dump-repo-config | grep repo_admins`.
+
+        See also:
+            `evnadmin show-repo-admins`
+
+        Example:
+            % evnadmin add-repo-admin -u trent foo
+            % evnadmin add-repo-admin -u dave foo
+            % evnadmin show-repo-admins foo
+            dave,trent
+    """)
+
+
+class AddRootHintCommandLine(AdminCommandLine):
+    _rev_   = True
+    _repo_  = True
+    _conf_  = True
+    _usage_ = '%prog -r REV -p PATH -t TYPE REPO_PATH'
+    _description_ = textwrap.dedent("""\
+        Add a root hint for a path of a given root type ('trunk', 'tag' or
+        'branch').  The path must have been created in the given revision,
+        either via mkdir or a copy of an existing path.
+
+        This command is used to provide hints to Enversion for when its
+        default root detection logic doesn't pick up that a new root is being
+        created.  This could be because the branch wasn't being created
+        properly (e.g. a directory called /branches/1.x/ was created manually
+        via mkdir, but it is still desirable for it to be a root), or because
+        the path represents a new 'trunk', but isn't named as such (e.g. the
+        FreeBSD project uses /head/ as their main 'trunk', so they would use
+        `evnadmin add-root-hint -p /head/ -r1 -t trunk freebsd` in order for
+        an evn:roots entry to be added whilst analyzing the repository).
+
+        The naming of this command as 'add root hint' versus simply 'add root'
+        is intentional -- it does not create evn:roots entries directly.  What
+        it does is provide Enversion with additional information about a path
+        when a repository is being analyzed that will result in a new root
+        being added as long as all other root invariants are met.  Thus, a
+        root hint is only that, a hint.  That being said, if, after analysis,
+        Enversion did not create an evn:roots entry, it means that there is
+        some condition preventing that root from existing as specified, such
+        as it being a sub-path of an existing root.  E.g. a root hint of
+        /trunk/foo/ would be ignored if a root already exists for /trunk/ at
+        the given revision.
+
+        The revision is required for two reasons:
+            1. Enversion verifies that the root hint was actually created in
+               some way in the given revision.  That is, it was either copied
+               or created manually.
+            2. Once verified, Enversion resets the evn:last_rev property on
+               revision 0 to match the revision that's been passed in, minus
+               1.  E.g. if `evnadmin add-root-hint -r 5 -p /head/ -t trunk`
+               was passed in, Enversion would verify that /head/ was indeed
+               created in revision 5, and then it would set evn:last_rev to
+               4 and display a message indicating it will pick up analysis
+               from that point once `evnadmin analyze ...` is run.
+
+        Because successfully setting a root hint will alter the repository's
+        evn:last_rev setting and require another run of `evnadmin analyze`,
+        there is a final constraint: the repository must be set to read-only
+        mode before root hints are added.  This is a precautionary measure
+        put in place to reduce the likelihood of inadvertently adding a root
+        hint to an active, production repository, and having its last_rev
+        reset and thus, require re-analysis.  Commits during this point would
+        be blocked with a "repository out of sync" error message.  If the
+        root hint is desired, then one can set a more meaningful error message
+        with `evnadmin set-repo-readonly` prior to adding the hint.  This also
+        allows multiple root hints (and branches base dirs and tags basedirs)
+        to be altered in one sitting, and then when complete, you only need to
+        run `evnadmin analyze` once.
+
+        Alternatively, for larger repositories where you need to perform a lot
+        of root manipulations, you can limit your analysis to a revision or
+        revision range via the `evnadmin analyze-revision-range` command.
+        If you use this approach, you will still need to run `evnadmin analyze`
+        again when finished in order to ensure all roots were propagated and
+        to update evn:last_rev.
+
+        Examples:
+
+            To set the repo readonly, add a hint, analyze, then unset readonly:
+                % evnadmin set-repo-readonly foo
+                % evnadmin add-root-hint -r 10 -p /base/ -t trunk foo
+                % evnadmin analyze foo
+                % evnadmin unset-repo-readonly foo
+
+            Add a root hint for /head/, of type trunk created in r1:
+                % evnadmin add-root-hint -r 1 -p /head/ -t trunk foo
+
+            Add a root hint for /release/1.0.24/, of type tag created in r500:
+                % evnadmin add-root-hint -r 500 -p /release/1.0.24/ -t tag foo
+
+            To view the root hints set on a repository foo:
+                % evnadmin show-rev-props -r0 foo
+
+        See also:
+            evnadmin remove-root-hint
+            evnadmin add-root-exclusion
+            evnadmin remove-root-exclusion
+            evnadmin add-tags-basedir
+            evnadmin add-branches-basedir
+            evnadmin remove-tags-basedir
+            evnadmin remove-branches-basedir
+            evnadmin analyze-revision-range
+            evnadmin set-repo-readonly
+    """)
+
+    def _add_parser_options(self):
+        self.parser.add_option(
+            '-p', '--path',
+            dest='path',
+            type='string',
+            help="path of directory to add root hint for (e.g. /head/)"
+        )
+
+        self.parser.add_option(
+            '-t', '--root-type',
+            dest='root_type',
+            metavar='ROOT_TYPE',
+            type='string',
+            default='trunk',
+            help=(
+                "type of root: 'trunk', 'tag', or 'branch' "
+                "[default: %default]"
+            ),
+        )
+
+    def _process_parser_results(self):
+        opts = self.options
+
+        if opts.root_type not in ('trunk', 'tag', 'branch'):
+            msg = (
+                "invalid root type %s, expected one of 'trunk', "
+                "'tag', or 'branch'" % opts.root_type
+            )
+            raise CommandError(msg)
+
+        self.command.root_type = opts.root_type
+        self.command.root_path = opts.path
+
+class RemoveRootHintCommandLine(AdminCommandLine):
+    _rev_   = True
+    _repo_  = True
+    _conf_  = True
+    _usage_ = '%prog [ options ] REPO_PATH'
+    _description_ = textwrap.dedent("""\
+        Remove a previously added root hint from a repository.
+
+        Note: this only removes the root hint from the evn:root_hints revision
+        property on revision 0 of the repository.  It does not remove anly
+        evn:roots that may have been created on account of this root hint, nor
+        will it do any re-analysis of the repository.
+
+        You can infer if roots were created because of this root hint via
+        `evnadmin srp -r <rev> <repo>`.  If you need to remove these roots as
+        well, after you've removed the root hint, you'll need to re-start
+        analysis from the affected revision.
+    """)
+
+    def _add_parser_options(self):
+        self.parser.add_option(
+            '-p', '--path',
+            dest='path',
+            type='string',
+            help="path of root hint to remove"
+        )
+
+    def _process_parser_results(self):
+        self.command.root_path = self.options.path
+
+class AddRootExclusionCommandLine(AdminCommandLine):
+    _rev_   = True
+    _repo_  = True
+    _conf_  = True
+    _usage_ = '%prog [ options ] REPO_PATH'
+    _description_ = textwrap.dedent("""\
+        Add a root exclusion to the repository.  A root exclusion tells
+        Enversion not to treat this path as a root when it otherwise would
+        have.  It is essentially the inverse of a root hint.
+
+        Exclusions are treated as regular expressions, however, in most cases,
+        simply specifying the prefix of the path you want to exclude will be
+        sufficient.
+
+        For example, let's say a user mistakenly created one or more roots
+        under a path in the repository called /other/, e.g.:
+            /other/trunk/
+            /other/branches/1.x/
+            /other/tags/1.0/
+
+        In order to exclude those paths, you would add /other/ as an exclusion
+        as follows:
+            % evnadmin add-root-exclusions -e /other/ foo
+
+        The other expressions that would have also worked:
+            ^/oth
+            .*other/.*
+            /[abcdo]{1,1}the.*
+
+        However, as it does not start with a '/', this would not work:
+            other
+
+        (Note that these are pulled directly from the tests in
+         test_root_hints.py that end with '...RootExclusionRegex[1-4]';
+         see the `evnadmin show-library-path` to find out where that file
+         lives to review in more detail.)
+
+        Thus, if you wish to match a path "starting with" a certain prefix,
+        ensure your exclusion always includes the starting '/' slash.  If
+        you're attempting to match a suffix path, you'll need to use a greedy
+        glob like .* at the start of the exclusion.
+
+        Unlike root hints, you don't specify a revision when adding an
+        exclusion.  This is because when you want to exclude something from
+        being a root, you *always* want to exclude it.  If you need to add an
+        exclusion for a single commit only, you will need to make use of the
+        `evnadmin analyze-revision-range` command to bring the repository up
+        to the revision *before* the commit occurs, then add the exclusion,
+        then `evnadmin analyze-revision-range` against the single commit's
+        revision, then remove the exclusion, then `evnadmin analyze` to
+        finish.
+    """)
+
+    def _add_parser_options(self):
+        self.parser.add_option(
+            '-e', '--root-exclusion',
+            dest='root_exclusion',
+            type='string',
+            help="root to exclude"
+        )
+
+    def _process_parser_results(self):
+        self.command.root_exclusion = self.options.root_exclusion
+
+class RemoveRootExclusionCommandLine(AdminCommandLine):
+    _rev_   = True
+    _repo_  = True
+    _conf_  = True
+    _usage_ = '%prog [ options ] REPO_PATH'
+    _description_ = textwrap.dedent("""\
+        Remove an existing root exclusion from the repository.
+    """)
+
+    def _add_parser_options(self):
+        self.parser.add_option(
+            '-e', '--root-exclusion',
+            dest='root_exclusion',
+            type='string',
+            help="existing root exclusion"
+        )
+
+    def _process_parser_results(self):
+        self.command.root_exclusion = self.options.root_exclusion
+
+class AddBranchesBasedirCommandLine(AdminCommandLine):
+    _repo_  = True
+    _conf_  = True
+    _usage_ = '%prog [ options ] REPO_PATH'
+    _description_ = textwrap.dedent("""\
+        Add a branches base directory hint to the repository.
+
+        This instructs Enversion to treat paths rooted in this directory as if
+        they were rooted in a /branches/ directory.
+    """)
+
+    def _add_parser_options(self):
+        self.parser.add_option(
+            '-b', '--basedir',
+            dest='basedir',
+            type='string',
+            help=(
+                "path representing the branches base directory "
+                "(e.g.  /stable/)"
+            )
+        )
+
+    def _process_parser_results(self):
+        self.command.branches_basedir = self.options.basedir
+
+class RemoveBranchesBasedirCommandLine(AdminCommandLine):
+    _repo_  = True
+    _conf_  = True
+    _usage_ = '%prog [ options ] REPO_PATH'
+    _description_ = textwrap.dedent("""\
+        Remove a previously added branches base directory from the repository.
+
+        This will not affect existing roots nor will it re-analyze the
+        repository.
+    """)
+
+    def _add_parser_options(self):
+        self.parser.add_option(
+            '-b', '--basedir',
+            dest='basedir',
+            type='string',
+            help=(
+                "path representing the branches base directory "
+                "(e.g.  /stable/)"
+            )
+        )
+
+    def _process_parser_results(self):
+        self.command.branches_basedir = self.options.basedir
+
+class AddTagsBasedirCommandLine(AdminCommandLine):
+    _repo_  = True
+    _conf_  = True
+    _usage_ = '%prog [ options ] REPO_PATH'
+    _description_ = textwrap.dedent("""\
+        Add a tags base directory hint to the repository.
+
+        This instructs Enversion to treat paths rooted in this directory as if
+        they were rooted in a /tags/ directory.
+    """)
+
+    def _add_parser_options(self):
+        self.parser.add_option(
+            '-b', '--basedir',
+            dest='basedir',
+            type='string',
+            help="path representing the tags base directory (e.g. /releng/)"
+        )
+
+    def _process_parser_results(self):
+        self.command.tags_basedir = self.options.basedir
+
+class RemoveTagsBasedirCommandLine(AdminCommandLine):
+    _repo_  = True
+    _conf_  = True
+    _usage_ = '%prog [ options ] REPO_PATH'
+    _description_ = textwrap.dedent("""\
+        Remove a previously added tags base directory from the repository.
+
+        This will not affect existing roots nor will it re-analyze the
+        repository.
+    """)
+
+    def _add_parser_options(self):
+        self.parser.add_option(
+            '-b', '--basedir',
+            dest='basedir',
+            type='string',
+            help="path representing the tags base directory (e.g. /releng/)"
+        )
+
+    def _process_parser_results(self):
+        self.command.tags_basedir = self.options.basedir
 
 #=============================================================================#
 # Main                                                                        #

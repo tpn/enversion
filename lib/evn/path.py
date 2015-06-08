@@ -371,12 +371,19 @@ class PathMatcher(object):
 
         self.singular_to_plural = dict()
         self.plural_to_singular = dict()
+        self.plural_to_basedir = dict()
+        self.plural_to_hint = dict()
+        self.excluded_paths = set()
+        self.excluded_pattern = ''
+        self.excluded_regex = None
 
         data = zip(self.singular, self.plural, self.match, self.ending)
         for (singular, plural, match, ending) in data:
             setattr(self, plural, [])
             self.singular_to_plural[singular] = plural
             self.plural_to_singular[plural] = singular
+            self.plural_to_basedir[plural] = []
+            self.plural_to_hint[plural] = []
             p = '.+?%s/' % match
             if ending:
                 p += ending
@@ -404,11 +411,131 @@ class PathMatcher(object):
             self.__dict__.setdefault(f + '_methods', []).append(n)
             setattr(self, n, _method_wrapper(s=self, p=p, n=n, f=f))
 
+    def add_path(self, path, singular):
+        """
+        >>> pm = PathMatcher()
+        >>> pm.add_path('/head/', 'trunk')
+        >>> pm.get_root_details_tuple('/head/')
+        ('/head/', 'trunk', 'head')
+        >>> pm.get_root_details_tuple('/head/head')
+        ('/head/', 'trunk', 'head')
+        >>> pm.get_root_details_tuple('/head/src/trunk/branches/foo/')
+        ('/head/', 'trunk', 'head')
+        >>> pm.get_root_details_tuple('/head/foo.txt')
+        ('/head/', 'trunk', 'head')
+
+        >>> pm = PathMatcher()
+        >>> pm.add_path('/releng/10.1/', 'tag')
+        >>> pm.get_root_details_tuple('/releng/10.1/')
+        ('/releng/10.1/', 'tag', '10.1')
+        >>> pm.is_tag('/releng/10.1/')
+        True
+        """
+        assert path
+        assert path[0] == '/' and path[-1] == '/', path
+        assert len(path) >= 3, path
+        assert singular in ('trunk', 'tag', 'branch')
+        plural = self.singular_to_plural[singular]
+        assert plural in self.plural_to_hint
+        self.plural_to_hint[plural].append(path)
+        getattr(self, plural).append(path)
+
+    def add_trunk(self, path):
+        self.add_path(path, 'trunk')
+
+    def add_branch(self, path):
+        self.add_path(path, 'branch')
+
+    def add_tag(self, path):
+        self.add_path(path, 'tag')
+
+    def add_basedir(self, path, plural):
+        """
+        >>> pm = PathMatcher()
+        >>> pm.add_branches_basedir('/stable/')
+        >>> pm.get_root_details_tuple('/stable/10/')
+        ('/stable/10/', 'branch', '10')
+        >>> pm.get_root_details_tuple('/stable/stable/')
+        ('/stable/stable/', 'branch', 'stable')
+        >>> pm.get_root_details_tuple('/stable/stable')
+        >>>
+        >>> pm.get_root_details_tuple('/stable/10/src/trunk/branches/foo/')
+        ('/stable/10/', 'branch', '10')
+        >>> pm.get_root_details_tuple('/stable/10/foo.txt')
+        ('/stable/10/', 'branch', '10')
+        >>> pm.is_branch('/stable/10/')
+        True
+
+        >>> pm.add_tags_basedir('/releng/')
+        >>> pm.get_root_details_tuple('/releng/10.1/')
+        ('/releng/10.1/', 'tag', '10.1')
+        >>> pm.get_root_details_tuple('/releng/releng/')
+        ('/releng/releng/', 'tag', 'releng')
+        >>> pm.get_root_details_tuple('/releng/releng')
+        >>>
+        >>> pm.get_root_details_tuple('/releng/10.1/src/trunk/tags/foo/')
+        ('/releng/10.1/', 'tag', '10.1')
+        >>> pm.get_root_details_tuple('/releng/10.1/foo.txt')
+        ('/releng/10.1/', 'tag', '10.1')
+        >>> pm.is_tag('/releng/10.1/')
+        True
+        """
+        assert path
+        assert path[0] == '/' and path[-1] == '/', path
+        assert len(path) >= 3, path
+        assert plural in ('tags', 'branches'), plural
+        assert plural in self.plural_to_basedir, plural
+        self.plural_to_basedir[plural].append(path)
+        pattern = path + '([^/]+)/'
+        getattr(self, plural).append(pattern)
+
+    def add_branches_basedir(self, path):
+        self.add_basedir(path, 'branches')
+
+    def add_tags_basedir(self, path):
+        self.add_basedir(path, 'tags')
+
+    def add_exclusions(self, paths):
+        """
+        >>> pm = PathMatcher()
+        >>> pm.get_root_dir('/src/trunk/')
+        '/src/trunk/'
+        >>> pm.get_root_dir('/src/trunk/foo.txt')
+        '/src/trunk/'
+        >>> pm.add_exclusions(['/src/trunk/'])
+        >>> pm.get_root_dir('/src/trunk/')
+        >>>
+        >>> pm.get_root_dir('/src/trunk/foo.txt')
+        >>>
+        >>> pm = PathMatcher()
+        >>> exclusions = ['/foo/trunk/', '/branches/1.0.x/']
+        >>> pm.add_exclusions(exclusions)
+        >>> pm.get_root_dir('/src/trunk/foo.txt')
+        '/src/trunk/'
+        >>> pm.get_root_dir('/foo/trunk/')
+        >>>
+        >>> pm.get_root_dir('/branches/1.0.x/')
+        >>>
+        >>> pm.get_root_dir('/branches/1.0.x/foo.txt')
+        >>>
+        """
+        for path in paths:
+            self.excluded_paths.add(path)
+        pattern = '^(%s)' % '|'.join(self.excluded_paths)
+        self.excluded_pattern = pattern
+        self.excluded_regex = re.compile(pattern)
+
+    def is_excluded(self, path):
+        if self.excluded_paths and self.excluded_regex.match(path):
+            return True
+        else:
+            return False
+
     def _get_xxx(self, path, xxx):
         assert isinstance(path, str)
         for pattern in getattr(self, xxx):
             found = re.findall(pattern + '$', path)
-            if found:
+            if found and not self.is_excluded(path):
                 return found
 
     def _is_xxx(self, path, xxx):
@@ -418,7 +545,7 @@ class PathMatcher(object):
         assert isinstance(path, str)
         for pattern in getattr(self, xxx):
             found = re.findall(pattern, path)
-            if found:
+            if found and not self.is_excluded(path):
                 return found
 
     def _is_xxx_path(self, path, xxx):
@@ -430,7 +557,7 @@ class PathMatcher(object):
         for pattern in getattr(self, xxx):
             for path in paths:
                 m = re.search(pattern, path)
-                if m:
+                if m and not self.is_excluded(path):
                     f.setdefault('/'.join(m.groups()), []).append(m.group(0))
         return f
 
@@ -494,6 +621,9 @@ class PathMatcher(object):
         '/tags/trunk/'
         >>> pm.get_root_dir('/tags/trunk/foo')
         '/tags/trunk/'
+        >>> pm.add_path('/branches/1.x/', 'branch')
+        >>> pm.get_root_dir('/branches/1.x/')
+        '/branches/1.x/'
         >>>
         """
         assert isinstance(path, str)
@@ -507,25 +637,32 @@ class PathMatcher(object):
             ]
             for pattern in patterns:
                 match = re.search(pattern, path)
-                if match:
+                if match and not self.is_excluded(path):
                     groups = match.groups()
-                    assert len(groups) in (1, 2)
+                    assert len(groups) in (1, 2), groups
                     r = groups[0]
                     l = len(r)
                     if root is None:
                         root = r
                         min_root_length = l
                     else:
+                        if r == root:
+                            # If root hints are being used, we could get
+                            # multiple hits for the same path, e.g.
+                            # /branches/1.x/ would be hit by the normal
+                            # /branches/ detection and the root hint logic if
+                            # there was a /branches/1.x/ hint added.
+                            continue
                         # The only way we could possibly have multiple matches
                         # with the exact same length for the root path is for
                         # paths like '/branches/trunk/' or '/tags/trunk/'.
                         if l == min_root_length:
-                            assert r.endswith('trunk/')
+                            assert r.endswith('trunk/'), (r, l, min_root_length)
                         elif l < min_root_length:
                             root = r
                             min_root_length = l
                         else:
-                            assert l > min_root_length
+                            assert l > min_root_length, (l, min_root_length)
 
         return root
 
@@ -577,6 +714,7 @@ class PathMatcher(object):
         for method_name in self._get_xxx_methods:
             match = getattr(self, method_name)(root_dir)
             if match:
+                assert not self.is_excluded(root_dir), (method_name, root_dir)
                 if found:
                     # Yet more hackery to support crap like /branches/trunk/
                     # and /tags/trunk/.  We're relying on the fact that the
