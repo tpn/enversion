@@ -1117,6 +1117,12 @@ class AddRootHintCommand(RepositoryRevisionCommand):
 
         rc0 = self.r0_revprop_conf
 
+        if not rc0.get('readonly'):
+            msg = (
+                "repo is not set readonly; (see `evnadmin set-repo-readonly`)"
+            )
+            raise CommandError(msg)
+
         if not rc0.get('root_hints'):
             rc0.root_hints = {}
 
@@ -1193,15 +1199,31 @@ class AddRootHintCommand(RepositoryRevisionCommand):
         self._out(msg)
 
         last_rev = rev-1
-        rc0.last_rev = last_rev
-        msg = (
-            'Reset last rev to %d; run `evnadmin analyze %s` when ready to '
-            'restart analysis from revision %d.' % (
-                rev,
-                repo_name,
-                rev,
+        if rc0.last_rev <= last_rev:
+            msg = (
+                'evn:last_rev (%d) is already set less than or equal to the '
+                'new would-be evn:last_rev (%d) based on the revision used '
+                'for this root hint (%d); run `evnadmin analyze %s` when '
+                'ready to restart analysis from revision %d.' % (
+                    rc0.last_rev,
+                    last_rev,
+                    rev,
+                    repo_name,
+                    rc0.last_rev,
+                )
             )
-        )
+        else:
+            rc0.last_rev = last_rev
+            msg = (
+                'evn:last_rev has been reset from %d to %d; '
+                'run `evnadmin analyze %s` when ready to '
+                'restart analysis from revision %d.' % (
+                    rev,
+                    last_rev,
+                    repo_name,
+                    last_rev,
+                )
+            )
         self._out(msg)
 
 class RemoveRootHintCommand(RepositoryRevisionCommand):

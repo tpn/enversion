@@ -63,6 +63,19 @@ class TestRootHints(EnversionTest, unittest.TestCase):
         svn.mkdir(repo.ra('/head/'), m='Create head')
 
         dot()
+        error = 'repo is not set readonly'
+        with ensure_fails(self, error):
+            evnadmin.add_root_hint(
+                repo.name,
+                path='/head/',
+                revision='1',
+                root_type='trunk',
+            )
+
+        dot()
+        evnadmin.set_repo_readonly(repo.name)
+
+        dot()
         evnadmin.add_root_hint(
             repo.name,
             path='/head/',
@@ -92,6 +105,9 @@ class TestRootHints(EnversionTest, unittest.TestCase):
             }
         }
         self.assertEqual(repo.roots, roots_r1_expected)
+
+        dot()
+        evnadmin.unset_repo_readonly(repo.name)
 
         dot()
         svn.mkdir(repo.ra('/stable/'), m='mkdir')
@@ -216,6 +232,9 @@ class TestRootHints(EnversionTest, unittest.TestCase):
         )
 
         dot()
+        evnadmin.set_repo_readonly(repo.name)
+
+        dot()
         args = ('/stable/3-broken/', 5)
         error = 'no such path %s in revision %d' % args
         with ensure_fails(self, error):
@@ -250,6 +269,9 @@ class TestRootHints(EnversionTest, unittest.TestCase):
             repo.name,
             root_exclusion='/releng/3-take2/',
         )
+
+        dot()
+        evnadmin.unset_repo_readonly(repo.name)
 
         dot()
         evnadmin.enable(repo.name)
@@ -349,12 +371,16 @@ class TestManualBranchCreationRootHint(EnversionTest, unittest.TestCase):
         self.assertEqual(repo.revprops_at(2)['evn'], evn_props_r2_expected)
 
         dot()
+        evnadmin.set_repo_readonly(repo.name)
+        dot()
         evnadmin.add_root_hint(
             repo.name,
             path='/branches/1.x/',
             revision='2',
             root_type='branch',
         )
+        dot()
+        evnadmin.unset_repo_readonly(repo.name)
         evnadmin.analyze(repo.name)
 
         dot()
@@ -398,6 +424,9 @@ class TestManualTagCreationRootHint(EnversionTest, unittest.TestCase):
         self.assertEqual(repo.revprops_at(2)['evn'], evn_props_r2_expected)
 
         dot()
+        evnadmin.set_repo_readonly(repo.name)
+
+        dot()
         evnadmin.add_root_hint(
             repo.name,
             path='/tags/1.x/',
@@ -405,6 +434,9 @@ class TestManualTagCreationRootHint(EnversionTest, unittest.TestCase):
             root_type='tag',
         )
         evnadmin.analyze(repo.name)
+
+        dot()
+        evnadmin.unset_repo_readonly(repo.name)
 
         dot()
         evn_props_r2_expected = {
@@ -464,12 +496,18 @@ class TestUnknownCopiedToValidRootViaHint(EnversionTest, unittest.TestCase):
         self.assertEqual(repo.roots_at(3), {})
 
         dot()
+        evnadmin.set_repo_readonly(repo.name)
+
+        dot()
         evnadmin.add_root_hint(
             repo.name,
             path='/dev/foo/',
             revision='3',
             root_type='branch',
         )
+
+        dot()
+        evnadmin.unset_repo_readonly(repo.name)
 
         dot()
         evnadmin.analyze(repo.name)
@@ -498,12 +536,18 @@ class TestUnknownRenamedToValidRootViaHint(EnversionTest, unittest.TestCase):
         self.assertEqual(repo.roots_at(3), {})
 
         dot()
+        evnadmin.set_repo_readonly(repo.name)
+
+        dot()
         evnadmin.add_root_hint(
             repo.name,
             path='/dev/foo/',
             revision='3',
             root_type='branch',
         )
+
+        dot()
+        evnadmin.set_repo_readonly(repo.name)
 
         dot()
         evnadmin.analyze(repo.name)
@@ -555,6 +599,9 @@ class TestKnownRootSubtreeCopiedToValidRootViaHint(EnversionTest,
         self.assertEqual(repo.revprops_at(3)['evn'], evn_props_r3_expected)
 
         dot()
+        evnadmin.set_repo_readonly(repo.name)
+
+        dot()
         evnadmin.add_root_hint(
             repo.name,
             path='/branches/foo/',
@@ -562,6 +609,9 @@ class TestKnownRootSubtreeCopiedToValidRootViaHint(EnversionTest,
             root_type='branch',
         )
         evnadmin.enable(repo.name)
+
+        dot()
+        evnadmin.unset_repo_readonly(repo.name)
 
         dot()
         evn_props_r3_expected = {
@@ -615,6 +665,9 @@ class TestKnownRootSubtreeRenamedToValidRootViaHint(EnversionTest,
         self.assertEqual(repo.revprops_at(3)['evn'], evn_props_r3_expected)
 
         dot()
+        evnadmin.set_repo_readonly(repo.name)
+
+        dot()
         evnadmin.add_root_hint(
             repo.name,
             path='/branches/foo/',
@@ -622,6 +675,9 @@ class TestKnownRootSubtreeRenamedToValidRootViaHint(EnversionTest,
             root_type='branch',
         )
         evnadmin.enable(repo.name)
+
+        dot()
+        evnadmin.unset_repo_readonly(repo.name)
 
         dot()
         evn_props_r3_expected = {
@@ -680,6 +736,9 @@ class TestValidRootCopiedToValidRootViaHint(EnversionTest,
         self.assertEqual(repo.revprops_at(3)['evn'], evn_props_r3_expected)
 
         dot()
+        evnadmin.set_repo_readonly(repo.name)
+
+        dot()
         evnadmin.add_root_hint(
             repo.name,
             path='/branches/bar/',
@@ -687,6 +746,9 @@ class TestValidRootCopiedToValidRootViaHint(EnversionTest,
             root_type='branch',
         )
         evnadmin.enable(repo.name)
+
+        dot()
+        evnadmin.unset_repo_readonly(repo.name)
 
         dot()
         evn_props_r3_expected = {
@@ -745,6 +807,9 @@ class TestValidRootRenamedToValidRootViaHint(EnversionTest,
         self.assertEqual(repo.revprops_at(3)['evn'], evn_props_r3_expected)
 
         dot()
+        evnadmin.set_repo_readonly(repo.name)
+
+        dot()
         evnadmin.add_root_hint(
             repo.name,
             path='/branches/bar/',
@@ -752,6 +817,9 @@ class TestValidRootRenamedToValidRootViaHint(EnversionTest,
             root_type='branch',
         )
         evnadmin.enable(repo.name)
+
+        dot()
+        evnadmin.unset_repo_readonly(repo.name)
 
         dot()
         evn_props_r3_expected = {
@@ -810,6 +878,9 @@ class TestValidRootSubtreeCopiedToValidRootViaHint(EnversionTest,
         self.assertEqual(repo.revprops_at(3)['evn'], evn_props_r3_expected)
 
         dot()
+        evnadmin.set_repo_readonly(repo.name)
+
+        dot()
         evnadmin.add_root_hint(
             repo.name,
             path='/branches/bar/',
@@ -817,6 +888,9 @@ class TestValidRootSubtreeCopiedToValidRootViaHint(EnversionTest,
             root_type='branch',
         )
         evnadmin.enable(repo.name)
+
+        dot()
+        evnadmin.unset_repo_readonly(repo.name)
 
         dot()
         evn_props_r3_expected = {
@@ -875,6 +949,9 @@ class TestValidRootSubtreeRenamedToValidRootViaHint(EnversionTest,
         self.assertEqual(repo.revprops_at(3)['evn'], evn_props_r3_expected)
 
         dot()
+        evnadmin.set_repo_readonly(repo.name)
+
+        dot()
         evnadmin.add_root_hint(
             repo.name,
             path='/branches/bar/',
@@ -882,6 +959,9 @@ class TestValidRootSubtreeRenamedToValidRootViaHint(EnversionTest,
             root_type='branch',
         )
         evnadmin.enable(repo.name)
+
+        dot()
+        evnadmin.unset_repo_readonly(repo.name)
 
         dot()
         evn_props_r3_expected = {
