@@ -1414,4 +1414,11 @@ class RemoveTagsBasedirCommand(RepositoryCommand):
         msg = "Removed tags basedir %s from %s."
         self._out(msg % (tags_basedir, self.conf.repo_name))
 
+class UpgradeCommand(RepositoryCommand):
+    @requires_context
+    def run(self):
+        RepositoryCommand.run(self)
+
+        raise CommandError('not implemented yet')
+
 # vim:set ts=8 sw=4 sts=4 tw=78 et:

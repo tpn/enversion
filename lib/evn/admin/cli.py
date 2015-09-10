@@ -1225,6 +1225,19 @@ class RemoveTagsBasedirCommandLine(AdminCommandLine):
     def _process_parser_results(self):
         self.command.tags_basedir = self.options.basedir
 
+class UpgradeCommandLine(AdminCommandLine):
+    _repo_ = True
+    _conf_ = True
+    _usage_ = '%prog [ options ] REPO_PATH'
+    _description_ = textwrap.dedent("""\
+        Upgrade a repository from version 1 to version 2.
+
+        This only affects Enversion metadata.  The Subversion part of the
+        repository is not affected.  This command is written to be as safe
+        and as sensible as possible; re-running it against already-upgraded
+        or half-upgraded repositories will Do The Right Thing.
+    """)
+
 #=============================================================================#
 # Main                                                                        #
 #=============================================================================#
